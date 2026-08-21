@@ -3887,18 +3887,49 @@
             // Push to sales
             const pushBtn = document.getElementById('rapPushToSalesBtn');
             if (pushBtn) {
-                pushBtn.addEventListener('click', function() {
-                    // Apply harga beli if available
-                    try {
-                        const priceMap = {};
-                        if (typeof priceRows !== 'undefined' && priceRows.length) {
-                            priceRows.forEach(r => { priceMap[String(r.Produk).trim().toUpperCase()] = r
-                                .HargaBeli; });
-                            if (window.__rapApplyHargaBeliToSales) window.__rapApplyHargaBeliToSales(
-                            priceMap);
+                pushBtn.addEventListener('click', async function() {
+                    const statusEl = document.getElementById('rapStatusMsg');
+                    const setPushStatus = (msg, cls) => {
+                        if (statusEl) {
+                            statusEl.textContent = msg;
+                            statusEl.className = 'status-msg' + (cls ? ' ' + cls : '');
                         }
-                    } catch (e) { console.warn(e); }
-                    if (window.__rapPushToSales) window.__rapPushToSales();
+                    };
+                    pushBtn.disabled = true;
+                    const oldText = pushBtn.textContent;
+                    pushBtn.textContent = '⏳ Memasukkan…';
+                    try {
+                        // Apply harga beli if available
+                        try {
+                            const priceMap = {};
+                            if (typeof priceRows !== 'undefined' && priceRows.length) {
+                                priceRows.forEach(r => {
+                                    priceMap[String(r.Produk).trim().toUpperCase()] = r.HargaBeli;
+                                });
+                                if (window.__rapApplyHargaBeliToSales) window.__rapApplyHargaBeliToSales(priceMap);
+                            }
+                        } catch (e) { console.warn(e); }
+                        if (!window.__rapPushToSales) {
+                            setPushStatus('Fungsi push tidak tersedia. Refresh halaman.', 'err');
+                            alert('Fungsi push tidak tersedia. Refresh halaman (Ctrl+Shift+R).');
+                            return;
+                        }
+                        await window.__rapPushToSales();
+                    } catch (err) {
+                        console.error('[Push ke Penjualan]', err);
+                        const msg = 'Gagal memasukkan ke Data Penjualan: ' + (err && err.message ? err.message : err);
+                        setPushStatus(msg, 'err');
+                        alert(msg);
+                    } finally {
+                        pushBtn.textContent = oldText;
+                        // enable kembali jika ada data
+                        try {
+                            const rows = (window.__rapGetCleanRows && window.__rapGetCleanRows()) || window.cleanRows || [];
+                            pushBtn.disabled = !rows.length;
+                        } catch (e) {
+                            pushBtn.disabled = false;
+                        }
+                    }
                 });
             }
 
@@ -3913,66 +3944,128 @@
 
         // ---- Bridge push to sales ----
         window.__rapPushToSales = async function() {
-            const cleanRows = window.cleanRows;
+            const statusEl = document.getElementById('rapStatusMsg');
+            const setPushStatus = (msg, cls) => {
+                if (statusEl) {
+                    statusEl.textContent = msg;
+                    statusEl.className = 'status-msg' + (cls ? ' ' + cls : '');
+                }
+            };
+
+            const cleanRows = (window.__rapGetCleanRows && window.__rapGetCleanRows()) || window.cleanRows;
             if (!cleanRows || !cleanRows.length) {
-                alert('Belum ada data penjualan yang dirapikan. Upload & PROSES dulu di bagian atas.');
-                return;
+                const msg = 'Belum ada data penjualan yang dirapikan. Upload & PROSES dulu di bagian atas.';
+                setPushStatus(msg, 'err');
+                alert(msg);
+                return 0;
             }
-            const key = r => r.noFaktur + '|' + r.produk + '|' + r.jumlah + '|' + r.total + '|' + r.sheet;
-            const batchKeys = new Set(); // dedup dalam batch saja; DB jaga unique via dedupKey
-            let added = 0;
+
+            setPushStatus('Menyiapkan ' + cleanRows.length.toLocaleString('id-ID') + ' baris…', '');
+
+            const batchKeys = new Set();
             const newRows = [];
-            cleanRows.forEach(r => {
-                const tgl = r.Tanggal instanceof Date ? r.Tanggal : (r.Tanggal ? new Date(r.Tanggal) : null);
-                const tanggalStr = tgl ? formatDate(tgl) : '';
-                const noFakturVal = String(r['No.Faktur'] || '').trim();
-                const produkVal = String(r.Produk || '').trim();
-                if (!noFakturVal || !produkVal) return;
+            let skippedEmpty = 0;
+
+            for (let i = 0; i < cleanRows.length; i++) {
+                const r = cleanRows[i];
+                // Tanggal: Date | string | Excel serial
+                let tgl = null;
+                if (r.Tanggal instanceof Date && !isNaN(r.Tanggal)) {
+                    tgl = r.Tanggal;
+                } else if (r.Tanggal != null && r.Tanggal !== '') {
+                    tgl = (typeof parseSalesDate === 'function') ? parseSalesDate(r.Tanggal) : new Date(r.Tanggal);
+                    if (tgl && isNaN(tgl)) tgl = null;
+                }
+                const tanggalStr = tgl && typeof formatDate === 'function' ? formatDate(tgl) : (tgl ? (
+                    String(tgl.getDate()).padStart(2, '0') + '/' +
+                    String(tgl.getMonth() + 1).padStart(2, '0') + '/' +
+                    tgl.getFullYear()
+                ) : '');
+
+                const noFakturVal = String(r['No.Faktur'] || r.noFaktur || '').trim();
+                const produkVal = String(r.Produk || r.produk || '').trim();
+                if (!noFakturVal || !produkVal) {
+                    skippedEmpty++;
+                    continue;
+                }
+
                 const row = {
                     sheet: 'Rapikan',
                     tanggal: tanggalStr,
-                    month: tgl ? monthNameFromDate(tgl) : 'Lainnya',
+                    month: (tgl && typeof monthNameFromDate === 'function') ? monthNameFromDate(tgl) : 'Lainnya',
                     noFaktur: noFakturVal,
                     produk: produkVal,
-                    jumlah: r.Jumlah != null ? Number(r.Jumlah) : 0,
-                    satuan: String(r.Satuan || ''),
-                    hargaJual: r['Harga Jual'] != null ? Number(r['Harga Jual']) : 0,
-                    disc: r.Disc != null ? Number(r.Disc) : 0,
-                    total: r.Total != null ? Number(r.Total) : 0,
-                    sales: String(r.Sales || ''),
-                    customer: String(r.Customer || ''),
-                    alamat: String(r.Alamat || ''),
-                    pembayaran: String(r.Pembayaran || ''),
-                    hargaBeli: r['Harga Beli'] != null ? Number(r['Harga Beli']) : 0,
-                    _q: (noFakturVal + ' ' + produkVal + ' ' + (r.Customer || '') + ' ' + (r.Sales || '') + ' ' +
-                        (r.Alamat || '')).toLowerCase()
+                    jumlah: r.Jumlah != null ? Number(r.Jumlah) : (r.jumlah != null ? Number(r.jumlah) : 0),
+                    satuan: String(r.Satuan || r.satuan || ''),
+                    hargaJual: r['Harga Jual'] != null ? Number(r['Harga Jual']) : (r.hargaJual != null ? Number(r.hargaJual) : 0),
+                    disc: r.Disc != null ? Number(r.Disc) : (r.disc != null ? Number(r.disc) : 0),
+                    total: r.Total != null ? Number(r.Total) : (r.total != null ? Number(r.total) : 0),
+                    sales: String(r.Sales || r.sales || ''),
+                    customer: String(r.Customer || r.customer || ''),
+                    alamat: String(r.Alamat || r.alamat || ''),
+                    pembayaran: String(r.Pembayaran || r.pembayaran || ''),
+                    hargaBeli: r['Harga Beli'] != null ? Number(r['Harga Beli']) : (r.hargaBeli != null ? Number(r.hargaBeli) : 0)
                 };
-                const k = key(row);
+                row._q = (row.noFaktur + ' ' + row.produk + ' ' + row.customer + ' ' + row.sales + ' ' + row.alamat).toLowerCase();
+
+                const k = row.noFaktur + '|' + row.produk + '|' + row.jumlah + '|' + row.total + '|' + row.sheet;
                 if (!batchKeys.has(k)) {
                     batchKeys.add(k);
                     newRows.push(row);
-                    added++;
                 }
-            });
-            if (added === 0) {
-                alert('Tidak ada baris baru yang bisa ditambahkan.');
-                return;
             }
-            const realAdded = await bulkAddSalesRows(newRows);
+
+            if (!newRows.length) {
+                const msg = 'Tidak ada baris valid untuk dimasukkan' +
+                    (skippedEmpty ? ' (' + skippedEmpty + ' baris tanpa faktur/produk).' : '.');
+                setPushStatus(msg, 'err');
+                alert(msg);
+                return 0;
+            }
+
+            setPushStatus('Menyimpan ' + newRows.length.toLocaleString('id-ID') + ' baris ke database…', '');
+
+            let realAdded = 0;
+            try {
+                realAdded = await bulkAddSalesRows(newRows);
+            } catch (err) {
+                console.error(err);
+                const msg = 'Gagal menyimpan ke database: ' + (err && err.message ? err.message : err);
+                setPushStatus(msg, 'err');
+                alert(msg);
+                throw err;
+            }
+
             if (realAdded === 0) {
-                alert('Tidak ada baris baru (semua sudah ada di Data Penjualan).');
-                return;
+                const msg = 'Tidak ada baris baru (semua ' + newRows.length.toLocaleString('id-ID') +
+                    ' baris sudah ada di Data Penjualan).';
+                setPushStatus(msg, 'err');
+                alert(msg);
+                return 0;
             }
-            await populateSalesFilters();
-            await doSalesSearch();
-            document.getElementById('salesEmptyState').style.display = 'none';
-            document.getElementById('salesSearchBar').classList.add('show');
-            document.getElementById('salesFileName').textContent = 'Data tersimpan (' + salesTotalCount.toLocaleString(
-                'id-ID') + ' baris)';
-            document.getElementById('clearSalesBtn').style.display = 'block';
-            alert('Berhasil memasukkan ' + realAdded + ' baris baru ke Data Penjualan (total ' + salesTotalCount
-                .toLocaleString('id-ID') + ' baris).\nBuka tab Data Penjualan untuk melihat.');
+
+            try {
+                await populateSalesFilters();
+                await doSalesSearch();
+            } catch (e) {
+                console.warn('Refresh tampilan penjualan:', e);
+            }
+
+            const emptyEl = document.getElementById('salesEmptyState');
+            if (emptyEl) emptyEl.style.display = 'none';
+            const searchBar = document.getElementById('salesSearchBar');
+            if (searchBar) searchBar.classList.add('show');
+            const fileNameEl = document.getElementById('salesFileName');
+            if (fileNameEl) fileNameEl.textContent = 'Data tersimpan (' + salesTotalCount.toLocaleString('id-ID') + ' baris)';
+            const clearBtn = document.getElementById('clearSalesBtn');
+            if (clearBtn) clearBtn.style.display = 'block';
+
+            const okMsg = 'Berhasil memasukkan ' + realAdded.toLocaleString('id-ID') +
+                ' baris baru ke Data Penjualan (total ' + salesTotalCount.toLocaleString('id-ID') + ' baris).';
+            setPushStatus(okMsg, 'ok');
+            alert(okMsg + '\nBuka tab Data Penjualan untuk melihat.');
             if (typeof switchTab === 'function') switchTab('penjualan');
+            return realAdded;
         };
 
         // ---- PWA & Theme ----
