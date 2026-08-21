@@ -1100,6 +1100,108 @@
         let salesTotalCount = 0;
         let cleanRows = []; // untuk tab Rapikan
 
+
+        // ---- Helper functions ----
+        function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+        function fmt(n) { return (n == null || n === 0) ? '—' : Number(n).toLocaleString('id-ID'); }
+
+        function num(v) {
+            if (v == null || v === '') return 0;
+            if (typeof v === 'number') return v;
+            const n = parseFloat(String(v).replace(/,/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        function str(v) { return v == null ? '' : String(v).trim(); }
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+
+        function formatDate(d) {
+            if (!(d instanceof Date) || isNaN(d)) return '';
+            return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+        }
+
+        function dateSortKey(dateStr, sheet) {
+            const m = String(dateStr).match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+            if (m) {
+                const y = m[3] ? parseInt(m[3]) : 2026;
+                return y * 10000 + parseInt(m[2]) * 100 + parseInt(m[1]);
+            }
+            const s = String(sheet || '').match(/(\d{1,2})-(\d{1,2})/);
+            if (s) return 2026 * 10000 + parseInt(s[2]) * 100 + parseInt(s[1]);
+            return 0;
+        }
+
+        function parseSalesDate(s) {
+            if (!s) return null;
+            if (s instanceof Date && !isNaN(s)) return s;
+            const strv = String(s).trim();
+            let m = strv.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+            if (m) {
+                let d = parseInt(m[1], 10),
+                    mo = parseInt(m[2], 10) - 1,
+                    y = parseInt(m[3], 10);
+                if (y < 100) y += 2000;
+                const dt = new Date(y, mo, d);
+                return isNaN(dt) ? null : dt;
+            }
+            const dt = new Date(strv);
+            return isNaN(dt) ? null : dt;
+        }
+
+        function addDays(d, n) {
+            const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            x.setDate(x.getDate() + n);
+            return x;
+        }
+
+        function daysBetween(a, b) {
+            const ms = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) -
+                Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+            return Math.floor(ms / 86400000);
+        }
+
+        function fmtDateID(d) {
+            if (!d || isNaN(d)) return '—';
+            return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+        }
+
+        const MONTH_ORDER = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November',
+            'Desember', 'Lainnya'
+        ];
+
+        function monthNameFromDate(d) {
+            if (!d || isNaN(d)) return 'Lainnya';
+            return MONTH_ORDER[d.getMonth()] || 'Lainnya';
+        }
+
+        function detectMonth(sheetName, dateLabel) {
+            const src = (String(dateLabel || '') + ' ' + String(sheetName || '')).toUpperCase();
+            let m = src.match(/\/(\d{1,2})\/(\d{4})/);
+            if (m) return MONTH_ORDER[parseInt(m[1], 10) - 1] || null;
+            m = src.match(/(\d{1,2})-(\d{2})/);
+            if (m) return MONTH_ORDER[parseInt(m[2], 10) - 1] || null;
+            for (let i = 0; i < MONTH_ORDER.length; i++) {
+                const name = MONTH_ORDER[i];
+                if (name && name.length > 2 && src.includes(name.toUpperCase())) return name;
+            }
+            return null;
+        }
+
+        function statusBadge(s) {
+            if (s === 'LUNAS') return '<span class="badge badge-lunas">LUNAS</span>';
+            if (s === 'TITIP') return '<span class="badge badge-titip">TITIP</span>';
+            if (s === 'TF') return '<span class="badge badge-tf">TF</span>';
+            if (s === 'RETUR') return '<span class="badge badge-retur">RETUR</span>';
+            return '<span class="muted">' + esc(s) + '</span>';
+        }
+
+        function sectionBadge(s) {
+            return '<span class="badge badge-section">' + (s === 'PIUTANG TEMPO' ? 'PIUTANG' : 'DROPPING') + '</span>';
+        }
+
+
         // ---- Dexie (IndexedDB) – data besar hanya di disk ----
         // Guard: jika CDN Dexie gagal load, app tetap jalan (Rapikan/upload tidak rusak)
         let dexieDb = null;
