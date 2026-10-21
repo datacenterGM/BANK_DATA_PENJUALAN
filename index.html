@@ -2156,7 +2156,7 @@ self.onmessage = function(e){
     const head = ['PRODUK','SATUAN'], head2 = [['PRODUK',null],['SATUAN',null]], types = ['t','c'];
     c.sel.forEach(m => { const lb = rekapBlnLabel(m, multiYear);
       head.push(lb+' CASH', lb+' TEMPO', lb+' PROFIT');
-      head2.push([lb,'QTY CASH'],[lb,'QTY TEMPO'],[lb,'PROFIT']); types.push('n','n','rp'); });
+      head2.push([lb,'CASH'],[lb,'TEMPO'],[lb,'PROFIT']); types.push('n','n','n'); });
     head.push('HARGA BELI','HARGA JUAL'); head2.push(['HARGA BELI',null],['HARGA JUAL',null]); types.push('nt','nt');
     const rows = c.list.map(o => { const r = [o.p, o.st.sat]; o.st.m.forEach(x => r.push(x.qc || '', x.qt || '', (x.qc||x.qt||x.p) ? x.p : '')); r.push(price(o.st.bmin,o.st.bmax), price(o.st.jmin,o.st.jmax)); return r; });
     const total = ['TOTAL','']; c.tot.forEach(x => total.push(x.qc, x.qt, x.p)); total.push('','');
