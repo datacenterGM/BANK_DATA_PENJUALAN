@@ -1,6 +1,6 @@
 // Service worker PENJUALAN — app shell offline. Data tetap di IndexedDB + Supabase.
-const VER = 'penjualan-v2';
-const SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
+const VER = 'penjualan-v3';
+const SHELL = ['./', './index.html', './manifest-v2.json?v=2', './icons/pwa-192.png?v=2', './icons/pwa-512.png?v=2'];
 const CDN_HOSTS = ['cdn.jsdelivr.net'];
 
 self.addEventListener('install', (e) => {
