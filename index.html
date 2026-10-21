@@ -2588,7 +2588,7 @@ self.onmessage = function(e){
   const _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function _showInstallBtn(){ const b = document.getElementById('installBtn'); if (b && !_isStandalone()) b.style.display = 'inline-block'; }
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _deferredInstallPrompt = e; _showInstallBtn(); });
-  if (_isIOS) _showInstallBtn();
+  _showInstallBtn(); // selalu tampil selama belum terpasang; klik = prompt instal atau petunjuk manual
   document.getElementById('installBtn')?.addEventListener('click', async () => {
     if (_deferredInstallPrompt) { _deferredInstallPrompt.prompt(); await _deferredInstallPrompt.userChoice; _deferredInstallPrompt = null; document.getElementById('installBtn').style.display = 'none'; return; }
     if (_isIOS) alert('Cara instal di iPhone/iPad:\n\n1. Buka lewat Safari\n2. Ketuk tombol Bagikan (kotak dengan panah ke atas)\n3. Pilih "Tambah ke Layar Utama"');
