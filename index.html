@@ -380,6 +380,9 @@ body.dark .hbdiff-choice label{background:#0f172a;color:#cbd5e1}
 body.dark .header-title{color:#67e8f9;text-shadow:0 0 8px rgba(103,232,249,.7),0 0 18px rgba(34,211,238,.45)}
 
 /* ===== PAGER ===== */
+.s3sortbar{display:flex;justify-content:flex-end;padding:2px 4px 6px;font-size:12px;color:var(--subtle)}
+.s3sortbar select{margin-left:4px;padding:3px 6px;border-radius:5px;border:1px solid var(--input-border);background:var(--card);color:var(--chip-text);font-size:12px;font-weight:600}
+body.dark .s3sortbar select{background:#334155;color:#cbd5e1}
 .pager-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:5px 4px 8px;font-size:11.5px;color:var(--subtle)}
 .pager-nav{display:flex;gap:6px;align-items:center}
 .pager-info{white-space:nowrap}
@@ -1625,7 +1628,7 @@ self.onmessage = function(e){
       return { name:'Produk', title:'Rekap Penjualan per Produk', head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...SO2.map((s,i)=>(r.s1||[]).reduce((a,x)=>a+(x[1+i]||0),0)),r.qty,'','','',r.hpp,r.sales,r.profit] };
     }
     if (tab === 's3'){
-      return { name:'Profit Produk', title:'Profit Penjualan per Produk', head:['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'], types:['c','t','n','rp','rp','tr','tr','rp'], rows:(r.s3||[]).map((x,i)=>[i+1,...x]), total:['TOTAL','',r.qty,r.sales,r.hpp,'','',r.profit] };
+      return { name:'Profit Produk', title:'Profit Penjualan per Produk', head:['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'], types:['c','t','n','rp','rp','tr','tr','rp'], rows:s3Sorted().map((x,i)=>[i+1,...x]), total:['TOTAL','',r.qty,r.sales,r.hpp,'','',r.profit] };
     }
     if (tab === 's5'){
       const avgM = r.sales ? (r.profit/r.sales*100) : 0;
@@ -1827,6 +1830,20 @@ self.onmessage = function(e){
   function rekapGo(tab, page){ rekapPage[tab] = Math.max(0, page|0); viewCache[tab] = null; const btn = document.querySelector('.tabs button.active'); show(tab, btn); }
   function sliceRekap(tab, arr){ const page = rekapPage[tab] || 0, start = page * REKAP_PAGE_SIZE; return arr.slice(start, start + REKAP_PAGE_SIZE); }
 
+  /* Urutan tabel Profit Penjualan per Produk: 'nama' (default) | 'desc' (profit terbesar) | 'asc' (profit terkecil) */
+  let s3Sort = 'nama';
+  function s3Sorted(){
+    const a = (R.s3 || []).slice();
+    if (s3Sort === 'desc') a.sort((x,y) => (y[6]||0) - (x[6]||0));
+    else if (s3Sort === 'asc') a.sort((x,y) => (x[6]||0) - (y[6]||0));
+    return a;
+  }
+  function s3SetSort(v){ s3Sort = v; rekapPage.s3 = 0; viewCache['s3'] = null; const btn = document.querySelector('.tabs button.active'); show('s3', btn); }
+  function s3SortBarHtml(){
+    const o = (v,l) => '<option value="' + v + '"' + (s3Sort === v ? ' selected' : '') + '>' + l + '</option>';
+    return '<div class="s3sortbar"><label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
+  }
+
   function renderTab(t){
     const SO2 = R.SO2 || SO;
     if (t === 's1'){
@@ -1837,9 +1854,9 @@ self.onmessage = function(e){
       return rekapPagerHtml('s1', (R.s1||[]).length) + tbl(h, d, ['TOTAL', ...sums, R.qty, '', '', '', rp(R.hpp), rp(R.sales), rp(R.profit)]);
     } else if (t === 's3'){
       const h = ['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'];
-      const pageRows = sliceRekap('s3', R.s3 || []), base = (rekapPage.s3 || 0) * REKAP_PAGE_SIZE;
+      const pageRows = sliceRekap('s3', s3Sorted()), base = (rekapPage.s3 || 0) * REKAP_PAGE_SIZE;
       const d = pageRows.map((x,i) => [base+i+1, x[0], x[1], rp(x[2]), rp(x[3]), x[4], x[5], rp(x[6])]);
-      return rekapPagerHtml('s3', (R.s3||[]).length) + tbl(h, d, ['TOTAL', '', R.qty, rp(R.sales), rp(R.hpp), '', '', rp(R.profit)]);
+      return s3SortBarHtml() + rekapPagerHtml('s3', (R.s3||[]).length) + tbl(h, d, ['TOTAL', '', R.qty, rp(R.sales), rp(R.hpp), '', '', rp(R.profit)]);
     } else if (t === 's6'){ return renderRekapPerFaktur();
     } else if (t === 's8'){
       const groups = buildFakturGroups();
