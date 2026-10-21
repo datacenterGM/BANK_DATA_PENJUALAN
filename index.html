@@ -1678,6 +1678,7 @@ self.onmessage = function(e){
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       if (tab === 's10'){ const spA = excelSpec('s10a'); if (spA) addStyledSheet(wb, spA); }
       addStyledSheet(wb, sp);
+      if (tab === 's12') addRekapBlnChartSheet(wb);
       if (tab === 's10'){ const sp2 = excelSpec('s10r'); if (sp2) addStyledSheet(wb, sp2); }
       await downloadWorkbook(wb, 'Laporan_' + (tab === 's10' ? 'Data_Bulanan' : sp.name.replace(/[^A-Za-z0-9]+/g,'_')) + '.xlsx');
       // + sp.name.replace(/[^A-Za-z0-9]+/g,'_') + '.xlsx');
@@ -2091,6 +2092,62 @@ self.onmessage = function(e){
     foot += '<td class="s12-hrg"></td><td class="s12-hrg"></td></tr>';
     panel.innerHTML = bar + rekapBlnChartHtml(c, multiYear) + rekapPagerHtml('s12', c.list.length) + '<div class="tablebox"><table class="s12table">' + head + '<tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
     rekapBln.spec = { c, multiYear, from: rekapBln.from, to: rekapBln.to };
+  }
+  /* ---- grafik untuk Excel: digambar ke canvas -> PNG -> disisipkan sebagai gambar ---- */
+  function rekapBlnChartSets(c, multiYear){
+    const labels = c.sel.map(m => rekapBlnLabel(m, multiYear));
+    const grp = isF => c.sel.map((m, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
+    const out = [];
+    [[true, 'Produk Fitri', '#2f6fb0'], [false, 'Produk Rupa Rupa', '#3b9a5a']].forEach(([isF, nm, col]) => {
+      const t = grp(isF);
+      out.push({ title: nm + ' - Profit', labels, money: true, series: [{ name: 'Profit', color: col, vals: t.map(x => x.p) }] });
+      out.push({ title: nm + ' - Total Qty', labels, money: false, series: [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }] });
+    });
+    return out;
+  }
+  function rekapBlnChartPng(ch){
+    const SC = 2, W = 560, H = 280, L = 62, Rr = 12, T = 34, B = 34, pw = W - L - Rr, ph = H - T - B;
+    const cv = document.createElement('canvas'); cv.width = W * SC; cv.height = H * SC;
+    const g = cv.getContext('2d'); g.scale(SC, SC);
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    const all = ch.series.flatMap(x => x.vals), sc = rekapBlnNice(Math.min(0, ...all), Math.max(0, ...all));
+    const y = v => T + (sc.hi - v) / (sc.hi - sc.lo) * ph, n = ch.labels.length, ns = ch.series.length, gw = pw / Math.max(n, 1);
+    const bw = Math.min(34, gw * 0.75 / ns);
+    g.fillStyle = '#111827'; g.font = 'bold 14px Arial'; g.textAlign = 'center'; g.fillText(ch.title, W / 2, 20);
+    g.font = '10.5px Arial';
+    for (let v = sc.lo; v <= sc.hi + sc.step / 2; v += sc.step){
+      g.strokeStyle = v === 0 ? '#475569' : '#e2e8f0'; g.lineWidth = v === 0 ? 1 : 0.7;
+      g.beginPath(); g.moveTo(L, y(v)); g.lineTo(W - Rr, y(v)); g.stroke();
+      g.fillStyle = '#111827'; g.textAlign = 'right'; g.fillText(rekapBlnFmt(v, ch.money), L - 6, y(v) + 3.5);
+    }
+    ch.labels.forEach((lb, i) => {
+      const x0 = L + i * gw + (gw - bw * ns) / 2;
+      ch.series.forEach((sr, k) => {
+        const v = sr.vals[i], yy = y(Math.max(v, 0)), hh = Math.abs(y(v) - y(0));
+        g.fillStyle = sr.color; g.fillRect(x0 + k * bw, yy, bw - 1, Math.max(hh, v ? 1 : 0));
+      });
+      g.fillStyle = '#111827'; g.textAlign = 'center'; g.fillText(lb, L + i * gw + gw / 2, H - (ns > 1 ? 18 : 10));
+    });
+    if (ns > 1){
+      g.textAlign = 'left'; let lx = W / 2 - 50;
+      ch.series.forEach(sr => { g.fillStyle = sr.color; g.fillRect(lx, H - 12, 10, 10); g.fillStyle = '#111827'; g.fillText(sr.name, lx + 14, H - 3); lx += 70; });
+    }
+    return cv.toDataURL('image/png');
+  }
+  function addRekapBlnChartSheet(wb){
+    const sp = rekapBln.spec; if (!sp) return;
+    const sets = rekapBlnChartSets(sp.c, sp.multiYear);
+    const ws = wb.addWorksheet('Grafik', { views: [{ showGridLines: false }] });
+    ws.mergeCells('A1:R1'); const t1 = ws.getCell('A1'); t1.value = 'Grafik Rekap Penjualan & Profit'; t1.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1F4E78' } };
+    ws.mergeCells('A2:R2'); const t2 = ws.getCell('A2'); t2.value = 'Periode : ' + monthLabel(sp.from) + ' s/d ' + monthLabel(sp.to) + '  |  Produk : ' + produkFilterLabel() + '  |  Sales : ' + (filters.sales || 'Semua sales'); t2.font = { name: 'Arial', size: 9, color: { argb: 'FF475569' } };
+    ws.getRow(1).height = 24;
+    const CW = 560, CH = 280, GAP = 16;
+    sets.forEach((ch, i) => {
+      const id = wb.addImage({ base64: rekapBlnChartPng(ch), extension: 'png' });
+      const col = i % 2, row = Math.floor(i / 2);
+      const px = col * (CW + GAP), py = 60 + row * (CH + GAP);   // posisi (piksel) -> kolom 64px / baris 20px
+      ws.addImage(id, { tl: { col: px / 64, row: py / 20 }, ext: { width: CW, height: CH }, editAs: 'oneCell' });
+    });
   }
   function rekapBlnExcelSpec(){
     const sp = rekapBln.spec; if (!sp) return null;
