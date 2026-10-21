@@ -1658,13 +1658,13 @@ self.onmessage = function(e){
         types:['t','n','n','c','n','nt','nt','nt','n','n'], rows, total:['TOTAL',tC,tT,'',r.profit,'','','',r.hpp,r.sales] };
     }
     if (tab === 's12') return rekapBlnExcelSpec();
-    if (tab === 's10' || tab === 's10r'){
-      const key = tab === 's10' ? 'fitri' : 'rupa', byMonth = monthlyAgg();
+    if (tab === 's10' || tab === 's10r' || tab === 's10a'){
+      const key = tab === 's10a' ? 'all' : tab === 's10' ? 'fitri' : 'rupa', byMonth = monthlyAgg();
       const rows = [...byMonth.keys()].sort().map(mk => ({ mk, b: byMonth.get(mk)[key] })).filter(o => o.b.q || o.b.n || o.b.p)
         .map(o => [monthLabelShort(o.mk), o.b.q, o.b.n, o.b.p, o.b.n ? Math.round(o.b.p / o.b.n * 10000) / 100 : 0]);
       const tq = rows.reduce((a,x)=>a+x[1],0), tn = rows.reduce((a,x)=>a+x[2],0), tp = rows.reduce((a,x)=>a+x[3],0);
-      const nm = tab === 's10' ? 'Fitri' : 'Rupa Rupa';
-      return { name:'Data Bulanan ' + nm, title:'Rekap Data Bulanan - Produk ' + nm, head:['Bulan','Qty','Nominal Penjualan','Profit','Margin %'], types:['t','n','rp','rp','pct'], rows, total:['TOTAL',tq,tn,tp,tn ? Math.round(tp/tn*10000)/100 : 0] };
+      const nm = tab === 's10a' ? 'All Produk' : tab === 's10' ? 'Fitri' : 'Rupa Rupa';
+      return { name:'Data Bulanan ' + nm, title:'Rekap Data Bulanan - ' + (tab === 's10a' ? 'Semua Produk' : 'Produk ' + nm), head:['Bulan','Qty','Nominal Penjualan','Profit','Margin %'], types:['t','n','rp','rp','pct'], rows, total:['TOTAL',tq,tn,tp,tn ? Math.round(tp/tn*10000)/100 : 0] };
     }
     return null;
   }
@@ -1676,6 +1676,7 @@ self.onmessage = function(e){
     try {
       showBusy('Membuat file Excel…');
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
+      if (tab === 's10'){ const spA = excelSpec('s10a'); if (spA) addStyledSheet(wb, spA); }
       addStyledSheet(wb, sp);
       if (tab === 's10'){ const sp2 = excelSpec('s10r'); if (sp2) addStyledSheet(wb, sp2); }
       await downloadWorkbook(wb, 'Laporan_' + (tab === 's10' ? 'Data_Bulanan' : sp.name.replace(/[^A-Za-z0-9]+/g,'_')) + '.xlsx');
@@ -1917,10 +1918,11 @@ self.onmessage = function(e){
     for (let i = 0; i < n; i++){
       const x = getUiRow(i); if (!x) continue;
       const mk = monthKey(x.Tanggal || x.tanggal); if (!mk) continue;
-      let m = byMonth.get(mk); if (!m){ m = { fitri: { q:0, n:0, p:0 }, rupa: { q:0, n:0, p:0 } }; byMonth.set(mk, m); }
+      let m = byMonth.get(mk); if (!m){ m = { all: { q:0, n:0, p:0 }, fitri: { q:0, n:0, p:0 }, rupa: { q:0, n:0, p:0 } }; byMonth.set(mk, m); }
       const j = N(x.Jumlah), t = N(x.Total), pr = t - j * N(x['Harga Beli']);
       const bucket = isFitriProduct(x.Produk) ? m.fitri : m.rupa;
       bucket.q += j; bucket.n += t; bucket.p += pr;
+      m.all.q += j; m.all.n += t; m.all.p += pr;
     }
     return byMonth;
   }
@@ -1942,7 +1944,7 @@ self.onmessage = function(e){
   function renderDataBulanan(){
     const byMonth = monthlyAgg();
     const caption = '<div style="font-weight:700;color:#1f4e78;margin-bottom:8px">Rekap Data Bulanan (mengikuti filter aktif)</div>';
-    return caption + renderDataBulananTable(byMonth, 'fitri', 'Produk Fitri') + '<div style="height:18px"></div>' + renderDataBulananTable(byMonth, 'rupa', 'Produk Rupa Rupa');
+    return caption + renderDataBulananTable(byMonth, 'all', 'Semua Produk (All Produk)') + '<div style="height:18px"></div>' + renderDataBulananTable(byMonth, 'fitri', 'Produk Fitri') + '<div style="height:18px"></div>' + renderDataBulananTable(byMonth, 'rupa', 'Produk Rupa Rupa');
   }
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
@@ -2438,7 +2440,7 @@ self.onmessage = function(e){
     try {
       showBusy('Membuat file Excel…');
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
-      ['s0','s6','s1','s8','s3','s5','s9','s10','s10r','s11'].forEach(t => { const sp = excelSpec(t); if (sp) addStyledSheet(wb, sp); });
+      ['s0','s6','s1','s8','s3','s5','s9','s10a','s10','s10r','s11'].forEach(t => { const sp = excelSpec(t); if (sp) addStyledSheet(wb, sp); });
       await downloadWorkbook(wb, 'Rekap_Penjualan_Hasil.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
