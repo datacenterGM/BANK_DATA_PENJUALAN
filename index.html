@@ -492,6 +492,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               <button class="active" onclick="show('s6',this)">Faktur</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
+              <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
               <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
@@ -557,6 +558,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         <div id="panel_s10" class="view" style="display:none"></div>
         <div id="panel_s12" class="view" style="display:none"></div>
         <div id="panel_s13" class="view" style="display:none"></div>
+        <div id="panel_s14" class="view" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1265,9 +1267,11 @@ self.onmessage = function(e){
   }
   function isFitriProduct(p){ return U(p).includes('FITRI'); }
 
+  let allProductsMeta = [];
   function populateFiltersFromMeta(m){
     if (!m) return;
     const months = m.months || [], sales = m.sales || [], products = m.products || [];
+    allProductsMeta = products.slice();
     document.getElementById('filterMonth').innerHTML = '<option value="">Semua bulan</option>' + months.map(x => '<option value="' + x + '">' + monthLabel(x) + '</option>').join('');
     if (!filters.month || !months.includes(filters.month)) filters.month = pickLatestMonth(months);
     if (filters.month) document.getElementById('filterMonth').value = filters.month;
@@ -1515,9 +1519,11 @@ self.onmessage = function(e){
     const nc = sp.head.length, HR = sp.head2 ? 5 : 4;
     const ws = wb.addWorksheet(sp.name.slice(0,31), { views:[{ state:'frozen', ySplit:HR }] });
     const border = { top:{style:'thin',color:{argb:'FFC5CFDC'}}, left:{style:'thin',color:{argb:'FFC5CFDC'}}, bottom:{style:'thin',color:{argb:'FFC5CFDC'}}, right:{style:'thin',color:{argb:'FFC5CFDC'}} };
-    ws.mergeCells(1,1,1,nc); const t1 = ws.getCell(1,1); t1.value = sp.title; t1.font = { name:'Arial', size:14, bold:true, color:{argb:'FF1F4E78'} }; t1.alignment = { vertical:'middle' };
+    const rt = !!sp.rightTitle && nc > 2;
+    ws.mergeCells(1,1,1, rt ? nc-1 : nc); const t1 = ws.getCell(1,1); t1.value = sp.title; t1.font = { name:'Arial', size:14, bold:true, color:{argb: sp.titleColor || 'FF1F4E78'} }; t1.alignment = { vertical:'middle' };
+    if (rt){ const tr = ws.getCell(1,nc); tr.value = sp.rightTitle; tr.font = { name:'Arial', size:14, bold:true, color:{argb: sp.titleColor || 'FF1F4E78'} }; tr.alignment = { horizontal:'center', vertical:'middle' }; }
     ws.mergeCells(2,1,2,nc); const t2 = ws.getCell(2,1); t2.value = sp.info || exportInfoLine(); t2.font = { name:'Arial', size:9, color:{argb:'FF475569'} };
-    ws.mergeCells(3,1,3,nc); const t3 = ws.getCell(3,1); t3.value = 'Dicetak: ' + new Date().toLocaleString('id-ID'); t3.font = { name:'Arial', size:9, italic:true, color:{argb:'FF64748B'} };
+    ws.mergeCells(3,1,3,nc); const t3 = ws.getCell(3,1); if (!sp.noPrint){ t3.value = 'Dicetak: ' + new Date().toLocaleString('id-ID'); t3.font = { name:'Arial', size:9, italic:true, color:{argb:'FF64748B'} }; }
     ws.getRow(1).height = 24;
     // lebar kolom
     const widths = sp.head.map((h,c) => {
@@ -1629,6 +1635,14 @@ self.onmessage = function(e){
     if (tab === 's9'){
       return { name:'Data Harga', title:'Data Harga Beli & Jual', head:['PRODUK','SATUAN','HARGA BELI TERENDAH','HARGA BELI TERTINGGI','HARGA JUAL TERENDAH','HARGA JUAL TERTINGGI','KET'], types:['t','c','rp','rp','rp','rp','t'], rows:(r.s9||[]).map(x=>[x[0],x[1]||'',x[2],x[3],x[4],x[5], x[6] ? ((x[6].dir==='naik'?'Naik':'Turun')+' sejak '+fmtTgl(new Date(x[6].ts))) : '']), total:null };
     }
+    if (tab === 's14'){
+      const rows = s14Rows(), T = s14Total(rows);
+      const xl = rows.map(r => [r[0], r[1] === '' ? '' : N(r[1]), r[2], s14PriceXl(r[3]), s14PriceXl(r[4]), r[5], r[6], r[7], r[8]]);
+      const tag = (filters.sales || 'Semua_Sales').replace(/[^A-Za-z0-9]+/g, '_') + '_' + (filters.month ? monthLabel(filters.month) : 'Semua_Bulan').replace(/[^A-Za-z0-9]+/g, '_');
+      return { name:'Rekap per Sales', title:'Rekap Penjualan per Sales', rightTitle: s14SalesLabel(), titleColor:'FF000000', noPrint:true, info: s14PeriodLabel(), fileName:'Rekap_Penjualan_per_Sales_' + tag + '.xlsx',
+        head:['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT','KET'], types:['t','n','c','nt','nt','rp','rp','rp','t'], rows: xl,
+        total: rows.length ? ['TOTAL','','','','',T.h,T.v,T.p,''] : null };
+    }
     if (tab === 's12') return rekapBlnExcelSpec();
     if (tab === 's10' || tab === 's10r' || tab === 's10a'){
       const key = tab === 's10a' ? 'all' : tab === 's10' ? 'fitri' : 'rupa', byMonth = monthlyAgg();
@@ -1653,7 +1667,7 @@ self.onmessage = function(e){
       addStyledSheet(wb, sp);
       if (tab === 's12') addRekapBlnChartSheet(wb);
       if (tab === 's10'){ const sp2 = excelSpec('s10r'); if (sp2) addStyledSheet(wb, sp2); }
-      await downloadWorkbook(wb, 'Laporan_' + (tab === 's10' ? 'Data_Bulanan' : sp.name.replace(/[^A-Za-z0-9]+/g,'_')) + '.xlsx');
+      await downloadWorkbook(wb, sp.fileName || ('Laporan_' + (tab === 's10' ? 'Data_Bulanan' : sp.name.replace(/[^A-Za-z0-9]+/g,'_')) + '.xlsx'));
       // + sp.name.replace(/[^A-Za-z0-9]+/g,'_') + '.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
@@ -1923,7 +1937,8 @@ self.onmessage = function(e){
       return s3SortBarHtml() + '<div id="s3tbl">' + s3TableHtml() + '</div>';
     } else if (t === 's6'){ return renderRekapPerFaktur();
     } else if (t === 's9'){ return renderS9();
-    } else if (t === 's10'){ return renderDataBulanan(); }
+    } else if (t === 's10'){ return renderDataBulanan();
+    } else if (t === 's14'){ return renderS14(); }
   }
   function monthFilterLabel(){ const fm = document.getElementById('filterMonth'); return fm && fm.value ? (fm.options[fm.selectedIndex]?.text || fm.value) : 'Semua bulan'; }
   function renderS9(){
@@ -1940,6 +1955,62 @@ self.onmessage = function(e){
     return caption + rekapPagerHtml('s9', list.length) + table;
   }
   function produkFilterLabel(){ return filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Fitri / Rupa Rupa (semua)'; }
+  /* ===== TAB: REKAP PENJUALAN PER SALES (Bulan & Sales = filter; Excel mengikuti contoh) ===== */
+  let s14ShowAll = true;
+  function s14Rows(){
+    const m5 = new Map((R.s5 || []).map(x => [x[0], x])), m9 = new Map((R.s9 || []).map(x => [x[0], x]));
+    const showAll = s14ShowAll && !filters.q;
+    const names = new Set();
+    if (showAll) allProductsMeta.forEach(p => {
+      if (filters.product === 'FITRI' && !isFitriProduct(p)) return;
+      if (filters.product === 'RUPA_RUPA' && isFitriProduct(p)) return;
+      names.add(p);
+    });
+    m5.forEach((_, p) => names.add(p));
+    return [...names].sort(natCmp).map(p => {
+      const a = m5.get(p), b = m9.get(p);
+      if (!a) return [p, '', '', '', '', '', '', '', ''];
+      let ket = '';
+      if (b && b[6]) ket = (b[6].dir === 'naik' ? 'Naik' : 'Turun') + ' sejak ' + fmtTgl(new Date(b[6].ts));
+      return [p, a[1], a[2] || (b ? b[1] : '') || '', b ? { a: b[2], b: b[3] } : '', b ? { a: b[4], b: b[5] } : '', a[4], a[3], a[5], ket];
+    });
+  }
+  function s14Total(rows){
+    return rows.reduce((t, r) => { if (r[5] !== '') { t.h += N(r[5]); t.v += N(r[6]); t.p += N(r[7]); } return t; }, { h: 0, v: 0, p: 0 });
+  }
+  function s14PriceText(o){ return o ? (o.a === o.b ? rp(o.a) : rp(o.a) + ' - ' + rp(o.b)) : ''; }
+  function s14PriceXl(o){ return o ? (o.a === o.b ? o.a : rp(o.a) + ' - ' + rp(o.b)) : ''; }
+  function s14SalesLabel(){ return filters.sales ? String(filters.sales).toUpperCase() : 'SEMUA SALES'; }
+  function s14PeriodLabel(){
+    let t = filters.month ? monthLabel(filters.month) : 'Semua bulan';
+    try { const d = formatFilterDateLabel(filters.dateFrom, filters.dateTo); if (d) t += '  |  ' + d; } catch(e){}
+    if (filters.product === 'FITRI') t += '  |  Produk Fitri'; else if (filters.product === 'RUPA_RUPA') t += '  |  Produk Rupa Rupa';
+    if (filters.payment) t += '  |  ' + filters.payment;
+    return t;
+  }
+  function onMonthTabChange(v){ const fm = document.getElementById('filterMonth'); if (!fm) return; fm.value = v; applyFilters(); }
+  function s14SetShowAll(cb){ s14ShowAll = !!cb.checked; rekapPage.s14 = 0; viewCache['s14'] = null; const panel = document.getElementById('panel_s14'); if (panel) panel.innerHTML = renderS14(); }
+  function renderS14(){
+    const rows = s14Rows(), T = s14Total(rows);
+    const opts = (id, blank) => { const el = document.getElementById(id); return el ? Array.from(el.options).map(o => ({ v: o.value, t: o.text })) : []; };
+    const optHtml = (list, cur) => list.map(o => '<option value="' + escHtml(o.v) + '"' + (o.v === cur ? ' selected' : '') + '>' + escHtml(o.t) + '</option>').join('');
+    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan per Sales</span>'
+      + '<label>Bulan : <select onchange="onMonthTabChange(this.value)">' + optHtml(opts('filterMonth'), filters.month || '') + '</select></label>'
+      + '<label>Sales : <select onchange="onSalesTabChange(this.value)">' + optHtml(opts('filterSales'), filters.sales || '') + '</select></label>'
+      + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ' + (s14ShowAll ? 'checked ' : '') + 'onchange="s14SetShowAll(this)"> Tampilkan produk tanpa penjualan</label>'
+      + '<span style="color:var(--muted);font-size:11.5px">Simpan Excel dari tab ini: judul "Rekap Penjualan per Sales", bulan di bawahnya, nama sales di kanan atas.</span></div>';
+    const pageRows = sliceRekap('s14', rows);
+    let body = '';
+    if (!pageRows.length) body = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">Tidak ada data untuk filter saat ini.</td></tr>';
+    else pageRows.forEach(r => {
+      const has = r[5] !== '';
+      body += '<tr><td>' + escHtml(r[0]) + '</td><td class="num">' + (has ? N(r[1]).toLocaleString('id-ID') : '') + '</td><td>' + escHtml(r[2]) + '</td><td class="num">' + s14PriceText(r[3]) + '</td><td class="num">' + s14PriceText(r[4]) + '</td><td class="num">' + (has ? rp(r[5]) : '') + '</td><td class="num">' + (has ? rp(r[6]) : '') + '</td><td class="num">' + (has ? rp(r[7]) : '') + '</td><td>' + escHtml(r[8]) + '</td></tr>';
+    });
+    const th = ['PRODUK', 'QTY', 'SATUAN', 'HARGA BELI', 'HARGA JUAL', 'BELI X QTY', 'JUAL X QTY', 'PROFIT', 'KET'].map(h => '<th class="s10-h0">' + h + '</th>').join('');
+    const foot = rows.length ? '<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + rp(T.h) + '</td><td class="num">' + rp(T.v) + '</td><td class="num">' + rp(T.p) + '</td><td></td></tr>' : '';
+    const caption = '<div style="display:flex;flex-wrap:wrap;gap:6px 24px;margin:0 0 8px;font-size:12.5px"><span><b>' + escHtml(s14SalesLabel()) + '</b></span><span style="color:var(--muted)">' + escHtml(s14PeriodLabel()) + '</span></div>';
+    return bar + caption + rekapPagerHtml('s14', rows.length) + '<div class="tablebox"><table class="s10table"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+  }
   function onSalesTabChange(v){
     const fs = document.getElementById('filterSales'); if (!fs) return;
     fs.value = v; applyFilters();
