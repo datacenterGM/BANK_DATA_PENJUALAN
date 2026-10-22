@@ -1595,7 +1595,7 @@ self.onmessage = function(e){
       const rows = s14Rows(), T = s14Total(rows);
       const xl = rows.map(r => [r[0], r[1] === '' ? '' : N(r[1]), r[2], s14PriceXl(r[3]), s14PriceXl(r[4]), r[5], r[6], r[7], r[8]]);
       const tag = (filters.sales || 'Semua_Sales').replace(/[^A-Za-z0-9]+/g, '_') + '_' + (filters.month ? monthLabel(filters.month) : 'Semua_Bulan').replace(/[^A-Za-z0-9]+/g, '_');
-      return { name:'Rekap per Sales', title:'Rekap Penjualan per Sales', rightTitle: s14SalesLabel(), titleColor:'FF000000', noPrint:true, info: s14PeriodLabel(), fileName:'Rekap_Penjualan_per_Sales_' + tag + '.xlsx',
+      return { name:'Rekap per Sales', title:'Rekap Penjualan per Sales', rightTitle: s14SalesLabel(), titleColor:'FF000000', noPrint:true, info: s14ExcelInfo(), fileName:'Rekap_Penjualan_per_Sales_' + tag + '.xlsx',
         head:['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT','KET'], types:['t','n','c','nt','nt','rp','rp','rp','t'], rows: xl,
         total: rows.length ? ['TOTAL','','','','',T.h,T.v,T.p,''] : null };
     }
@@ -1811,9 +1811,9 @@ self.onmessage = function(e){
     return caption + rekapPagerHtml('s9', list.length) + table;
   }
   function produkFilterLabel(){ return filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Fitri / Rupa Rupa (semua)'; }
-  /* ===== TAB: REKAP PENJUALAN PER SALES (Bulan & Sales = filter; Excel mengikuti contoh) ===== */
-  let s14ShowAll = true;
-  function s14Rows(){
+  /* ===== TAB: REKAP PENJUALAN PER SALES (Bulan, Sales, Kategori, Produk = filter; Urutkan; Excel mengikuti contoh) ===== */
+  let s14ShowAll = true, s14Cat = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
+  function s14BaseRows(){      // semua baris (setelah filter Kategori), belum dipotong pilihan produk & belum diurutkan
     const m5 = new Map((R.s5 || []).map(x => [x[0], x])), m9 = new Map((R.s9 || []).map(x => [x[0], x]));
     const showAll = s14ShowAll && !filters.q;
     const names = new Set();
@@ -1823,7 +1823,7 @@ self.onmessage = function(e){
       names.add(p);
     });
     m5.forEach((_, p) => names.add(p));
-    return [...names].sort(natCmp).map(p => {
+    return [...names].filter(p => !s14Cat || ((s14Cat === 'FITRI') === isFitriProduct(p))).map(p => {
       const a = m5.get(p), b = m9.get(p);
       if (!a) return [p, '', '', '', '', '', '', '', ''];
       let ket = '';
@@ -1831,12 +1831,24 @@ self.onmessage = function(e){
       return [p, a[1], a[2] || (b ? b[1] : '') || '', b ? { a: b[2], b: b[3] } : '', b ? { a: b[4], b: b[5] } : '', a[4], a[3], a[5], ket];
     });
   }
+  function s14Rows(){
+    let list = s14BaseRows();
+    if (s14Sel.size) list = list.filter(r => s14Sel.has(r[0]));
+    const blank = r => r[5] === '';
+    if (s14Sort === 'desc' || s14Sort === 'asc'){
+      const dir = s14Sort === 'desc' ? -1 : 1;
+      list.sort((a, b) => (blank(a) - blank(b)) || (blank(a) ? 0 : dir * (N(a[7]) - N(b[7]))) || natCmp(a[0], b[0]));   // produk tanpa penjualan selalu di bawah
+    } else list.sort((a, b) => natCmp(a[0], b[0]));
+    return list;
+  }
   function s14Total(rows){
     return rows.reduce((t, r) => { if (r[5] !== '') { t.h += N(r[5]); t.v += N(r[6]); t.p += N(r[7]); } return t; }, { h: 0, v: 0, p: 0 });
   }
   function s14PriceText(o){ return o ? (o.a === o.b ? rp(o.a) : rp(o.a) + ' - ' + rp(o.b)) : ''; }
   function s14PriceXl(o){ return o ? (o.a === o.b ? o.a : rp(o.a) + ' - ' + rp(o.b)) : ''; }
   function s14SalesLabel(){ return filters.sales ? String(filters.sales).toUpperCase() : 'SEMUA SALES'; }
+  function s14CatLabel(){ return s14Cat === 'FITRI' ? 'Fitri' : s14Cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
+  function s14SortLabel(){ return s14Sort === 'desc' ? 'Profit terbesar' : s14Sort === 'asc' ? 'Profit terkecil' : 'Nama produk (A–Z)'; }
   function s14PeriodLabel(){
     let t = filters.month ? monthLabel(filters.month) : 'Semua bulan';
     try { const d = formatFilterDateLabel(filters.dateFrom, filters.dateTo); if (d) t += '  |  ' + d; } catch(e){}
@@ -1844,17 +1856,42 @@ self.onmessage = function(e){
     if (filters.payment) t += '  |  ' + filters.payment;
     return t;
   }
+  function s14ExcelInfo(){      // baris bulan di Excel; filter tambahan hanya dicantumkan bila aktif
+    let t = s14PeriodLabel();
+    if (s14Cat) t += '  |  Kategori : ' + s14CatLabel();
+    if (s14Sel.size) t += '  |  ' + s14Sel.size + ' produk dipilih';
+    if (s14Sort !== 'nama') t += '  |  Urutan : ' + s14SortLabel();
+    return t;
+  }
   function onMonthTabChange(v){ const fm = document.getElementById('filterMonth'); if (!fm) return; fm.value = v; applyFilters(); }
-  function s14SetShowAll(cb){ s14ShowAll = !!cb.checked; rekapPage.s14 = 0; viewCache['s14'] = null; const panel = document.getElementById('panel_s14'); if (panel) panel.innerHTML = renderS14(); }
-  function renderS14(){
+  function s14Repaint(){ rekapPage.s14 = 0; viewCache['s14'] = null; const panel = document.getElementById('panel_s14'); if (panel) panel.innerHTML = renderS14(); }
+  function s14SetShowAll(cb){ s14ShowAll = !!cb.checked; s14Repaint(); }
+  function s14SetCat(v){ s14Cat = v || ''; if (s14Cat) s14Sel = new Set([...s14Sel].filter(p => (s14Cat === 'FITRI') === isFitriProduct(p))); s14Repaint(); }
+  function s14SetSort(v){ s14Sort = v || 'nama'; s14Repaint(); }
+  function s14Changed(){      // pilihan produk berubah: segarkan tabel saja (dropdown tetap terbuka)
+    rekapPage.s14 = 0; viewCache['s14'] = null;
+    const b = document.getElementById('s14body'); if (b) b.innerHTML = s14BodyHtml();
+    const c = document.getElementById('s14Count'); if (c) c.textContent = s14CountText();
+  }
+  function s14CountText(){ return s14Sel.size ? s14Sel.size + ' produk dipilih' : 'Semua produk'; }
+  function s14ItemsHtml(){
+    s14PickNames = s14BaseRows().map(r => r[0]).sort(natCmp);
+    return s14PickNames.map((n, i) => '<label class="s14-item" data-n="' + escHtml(n.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (s14Sel.has(n) ? ' checked' : '') + ' onchange="s14Toggle(this)"> ' + escHtml(n) + '</label>').join('');
+  }
+  function s14Toggle(cb){ const n = s14PickNames[+cb.dataset.i]; if (n == null) return; if (cb.checked) s14Sel.add(n); else s14Sel.delete(n); s14Changed(); }
+  function s14SelectAll(){
+    document.querySelectorAll('#s14List .s14-item').forEach(l => { if (l.style.display === 'none') return; const cb = l.querySelector('input'); cb.checked = true; const n = s14PickNames[+cb.dataset.i]; if (n != null) s14Sel.add(n); });
+    s14Changed();
+  }
+  function s14Clear(){ s14Sel.clear(); document.querySelectorAll('#s14List input[type=checkbox]').forEach(cb => cb.checked = false); s14Changed(); }
+  function s14Search(v){
+    const t = String(v || '').trim().toLowerCase();
+    document.querySelectorAll('#s14List .s14-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; });
+  }
+  function s14TogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('s14Dd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
+  document.addEventListener('click', function(e){ const d = document.getElementById('s14Dd'); if (d && d.style.display === 'block' && !e.target.closest('#s14Pick')) d.style.display = 'none'; });
+  function s14BodyHtml(){
     const rows = s14Rows(), T = s14Total(rows);
-    const opts = (id, blank) => { const el = document.getElementById(id); return el ? Array.from(el.options).map(o => ({ v: o.value, t: o.text })) : []; };
-    const optHtml = (list, cur) => list.map(o => '<option value="' + escHtml(o.v) + '"' + (o.v === cur ? ' selected' : '') + '>' + escHtml(o.t) + '</option>').join('');
-    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan per Sales</span>'
-      + '<label>Bulan : <select onchange="onMonthTabChange(this.value)">' + optHtml(opts('filterMonth'), filters.month || '') + '</select></label>'
-      + '<label>Sales : <select onchange="onSalesTabChange(this.value)">' + optHtml(opts('filterSales'), filters.sales || '') + '</select></label>'
-      + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ' + (s14ShowAll ? 'checked ' : '') + 'onchange="s14SetShowAll(this)"> Tampilkan produk tanpa penjualan</label>'
-      + '<span style="color:var(--muted);font-size:11.5px">Simpan Excel dari tab ini: judul "Rekap Penjualan per Sales", bulan di bawahnya, nama sales di kanan atas.</span></div>';
     const pageRows = sliceRekap('s14', rows);
     let body = '';
     if (!pageRows.length) body = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">Tidak ada data untuk filter saat ini.</td></tr>';
@@ -1865,7 +1902,25 @@ self.onmessage = function(e){
     const th = ['PRODUK', 'QTY', 'SATUAN', 'HARGA BELI', 'HARGA JUAL', 'BELI X QTY', 'JUAL X QTY', 'PROFIT', 'KET'].map(h => '<th class="s10-h0">' + h + '</th>').join('');
     const foot = rows.length ? '<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + rp(T.h) + '</td><td class="num">' + rp(T.v) + '</td><td class="num">' + rp(T.p) + '</td><td></td></tr>' : '';
     const caption = '<div style="display:flex;flex-wrap:wrap;gap:6px 24px;margin:0 0 8px;font-size:12.5px"><span><b>' + escHtml(s14SalesLabel()) + '</b></span><span style="color:var(--muted)">' + escHtml(s14PeriodLabel()) + '</span></div>';
-    return bar + caption + rekapPagerHtml('s14', rows.length) + '<div class="tablebox"><table class="s10table"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+    return caption + rekapPagerHtml('s14', rows.length) + '<div class="tablebox"><table class="s10table"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+  }
+  function renderS14(){
+    const opts = id => { const el = document.getElementById(id); return el ? Array.from(el.options).map(o => ({ v: o.value, t: o.text })) : []; };
+    const optHtml = (list, cur) => list.map(o => '<option value="' + escHtml(o.v) + '"' + (o.v === cur ? ' selected' : '') + '>' + escHtml(o.t) + '</option>').join('');
+    const fixed = (list, cur) => list.map(o => '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+    const picker = '<span id="s14Pick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="s14TogglePicker(event)"><span id="s14Count">' + s14CountText() + '</span> ▼</button>'
+      + '<div id="s14Dd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px">'
+      + '<input type="search" placeholder="Cari produk..." oninput="s14Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
+      + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s14SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s14Clear()">Kosongkan</button></div>'
+      + '<div id="s14List" style="max-height:260px;overflow:auto">' + s14ItemsHtml() + '</div></div></span>';
+    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan per Sales</span>'
+      + '<label>Bulan : <select onchange="onMonthTabChange(this.value)">' + optHtml(opts('filterMonth'), filters.month || '') + '</select></label>'
+      + '<label>Sales : <select onchange="onSalesTabChange(this.value)">' + optHtml(opts('filterSales'), filters.sales || '') + '</select></label>'
+      + '<label>Kategori : <select onchange="s14SetCat(this.value)">' + fixed([['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']], s14Cat) + '</select></label>'
+      + picker
+      + '<label>Urutkan : <select onchange="s14SetSort(this.value)">' + fixed([['nama', 'Nama produk (A–Z)'], ['desc', 'Profit terbesar'], ['asc', 'Profit terkecil']], s14Sort) + '</select></label>'
+      + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ' + (s14ShowAll ? 'checked ' : '') + 'onchange="s14SetShowAll(this)"> Tampilkan produk tanpa penjualan</label></div>';
+    return bar + '<div id="s14body">' + s14BodyHtml() + '</div>';
   }
   function onSalesTabChange(v){
     const fs = document.getElementById('filterSales'); if (!fs) return;
