@@ -222,6 +222,7 @@ body.dark .menu-section{border-color:#334155}
 .bulk-box{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
 
 /* ===== BUSY ===== */
+#table{position:relative;min-height:120px}
 .busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.6);z-index:60;font-size:13px;color:#1f4e78;font-weight:bold;pointer-events:none}
 body.dark .busy{background:rgba(15,23,42,.7);color:#93c5fd}
 .busy .spin{width:18px;height:18px;border:3px solid var(--input-border);border-top-color:#1f4e78;border-radius:50%;animation:rot .8s linear infinite;margin-right:8px}
@@ -488,7 +489,6 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
           <div class="tabs-wrap" id="tabsWrap">
             <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Faktur</span><span class="chev">▼</span></button>
             <div class="tabs tabs-collapsible" id="tabsMenu">
-              <button onclick="show('s0',this)">Transaksi</button>
               <button class="active" onclick="show('s6',this)">Faktur</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
@@ -496,6 +496,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
               <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
+              <button onclick="show('s13',this)">📊 Grafik Penjualan &amp; Profit</button>
             </div>
           </div>
           <div class="quick-search-wrap"><input type="search" id="quickSearch" placeholder="🔍 Cari produk / customer / no faktur..." title="Cari berdasarkan nama produk, customer, kode customer, atau nomor faktur" oninput="onQuickSearchInput()"></div>
@@ -536,10 +537,6 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               </div>
             </div>
           </div>
-          <div class="col-picker" id="colPicker" style="display:none">
-            <button type="button" class="col-picker-btn" onclick="event.stopPropagation();toggleColPicker()">☰ Kolom</button>
-            <div class="col-picker-menu" id="colPickerMenu" onclick="event.stopPropagation()"></div>
-          </div>
           <div class="faktur-mode-toggle" id="fakturModeToggle">
             <button type="button" class="fm-btn" id="fmTableBtn" onclick="setFakturViewMode('table')">MODE TABEL</button>
             <button type="button" class="fm-btn active" id="fmCardBtn" onclick="setFakturViewMode('card')">MODE KARTU</button>
@@ -549,19 +546,19 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
           <button type="button" class="action-toggle" onclick="toggleActionMenu(event)" title="Menu Aksi"><span>⚙ Aksi</span><span class="chev">▼</span></button>
           <div class="action-menu" onclick="event.stopPropagation()">
             <button type="button" id="autoBatalToolbarBtn" onclick="openAutoBatalDetectModal()" title="Cari otomatis pasangan qty +/- (produk & faktur sama) yang kemungkinan transaksi batal">🔁 Cek Batal Otomatis<span id="autoBatalBadge"></span></button>
-            <button type="button" id="toolbarSaveExcel" onclick="saveExcelTab(_activeTab||'s0')">💾 Simpan Excel</button>
+            <button type="button" id="toolbarSaveExcel" onclick="saveExcelTab(_activeTab||'s6')">💾 Simpan Excel</button>
           </div>
         </div>
       </div>
       <div id="table">
-        <div id="panel_s0" class="view"><div id="s0actions"></div><div class="tablebox" id="s0box"></div><div class="vfootwrap" id="s0footwrap"><table class="vfoot" id="s0foot"></table></div></div>
-        <div id="panel_s6" class="view" style="display:none"></div>
+        <div id="panel_s6" class="view"></div>
         <div id="panel_s1" class="view" style="display:none"></div>
         <div id="panel_s3" class="view" style="display:none"></div>
         <div id="panel_s9" class="view" style="display:none"></div>
         <div id="panel_s10" class="view" style="display:none"></div>
         <div id="panel_s11" class="view" style="display:none"></div>
         <div id="panel_s12" class="view" style="display:none"></div>
+        <div id="panel_s13" class="view" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -704,6 +701,10 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
     else console.warn('supabase-js tidak termuat (offline?) — mode lokal.');
   } catch(e){ console.warn('Supabase init gagal', e); sbClient = null; }
 
+  /* Penanda "ada perubahan lokal yang belum terkirim ke cloud" (tahan tutup browser) */
+  const DIRTY_KEY = 'penjualanPendingPush_v1';
+  function isDirty(){ try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch(e){ return false; } }
+  function setDirty(v){ try { if (v) localStorage.setItem(DIRTY_KEY, '1'); else localStorage.removeItem(DIRTY_KEY); } catch(e){} }
   async function gatherLocalSnapshot(){
     if (!useIDB) return null;
     const tx = await db.tx.toArray(), meta = await db.meta.toArray();
@@ -715,29 +716,42 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
     if (!sbClient) throw new Error('Cloud belum terhubung.');
     if (!useIDB || !db) throw new Error('Penyimpanan lokal belum siap.');
     if (isSyncingFromCloud) return {skipped:true};
+    setDirty(true);
     const snapshot = await gatherLocalSnapshot();
     if (!snapshot) throw new Error('Data lokal tidak dapat dibaca.');
     const payload = { id: SYNC_ROW_ID, data: snapshot, updated_at: new Date().toISOString() };
     lastPushedAt = new Date(payload.updated_at).getTime();
     const result = await sbClient.from('app_sync').upsert(payload, { onConflict: 'id' });
     if (result.error) { console.error('pushToCloud gagal:', result.error); throw new Error(result.error.message || 'Cloud menolak data.'); }
+    setDirty(false);
     setCloudStatus('Upload berhasil ke cloud • ' + new Date().toLocaleTimeString('id-ID'));
     return result.data;
   }
   let pushInFlight = false;
   function schedulePush(){
+    setDirty(true);
     if (!sbClient) return;
     clearTimeout(pushTimer);
     setCloudStatus('Menyinkronkan…');
     pushTimer = setTimeout(async () => {
       pushTimer = null; pushInFlight = true;
-      try { await pushToCloud(); } catch(e){ console.error('pushToCloud gagal:', e); }
+      try { await pushToCloud(); } catch(e){ console.error('pushToCloud gagal:', e); setCloudStatus('Offline • perubahan tersimpan di perangkat, dikirim saat online'); }
       finally { pushInFlight = false; }
     }, 1200);
   }
   async function pullFromCloud(opts){
     opts = opts || {};
     if (!sbClient || !useIDB) { await restoreFromDB(); return; }
+    if (isDirty()){
+      let sent = false;
+      try { await pushToCloud(); sent = !isDirty(); } catch(e){ console.warn('Kirim perubahan tertunda gagal', e); }
+      if (!sent){
+        setCloudStatus('Perubahan lokal belum terkirim — data cloud tidak menimpa. Coba lagi saat online.');
+        await restoreFromDB(); return;
+      }
+      if (!opts.silent) setStatus('Perubahan offline berhasil dikirim ke cloud.');
+      await restoreFromDB(); return;
+    }
     try {
       const { data, error } = await sbClient.from('app_sync').select('data,updated_at').eq('id', SYNC_ROW_ID).maybeSingle();
       if (error) throw error;
@@ -1188,11 +1202,11 @@ self.onmessage = function(e){
     materialise(); buildCached(materialisedRows); viewCache = {};
     updateSummary(); updateFilterUi();
     const activeBtn = document.querySelector('.tabs button.active') || document.querySelector('.tabs button');
-    let tabId = 's0';
+    let tabId = 's6';
     if (activeBtn) { const oc = activeBtn.getAttribute('onclick') || ''; const m = oc.match(/show\('([^']+)'/); if (m) tabId = m[1]; }
     show(tabId, activeBtn);
     const parts = [filters.month ? monthLabel(filters.month) : '', formatFilterDateLabel(filters.dateFrom, filters.dateTo), filters.sales || '', filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : '', filters.payment || '', filters.kdCustomer ? ('Kd: ' + filters.kdCustomer) : '', filters.q ? ('Cari: ' + filters.q) : ''].filter(Boolean);
-    const bigWarn = filteredRows.length > LARGE_RESULT_WARN ? ' ⚠ Data besar — pertimbangkan mempersempit filter (bulan/sales/tanggal) agar tabel Transaksi lebih ringan.' : '';
+    const bigWarn = filteredRows.length > LARGE_RESULT_WARN ? ' ⚠ Data besar — pertimbangkan mempersempit filter (bulan/sales/tanggal) agar tampilan lebih ringan.' : '';
     document.getElementById('filterInfo').textContent = (parts.length ? 'Aktif: ' + parts.join(' • ') + ' — ' : '') + 'Menampilkan ' + filteredRows.length.toLocaleString('id-ID') + ' baris.' + bigWarn;
     hideBusy();
   }
@@ -1207,13 +1221,13 @@ self.onmessage = function(e){
   let populatedFiltersBound = false;
   function toggleDd(){ const dd = document.getElementById('menuDd'); dd.classList.toggle('open'); if (dd.classList.contains('open')) { try { updateBackupPanelStatus(); } catch(e){} } }
   function closeDd(){ document.getElementById('menuDd').classList.remove('open') }
-  function toggleColPicker(){ document.getElementById('colPicker').classList.toggle('open'); closeFilterPicker() }
-  function closeColPicker(){ document.getElementById('colPicker').classList.remove('open') }
+  function toggleColPicker(){ const cp = document.getElementById('colPicker'); if (cp) cp.classList.toggle('open'); closeFilterPicker() }
+  function closeColPicker(){ const cp = document.getElementById('colPicker'); if (cp) cp.classList.remove('open') }
   function toggleFilterPicker(){ document.getElementById('filterPicker').classList.toggle('open'); closeColPicker() }
   function closeFilterPicker(){ document.getElementById('filterPicker').classList.remove('open') }
   function setStatus(s){ const el = document.getElementById('status'); if (el) el.textContent = s; }
   function showBusy(label){
-    let box = document.getElementById('s0box'); if (!box) return;
+    let box = document.getElementById('table'); if (!box) return;
     let old = document.getElementById('__busy');
     if (!old){ old = document.createElement('div'); old.id = '__busy'; old.className = 'busy'; old.innerHTML = '<div class="spin"></div>' + label; box.appendChild(old); }
     else { old.innerHTML = '<div class="spin"></div>' + label; }
@@ -1232,25 +1246,7 @@ self.onmessage = function(e){
   function closeTabsMenu(){ const w = document.getElementById('tabsWrap'); if (w) w.classList.remove('open'); }
   function toggleActionMenu(e){ if (e) e.stopPropagation(); const dd = document.getElementById('actionDd'); if (dd) dd.classList.toggle('open'); }
   function closeActionMenu(){ const dd = document.getElementById('actionDd'); if (dd) dd.classList.remove('open'); }
-  function buildColPicker(){
-    document.getElementById('colPickerMenu').innerHTML = TX_COLS.map(c =>
-      '<label><input type="checkbox" data-k="' + c.k + '" ' + (colVis[c.k]?'checked':'') + ' onchange="onColChange(this)"> ' + c.label + '</label>').join('');
-  }
-  function onColChange(el){
-    colVis[el.dataset.k] = el.checked;
-    const box = document.getElementById('s0box'); if (!box) return;
-    const tabs = document.querySelectorAll('.tabs button');
-    let active = document.querySelector('.tabs button.active');
-    if (!active || active.textContent.trim() !== 'Transaksi'){
-      tabs.forEach(x => x.classList.remove('active'));
-      active = Array.from(tabs).find(b => b.textContent.trim() === 'Transaksi');
-      if (active) active.classList.add('active');
-    }
-    document.querySelectorAll('#table .view').forEach(v => v.style.display = 'none');
-    const panel = document.getElementById('panel_s0'); if (panel) panel.style.display = 'block';
-    s0KeyBuilt = ''; s0Widths = computeColWidths(); buildPanelS0();
-    const lbl = document.getElementById('tabsToggleLabel'); if (lbl) lbl.textContent = '📑 Transaksi';
-  }
+  function buildColPicker(){ /* tab Transaksi dihapus: tidak ada pemilih kolom lagi */ }
   function toDate(v){
     if (!v) return null;
     if (v instanceof Date) return v;
@@ -1427,7 +1423,6 @@ self.onmessage = function(e){
   function build(data){
     dataVersion++;
     const g = (x, ui, camel) => (x[ui] !== undefined && x[ui] !== null) ? x[ui] : x[camel];
-    s0Widths = computeColWidths(data);
     const byProd = new Map();
     let qty = 0, sales = 0, hpp = 0, profit = 0, fitriQty = 0, fitriSales = 0, rupaQty = 0, rupaSales = 0;
     const salesQty = {}; SO.forEach(s => salesQty[s] = 0);
@@ -1661,6 +1656,7 @@ self.onmessage = function(e){
     return null;
   }
   async function saveExcelTab(tab){
+    if (tab === 's13') tab = 's12';
     closeActionMenu();
     if (!R || !R.s1) return alert('Belum ada data untuk disimpan.');
     if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
@@ -1687,7 +1683,6 @@ self.onmessage = function(e){
     const act = document.querySelector('.tabs button.active') || b;
     if (lbl && act) lbl.textContent = '📑 ' + act.textContent.trim();
     closeTabsMenu();
-    document.getElementById('colPicker').style.display = (t === 's0') ? 'block' : 'none';
     const fmt = document.getElementById('fakturModeToggle');
     if (fmt) {
       fmt.style.display = (t === 's6') ? 'flex' : 'none';
@@ -1697,8 +1692,8 @@ self.onmessage = function(e){
     document.querySelectorAll('#table .view').forEach(v => v.style.display = 'none');
     const panel = document.getElementById('panel_' + t);
     if (panel) panel.style.display = 'block';
-    if (t === 's0'){ const k = s0Key(); if (s0KeyBuilt !== k){ buildPanelS0(); s0KeyBuilt = k; } }
-    else if (t === 's12'){ renderRekapBulanan(); }
+    if (t === 's12'){ renderRekapBulanan(); }
+    else if (t === 's13'){ renderGrafikBulanan(); }
     else if (!viewCache[t] || viewCache[t].ver !== dataVersion){
       if (panel) panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Menyiapkan rekap…</div>';
       const ver = dataVersion, tab = t;
@@ -2064,7 +2059,7 @@ self.onmessage = function(e){
   }
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
-  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, showChart:false, metric:'profit', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama' };
+  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, metric:'profit', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama' };
   function rekapBlnSig(){ const f = Object.assign({}, filters); f.month = ''; return dataVersion + '|' + JSON.stringify(f); }
   async function rekapBlnLoad(){
     const sig = rekapBlnSig();
@@ -2191,7 +2186,7 @@ self.onmessage = function(e){
     const legend = series.length > 1 ? '<div style="display:flex;gap:14px;justify-content:center;font-size:11.5px;margin-top:2px">' + series.map(x => '<span><i style="display:inline-block;width:10px;height:10px;background:' + x.color + ';margin-right:5px;border-radius:2px"></i>' + escHtml(x.name) + '</span>').join('') + '</div>' : '';
     return '<div style="flex:1 1 360px;min-width:300px;border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:8px;color:var(--text)"><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img">' + g + '</svg>' + legend + '</div>';
   }
-  function rekapBlnChartHtml(c, multiYear){
+  function rekapBlnChartCards(c, multiYear){
     const labels = c.sel.map(m => rekapBlnLabel(m, multiYear)), metric = rekapBln.metric;
     const grp = isF => c.sel.map((m, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
     const mk = (isF, nm, col) => {
@@ -2201,16 +2196,55 @@ self.onmessage = function(e){
         ? rekapBlnSvg(nm + ' - Total Qty', labels, [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }], false)
         : rekapBlnSvg(nm + ' - Profit', labels, [{ name: 'Profit', color: col, vals: t.map(x => x.p) }], true);
     };
-    const sel = '<label style="font-size:12px">Grafik : <select onchange="rekapBlnMetric(this.value)"><option value="profit"' + (metric === 'profit' ? ' selected' : '') + '>Profit</option><option value="qty"' + (metric === 'qty' ? ' selected' : '') + '>Total Qty (Cash vs Tempo)</option></select></label>';
-    return '<div id="rbChartWrap" style="display:' + (rekapBln.showChart ? 'block' : 'none') + ';margin:0 0 12px"><div style="margin-bottom:6px">' + sel + '</div><div style="display:flex;flex-wrap:wrap;gap:12px">' + mk(true, 'Produk Fitri', '#2f6fb0') + mk(false, 'Produk Rupa Rupa', '#3b9a5a') + '</div></div>';
+    const cards = mk(true, 'Produk Fitri', '#2f6fb0') + mk(false, 'Produk Rupa Rupa', '#3b9a5a');
+    return cards ? '<div style="display:flex;flex-wrap:wrap;gap:12px">' + cards + '</div>' : '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data pada rentang bulan / pilihan produk ini.</div>';
   }
-  function rekapBlnToggleChart(){
-    rekapBln.showChart = !rekapBln.showChart;
-    const w = document.getElementById('rbChartWrap'), b = document.getElementById('rbChartBtn');
-    if (w) w.style.display = rekapBln.showChart ? 'block' : 'none';
-    if (b) b.textContent = rekapBln.showChart ? '📊 Sembunyikan grafik' : '📊 Tampilkan grafik';
+
+  /* ===== TAB: GRAFIK PENJUALAN & PROFIT (tab sendiri; memakai data & filter yang sama dengan tab Rekap) ===== */
+  let grafikToken = 0;
+  function grafikMetric(v){ rekapBln.metric = v; renderGrafikBulanan(); }
+  function grafikChange(){
+    const f = document.getElementById('gFrom'), t = document.getElementById('gTo'); if (!f || !t) return;
+    let a = f.value, b = t.value; if (a > b){ const x = a; a = b; b = x; }
+    rekapBln.from = a; rekapBln.to = b; rekapPage.s12 = 0; renderGrafikBulanan();
   }
-  function rekapBlnMetric(v){ rekapBln.metric = v; renderRekapBulanan(); }
+  function grafikQuick(n){
+    const d = rekapBln.data; if (!d || !d.months.length) return;
+    const ms = d.months; rekapBln.to = ms[ms.length-1]; rekapBln.from = ms[Math.max(0, ms.length - n)];
+    rekapPage.s12 = 0; renderGrafikBulanan();
+  }
+  function grafikSetCat(v){ rekapBln.cat = v || ''; rekapPage.s12 = 0; renderGrafikBulanan(); }
+  async function renderGrafikBulanan(){
+    const panel = document.getElementById('panel_s13'); if (!panel) return;
+    const tok = ++grafikToken;
+    if (!rekapBln.data) panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Menyiapkan grafik…</div>';
+    let d; try { d = await rekapBlnLoad(); } catch(e){ console.error(e); panel.innerHTML = '<div style="padding:28px;color:#b91c1c">Gagal memuat data: ' + escHtml(e.message || e) + '</div>'; return; }
+    if (tok !== grafikToken || _activeTab !== 's13') return;
+    const ms = d.months;
+    if (!ms.length){ rekapBln.spec = null; panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data transaksi.</div>'; return; }
+    if (!ms.includes(rekapBln.from) || !ms.includes(rekapBln.to) || rekapBln.from > rekapBln.to){
+      rekapBln.to = ms[ms.length-1]; rekapBln.from = ms[Math.max(0, ms.length - 4)];
+    }
+    const multiYear = new Set(ms.map(m => m.slice(0,4))).size > 1;
+    rekapBln.multiYear = multiYear;
+    const opt = (sel) => ms.map(m => '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + escHtml(monthLabel(m)) + '</option>').join('');
+    const fs = document.getElementById('filterSales');
+    const sl = fs ? Array.from(fs.options).map(o => o.value).filter(Boolean) : SO;
+    const salesOpts = '<option value="">Semua sales</option>' + sl.map(v => '<option value="' + escHtml(v) + '"' + (filters.sales === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
+    const catOpts = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (rekapBln.cat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+    const metricOpts = '<option value="profit"' + (rekapBln.metric === 'profit' ? ' selected' : '') + '>Profit</option><option value="qty"' + (rekapBln.metric === 'qty' ? ' selected' : '') + '>Total Qty (Cash vs Tempo)</option>';
+    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Grafik Penjualan &amp; Profit</span>'
+      + '<label>Dari bulan : <select id="gFrom" onchange="grafikChange()">' + opt(rekapBln.from) + '</select></label>'
+      + '<label>Sampai bulan : <select id="gTo" onchange="grafikChange()">' + opt(rekapBln.to) + '</select></label>'
+      + '<span style="display:inline-flex;gap:4px"><button type="button" class="pager-btn" onclick="grafikQuick(3)">3 bulan terakhir</button><button type="button" class="pager-btn" onclick="grafikQuick(6)">6 bulan terakhir</button><button type="button" class="pager-btn" onclick="grafikQuick(99)">Semua</button></span>'
+      + '<label>Grafik : <select onchange="grafikMetric(this.value)">' + metricOpts + '</select></label>'
+      + '<label>Sales : <select onchange="onSalesTabChange(this.value)">' + salesOpts + '</select></label>'
+      + '<label>Kategori : <select onchange="grafikSetCat(this.value)">' + catOpts + '</select></label>'
+      + '<span style="color:var(--muted);font-size:11.5px">Pilihan produk mengikuti tab Rekap Penjualan &amp; Profit (' + escHtml(rekapBlnCountText()) + '). Filter bulan global tidak dipakai di tab ini.</span></div>';
+    const c = rekapBlnCompute(d, rekapBln.from, rekapBln.to);
+    rekapBln.spec = { c, multiYear, from: rekapBln.from, to: rekapBln.to };   // supaya Simpan Excel (lembar Grafik) tetap konsisten
+    panel.innerHTML = bar + '<div id="gBody">' + rekapBlnChartCards(c, multiYear) + '</div>';
+  }
   async function renderRekapBulanan(){
     const panel = document.getElementById('panel_s12'); if (!panel) return;
     const tok = ++rekapBln.token;
@@ -2244,7 +2278,6 @@ self.onmessage = function(e){
       + '<input type="search" placeholder="Cari produk..." oninput="rekapBlnSearch(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
       + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="rekapBlnSelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="rekapBlnClear()">Kosongkan</button></div>'
       + '<div id="rbList" style="max-height:260px;overflow:auto">' + rekapBlnItemsHtml() + '</div></div></span>'
-      + '<button type="button" class="pager-btn" id="rbChartBtn" onclick="rekapBlnToggleChart()">' + (rekapBln.showChart ? '📊 Sembunyikan grafik' : '📊 Tampilkan grafik') + '</button>'
       + '<span style="color:var(--muted);font-size:11.5px">Filter bulan di atas tidak dipakai di tab ini; filter pembayaran tetap berlaku.</span></div>';
     rekapBln.multiYear = multiYear;
     panel.innerHTML = bar + '<div id="rbBody">' + rekapBlnBodyHtml() + '</div>';
@@ -2274,7 +2307,7 @@ self.onmessage = function(e){
     c.tot.forEach(x => { foot += '<td class="num">' + q(x.qc) + '</td><td class="num">' + q(x.qt) + '</td><td class="num">' + rp(x.p) + '</td>'; });
     foot += '<td class="s12-hrg"></td><td class="s12-hrg"></td></tr>';
     rekapBln.spec = { c, multiYear, from: rekapBln.from, to: rekapBln.to };
-    return rekapBlnChartHtml(c, multiYear) + rekapPagerHtml('s12', c.list.length) + '<div class="tablebox"><table class="s12table">' + head + '<tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+    return rekapPagerHtml('s12', c.list.length) + '<div class="tablebox"><table class="s12table">' + head + '<tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
   }
   /* ---- grafik untuk Excel: digambar ke canvas -> PNG -> disisipkan sebagai gambar ---- */
   function rekapBlnChartSets(c, multiYear){
@@ -2815,7 +2848,6 @@ self.onmessage = function(e){
     } catch(e){ console.warn('restoreFromDB gagal', e); }
   }
 
-  window.addEventListener('resize', () => { const b = document.getElementById('s0box'); if (b && document.getElementById('panel_s0').offsetParent !== null) requestAnimationFrame(s0Render); });
   function applyTheme(mode){
     const dark = mode === 'dark';
     document.body.classList.toggle('dark', dark);
@@ -2841,6 +2873,7 @@ self.onmessage = function(e){
   function resyncIfIdle(){ if (sbClient && navigator.onLine !== false && !pushTimer && !pushInFlight && !isSyncingFromCloud) { pullFromCloud({ silent: true }); subscribeRealtime(); } }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resyncIfIdle(); });
   window.addEventListener('online', resyncIfIdle);
+  window.addEventListener('offline', () => { setCloudStatus(isDirty() ? 'Offline • ada perubahan belum terkirim' : 'Offline • mode lokal'); });
   window.addEventListener('beforeunload', function(e){ if (pushTimer || pushInFlight || isSyncingFromCloud) { e.preventDefault(); e.returnValue = ''; return ''; } });
   if ('serviceWorker' in navigator){ window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW gagal daftar', e)); }); }
   let _deferredInstallPrompt = null;
