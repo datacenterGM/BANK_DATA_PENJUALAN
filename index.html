@@ -380,7 +380,7 @@ body.dark .hbdiff-choice label{background:#0f172a;color:#cbd5e1}
 body.dark .header-title{color:#67e8f9;text-shadow:0 0 8px rgba(103,232,249,.7),0 0 18px rgba(34,211,238,.45)}
 
 /* ===== PAGER ===== */
-.s3sortbar{display:flex;justify-content:flex-end;padding:2px 4px 6px;font-size:12px;color:var(--subtle)}
+.s3sortbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px 16px;padding:2px 4px 6px;font-size:12px;color:var(--subtle)}
 .s3sortbar select{margin-left:4px;padding:3px 6px;border-radius:5px;border:1px solid var(--input-border);background:var(--card);color:var(--chip-text);font-size:12px;font-weight:600}
 body.dark .s3sortbar select{background:#334155;color:#cbd5e1}
 .pager-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:5px 4px 8px;font-size:11.5px;color:var(--subtle)}
@@ -1628,7 +1628,8 @@ self.onmessage = function(e){
       return { name:'Produk', title:'Rekap Penjualan per Produk', head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...SO2.map((s,i)=>(r.s1||[]).reduce((a,x)=>a+(x[1+i]||0),0)),r.qty,'','','',r.hpp,r.sales,r.profit] };
     }
     if (tab === 's3'){
-      return { name:'Profit Produk', title:'Profit Penjualan per Produk', info: exportInfoLine() + '  |  Urutan: ' + ({desc:'Profit terbesar ke terkecil', asc:'Profit terkecil ke terbesar'}[s3Sort] || 'Nama produk (A–Z)'), head:['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'], types:['c','t','n','rp','rp','tr','tr','rp'], rows:s3Sorted().map((x,i)=>[i+1,...x]), total:['TOTAL','',r.qty,r.sales,r.hpp,'','',r.profit] };
+      const full = !!(opts && opts.full), l3 = s3Sorted(full), T3 = s3Totals(l3);
+      return { name:'Profit Produk', title:'Profit Penjualan per Produk', info: exportInfoLine() + '  |  Urutan: ' + ({desc:'Profit terbesar ke terkecil', asc:'Profit terkecil ke terbesar'}[s3Sort] || 'Nama produk (A–Z)') + (full ? '' : '  |  Kategori : ' + s3CatLabel() + '  |  Pilihan produk : ' + (s3Sel.size ? s3Sel.size + ' produk' : 'Semua')), head:['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'], types:['c','t','n','rp','rp','tr','tr','rp'], rows:l3.map((x,i)=>[i+1,...x]), total:['TOTAL','',T3.qty,T3.sales,T3.hpp,'','',T3.profit] };
     }
     if (tab === 's5'){
       const avgM = r.sales ? (r.profit/r.sales*100) : 0;
@@ -1836,16 +1837,55 @@ self.onmessage = function(e){
 
   /* Urutan tabel Profit Penjualan per Produk: 'nama' (default) | 'desc' (profit terbesar) | 'asc' (profit terkecil) */
   let s3Sort = 'nama';
-  function s3Sorted(){
-    const a = (R.s3 || []).slice();
+  let s3Cat = '', s3Sel = new Set(), s3PickNames = [];
+  function s3CatLabel(){ return s3Cat === 'FITRI' ? 'Fitri' : s3Cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
+  function s3CountText(){ return s3Sel.size ? s3Sel.size + ' produk dipilih' : 'Semua produk'; }
+  function s3CatList(){ return (R.s3 || []).filter(x => !s3Cat || ((s3Cat === 'FITRI') === isFitriProduct(x[0]))); }
+  function s3Sorted(full){
+    let a = full ? (R.s3 || []).slice() : s3CatList();
+    if (!full && s3Sel.size) a = a.filter(x => s3Sel.has(x[0]));
     if (s3Sort === 'desc') a.sort((x,y) => (y[6]||0) - (x[6]||0));
     else if (s3Sort === 'asc') a.sort((x,y) => (x[6]||0) - (y[6]||0));
     return a;
   }
+  function s3Totals(list){ return { qty: list.reduce((a,x)=>a+(x[1]||0),0), sales: list.reduce((a,x)=>a+(x[2]||0),0), hpp: list.reduce((a,x)=>a+(x[3]||0),0), profit: list.reduce((a,x)=>a+(x[6]||0),0) }; }
+  function s3TableHtml(){
+    const list = s3Sorted(), T = s3Totals(list);
+    const h = ['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'];
+    const pageRows = sliceRekap('s3', list), base = (rekapPage.s3 || 0) * REKAP_PAGE_SIZE;
+    const d = pageRows.map((x,i) => [base+i+1, x[0], x[1], rp(x[2]), rp(x[3]), x[4], x[5], rp(x[6])]);
+    return rekapPagerHtml('s3', list.length) + tbl(h, d, ['TOTAL', '', T.qty, rp(T.sales), rp(T.hpp), '', '', rp(T.profit)]);
+  }
+  function s3Changed(){
+    rekapPage.s3 = 0; viewCache['s3'] = null;
+    const t = document.getElementById('s3tbl'); if (t) t.innerHTML = s3TableHtml();
+    const c = document.getElementById('s3Count'); if (c) c.textContent = s3CountText();
+  }
+  function s3Toggle(cb){ const n = s3PickNames[+cb.dataset.i]; if (n == null) return; if (cb.checked) s3Sel.add(n); else s3Sel.delete(n); s3Changed(); }
+  function s3SelectAll(){
+    document.querySelectorAll('#s3List .s3-item').forEach(l => { if (l.style.display === 'none') return; const cb = l.querySelector('input'); cb.checked = true; const n = s3PickNames[+cb.dataset.i]; if (n != null) s3Sel.add(n); });
+    s3Changed();
+  }
+  function s3Clear(){ s3Sel.clear(); document.querySelectorAll('#s3List input[type=checkbox]').forEach(cb => cb.checked = false); s3Changed(); }
+  function s3Search(v){
+    const t = String(v || '').trim().toLowerCase();
+    document.querySelectorAll('#s3List .s3-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; });
+  }
+  function s3TogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('s3Dd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
+  function s3SetCat(v){ s3Cat = v || ''; rekapPage.s3 = 0; viewCache['s3'] = null; const panel = document.getElementById('panel_s3'); if (panel) panel.innerHTML = renderTab('s3'); }
+  document.addEventListener('click', function(e){ const d = document.getElementById('s3Dd'); if (d && d.style.display === 'block' && !e.target.closest('#s3Pick')) d.style.display = 'none'; });
   function s3SetSort(v){ s3Sort = v; rekapPage.s3 = 0; viewCache['s3'] = null; const btn = document.querySelector('.tabs button.active'); show('s3', btn); }
   function s3SortBarHtml(){
     const o = (v,l) => '<option value="' + v + '"' + (s3Sort === v ? ' selected' : '') + '>' + l + '</option>';
-    return '<div class="s3sortbar"><label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
+    const cat = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(x => '<option value="' + x[0] + '"' + (s3Cat === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('');
+    s3PickNames = s3CatList().map(x => x[0]);
+    const items = s3PickNames.map((n, i) => '<label class="s3-item" data-n="' + escHtml(n.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (s3Sel.has(n) ? ' checked' : '') + ' onchange="s3Toggle(this)"><span>' + escHtml(n) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
+    const picker = '<span id="s3Pick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="s3TogglePicker(event)"><span id="s3Count">' + s3CountText() + '</span> ▼</button>'
+      + '<div id="s3Dd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px;text-align:left">'
+      + '<input type="search" placeholder="Cari produk..." oninput="s3Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
+      + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s3SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s3Clear()">Kosongkan</button></div>'
+      + '<div id="s3List" style="max-height:260px;overflow:auto">' + items + '</div></div></span>';
+    return '<div class="s3sortbar"><label>Kategori : <select onchange="s3SetCat(this.value)">' + cat + '</select></label>' + picker + '<label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
   }
 
   function renderTab(t){
@@ -1857,10 +1897,7 @@ self.onmessage = function(e){
       const sums = SO2.map((s,i) => (R.s1||[]).reduce((a,x) => a + (x[1+i]||0), 0));
       return rekapPagerHtml('s1', (R.s1||[]).length) + tbl(h, d, ['TOTAL', ...sums, R.qty, '', '', '', rp(R.hpp), rp(R.sales), rp(R.profit)]);
     } else if (t === 's3'){
-      const h = ['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'];
-      const pageRows = sliceRekap('s3', s3Sorted()), base = (rekapPage.s3 || 0) * REKAP_PAGE_SIZE;
-      const d = pageRows.map((x,i) => [base+i+1, x[0], x[1], rp(x[2]), rp(x[3]), x[4], x[5], rp(x[6])]);
-      return s3SortBarHtml() + rekapPagerHtml('s3', (R.s3||[]).length) + tbl(h, d, ['TOTAL', '', R.qty, rp(R.sales), rp(R.hpp), '', '', rp(R.profit)]);
+      return s3SortBarHtml() + '<div id="s3tbl">' + s3TableHtml() + '</div>';
     } else if (t === 's6'){ return renderRekapPerFaktur();
     } else if (t === 's8'){
       const groups = buildFakturGroups();
@@ -1998,7 +2035,7 @@ self.onmessage = function(e){
   }
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
-  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, showChart:false, metric:'profit', cat:'', sel:new Set(), names:[], multiYear:false };
+  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, showChart:false, metric:'profit', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama' };
   function rekapBlnSig(){ const f = Object.assign({}, filters); f.month = ''; return dataVersion + '|' + JSON.stringify(f); }
   async function rekapBlnLoad(){
     const sig = rekapBlnSig();
@@ -2020,9 +2057,17 @@ self.onmessage = function(e){
     if (rekapBln.cat && ((rekapBln.cat === 'FITRI') !== isFitriProduct(p))) return false;
     return !rekapBln.sel.size || rekapBln.sel.has(p);
   }
+  function rekapBlnSortLabel(){
+    const k = rekapBln.sort;
+    if (k === 'desc') return 'Total profit terbesar';
+    if (k === 'asc') return 'Total profit terkecil';
+    if (k && k.indexOf('m:') === 0) return 'Profit ' + monthLabel(k.slice(2)) + ' terbesar';
+    return 'Nama produk (A–Z)';
+  }
+  function rekapBlnSetSort(v){ rekapBln.sort = v || 'nama'; rekapBlnChanged(); }
   function rekapBlnCatLabel(){ return rekapBln.cat === 'FITRI' ? 'Fitri' : rekapBln.cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
   function rekapBlnCountText(){ return rekapBln.sel.size ? rekapBln.sel.size + ' produk dipilih' : 'Semua produk'; }
-  function rekapBlnInfoExtra(){ return '  |  Kategori : ' + rekapBlnCatLabel() + '  |  Pilihan produk : ' + (rekapBln.sel.size ? rekapBln.sel.size + ' produk' : 'Semua'); }
+  function rekapBlnInfoExtra(){ return '  |  Urutan : ' + rekapBlnSortLabel() + '  |  Kategori : ' + rekapBlnCatLabel() + '  |  Pilihan produk : ' + (rekapBln.sel.size ? rekapBln.sel.size + ' produk' : 'Semua'); }
   function rekapBlnItemsHtml(){
     const d = rekapBln.data; const set = new Set();
     if (d) d.rows.forEach(r => { if (!rekapBln.cat || ((rekapBln.cat === 'FITRI') === isFitriProduct(r.produk))) set.add(r.produk); });
@@ -2064,6 +2109,12 @@ self.onmessage = function(e){
       if (r.hj < st.jmin) st.jmin = r.hj; if (r.hj > st.jmax) st.jmax = r.hj;
     });
     const list = [...byProd.entries()].map(([p, st]) => ({ p, st })).sort((a,b) => natCmp(a.p, b.p));
+    const tp = o => o.st.m.reduce((a,x) => a + x.p, 0);
+    let sk = rekapBln.sort;
+    if (sk && sk.indexOf('m:') === 0 && !idx.has(sk.slice(2))) sk = 'desc';
+    if (sk === 'desc') list.sort((a,b) => tp(b) - tp(a) || natCmp(a.p, b.p));
+    else if (sk === 'asc') list.sort((a,b) => tp(a) - tp(b) || natCmp(a.p, b.p));
+    else if (sk && sk.indexOf('m:') === 0){ const i = idx.get(sk.slice(2)); list.sort((a,b) => b.st.m[i].p - a.st.m[i].p || natCmp(a.p, b.p)); }
     const tot = sel.map((m,i) => list.reduce((a,o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc:0, qt:0, p:0 }));
     return { sel, list, tot };
   }
@@ -2148,6 +2199,11 @@ self.onmessage = function(e){
       + '<label>Dari bulan : <select id="rbFrom" onchange="rekapBlnChange()">' + opt(rekapBln.from) + '</select></label>'
       + '<label>Sampai bulan : <select id="rbTo" onchange="rekapBlnChange()">' + opt(rekapBln.to) + '</select></label>'
       + '<span style="display:inline-flex;gap:4px"><button type="button" class="pager-btn" onclick="rekapBlnQuick(3)">3 bulan terakhir</button><button type="button" class="pager-btn" onclick="rekapBlnQuick(6)">6 bulan terakhir</button><button type="button" class="pager-btn" onclick="rekapBlnQuick(99)">Semua</button></span>'
+      + '<label>Urutkan : <select onchange="rekapBlnSetSort(this.value)">' + (() => {
+          const so = (v, l) => '<option value="' + v + '"' + (rekapBln.sort === v ? ' selected' : '') + '>' + l + '</option>';
+          return so('nama', 'Nama produk (A–Z)') + so('desc', 'Total profit terbesar') + so('asc', 'Total profit terkecil')
+            + ms.filter(m => m >= rekapBln.from && m <= rekapBln.to).map(m => so('m:' + m, 'Profit ' + escHtml(monthLabel(m)) + ' terbesar')).join('');
+        })() + '</select></label>'
       + '<label>Kategori : <select onchange="rekapBlnSetCat(this.value)">' + [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (rekapBln.cat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>'
       + '<span id="rbPick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="rekapBlnTogglePicker(event)"><span id="rbCount">' + rekapBlnCountText() + '</span> ▼</button>'
       + '<div id="rbDd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px">'
