@@ -491,9 +491,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               <button onclick="show('s0',this)">Transaksi</button>
               <button class="active" onclick="show('s6',this)">Faktur</button>
               <button onclick="show('s1',this)">Produk</button>
-              <button onclick="show('s8',this)">Profit/Faktur</button>
               <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
-              <button onclick="show('s5',this)">Margin % per Produk</button>
               <button onclick="show('s11',this)">Rekap Penjualan Per Sales Produk</button>
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
@@ -559,9 +557,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         <div id="panel_s0" class="view"><div id="s0actions"></div><div class="tablebox" id="s0box"></div><div class="vfootwrap" id="s0footwrap"><table class="vfoot" id="s0foot"></table></div></div>
         <div id="panel_s6" class="view" style="display:none"></div>
         <div id="panel_s1" class="view" style="display:none"></div>
-        <div id="panel_s8" class="view" style="display:none"></div>
         <div id="panel_s3" class="view" style="display:none"></div>
-        <div id="panel_s5" class="view" style="display:none"></div>
         <div id="panel_s9" class="view" style="display:none"></div>
         <div id="panel_s10" class="view" style="display:none"></div>
         <div id="panel_s11" class="view" style="display:none"></div>
@@ -1631,18 +1627,9 @@ self.onmessage = function(e){
       const full = !!(opts && opts.full), l3 = s3Sorted(full), T3 = s3Totals(l3);
       return { name:'Profit Produk', title:'Profit Penjualan per Produk', info: exportInfoLine() + '  |  Urutan: ' + ({desc:'Profit terbesar ke terkecil', asc:'Profit terkecil ke terbesar'}[s3Sort] || 'Nama produk (A–Z)') + (full ? '' : '  |  Kategori : ' + s3CatLabel() + '  |  Pilihan produk : ' + (s3Sel.size ? s3Sel.size + ' produk' : 'Semua')), head:['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'], types:['c','t','n','rp','rp','tr','tr','rp'], rows:l3.map((x,i)=>[i+1,...x]), total:['TOTAL','',T3.qty,T3.sales,T3.hpp,'','',T3.profit] };
     }
-    if (tab === 's5'){
-      const avgM = r.sales ? (r.profit/r.sales*100) : 0;
-      return { name:'Margin Produk', title:'Margin % per Produk', head:['NO','PRODUK','QTY','SATUAN','TOTAL PENJUALAN','TOTAL HPP','PROFIT','MARGIN %'], types:['c','t','n','c','rp','rp','rp','pct'], rows:(r.s5||[]).map((x,i)=>[i+1,x[0],x[1],x[2],x[3],x[4],x[5],Math.round(x[6]*100)/100]), total:['TOTAL','',r.qty,'',r.sales,r.hpp,r.profit,Math.round(avgM*100)/100] };
-    }
     if (tab === 's6'){
       const rows = buildFakturRows().map((row,i) => { const x = row.x; return [i+1, x.Tanggal, row.faktur, x.Sales||row.sales||'', x.Produk||'', N(x.Jumlah), x.Satuan||'', N(x['Harga Jual']), N(x.Discount), N(x.Total), row.isFirst ? row.nominal : '', row.isFirst ? row.profit : '', x.Pembayaran||row.bayar||'', x.Customer||row.customer||'']; });
       return { name:'Faktur', title:'Rekap per Faktur', head:['NO','TANGGAL','NO. FAKTUR','SALES','PRODUK','QTY','SATUAN','HARGA JUAL','DISC','TOTAL','NOMINAL FAKTUR','PROFIT PER FAKTUR','PEMBAYARAN','CUSTOMER'], types:['c','d','t','t','t','n','c','rp','rp','rp','rp','rp','t','t'], rows, total:['TOTAL','','','','',r.qty,'','','',r.sales,r.sales,r.profit,'',''] };
-    }
-    if (tab === 's8'){
-      const groups = buildFakturGroups();
-      const totNominal = groups.reduce((a,g)=>a+g.nominal,0), totProfit = groups.reduce((a,g)=>a+g.profit,0);
-      return { name:'Profit Faktur', title:'Profit per Faktur', head:['NO','TANGGAL','NO. FAKTUR','SALES','CUSTOMER','PEMBAYARAN','NOMINAL FAKTUR','PROFIT FAKTUR','MARGIN %'], types:['c','d','t','t','t','t','rp','rp','pct'], rows:groups.map((g,i)=>[i+1,g.tgl,g.faktur,g.sales||'',g.customer||'',g.bayar||'',g.nominal,g.profit,g.nominal?Math.round(g.profit/g.nominal*10000)/100:0]), total:['TOTAL','','','','','',totNominal,totProfit,totNominal?Math.round(totProfit/totNominal*10000)/100:0] };
     }
     if (tab === 's9'){
       return { name:'Data Harga', title:'Data Harga Beli & Jual', head:['PRODUK','SATUAN','HARGA BELI TERENDAH','HARGA BELI TERTINGGI','HARGA JUAL TERENDAH','HARGA JUAL TERTINGGI','KET'], types:['t','c','rp','rp','rp','rp','t'], rows:(r.s9||[]).map(x=>[x[0],x[1]||'',x[2],x[3],x[4],x[5], x[6] ? ((x[6].dir==='naik'?'Naik':'Turun')+' sejak '+fmtTgl(new Date(x[6].ts))) : '']), total:null };
@@ -1899,20 +1886,6 @@ self.onmessage = function(e){
     } else if (t === 's3'){
       return s3SortBarHtml() + '<div id="s3tbl">' + s3TableHtml() + '</div>';
     } else if (t === 's6'){ return renderRekapPerFaktur();
-    } else if (t === 's8'){
-      const groups = buildFakturGroups();
-      const h = ['NO','TANGGAL','NO. FAKTUR','SALES','CUSTOMER','PEMBAYARAN','NOMINAL FAKTUR','PROFIT FAKTUR','MARGIN %'];
-      const pageRows = sliceRekap('s8', groups), base = (rekapPage.s8 || 0) * REKAP_PAGE_SIZE;
-      const d = pageRows.map((g,i) => [base+i+1, fmtTgl(g.tgl), g.faktur, g.sales || '', g.customer || '', g.bayar || '', rp(g.nominal), rp(g.profit), (g.nominal ? (Math.round(g.profit/g.nominal*10000)/100) : 0).toLocaleString('id-ID') + ' %']);
-      const totNominal = groups.reduce((a,g)=>a+g.nominal,0), totProfit = groups.reduce((a,g)=>a+g.profit,0);
-      const avgM = totNominal ? (totProfit/totNominal*100) : 0;
-      return rekapPagerHtml('s8', groups.length) + tbl(h, d, ['TOTAL','','','','','', rp(totNominal), rp(totProfit), (Math.round(avgM*100)/100).toLocaleString('id-ID') + ' %']);
-    } else if (t === 's5'){
-      const h = ['NO','PRODUK','QTY','SATUAN','TOTAL PENJUALAN','TOTAL HPP','PROFIT','MARGIN %'];
-      const pageRows = sliceRekap('s5', R.s5 || []), base = (rekapPage.s5 || 0) * REKAP_PAGE_SIZE;
-      const d = pageRows.map((x,i) => [base+i+1, x[0], x[1], x[2], rp(x[3]), rp(x[4]), rp(x[5]), (Math.round(x[6]*100)/100).toLocaleString('id-ID') + ' %']);
-      const avgM = R.sales ? (R.profit/R.sales*100) : 0;
-      return rekapPagerHtml('s5', (R.s5||[]).length) + tbl(h, d, ['TOTAL', '', R.qty, '', rp(R.sales), rp(R.hpp), rp(R.profit), (Math.round(avgM*100)/100).toLocaleString('id-ID') + ' %']);
     } else if (t === 's9'){ return renderS9();
     } else if (t === 's10'){ return renderDataBulanan();
     } else if (t === 's11'){ return renderRekapSalesProduk(); }
@@ -2652,7 +2625,7 @@ self.onmessage = function(e){
     try {
       showBusy('Membuat file Excel…');
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
-      ['s0','s6','s1','s8','s3','s5','s9','s10a','s10','s10r','s11'].forEach(t => { const sp = excelSpec(t, {full:true}); if (sp) addStyledSheet(wb, sp); });
+      ['s0','s6','s1','s3','s9','s10a','s10','s10r','s11'].forEach(t => { const sp = excelSpec(t, {full:true}); if (sp) addStyledSheet(wb, sp); });
       await downloadWorkbook(wb, 'Rekap_Penjualan_Hasil.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
