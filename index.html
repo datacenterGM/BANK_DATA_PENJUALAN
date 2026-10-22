@@ -1070,7 +1070,7 @@ self.onmessage = function(e){
     document.getElementById('result').style.display   = 'block';
     document.getElementById('save').disabled          = totalRows === 0;
     if (typeof buildColPicker === 'function') buildColPicker();
-    show('s6', document.querySelector('.tabs button.active') || document.querySelector('.tabs button'));
+    show(_activeTab || 's6', document.querySelector('.tabs button.active') || document.querySelector('.tabs button'));
     const dl = (replacedDays && replacedDays.length) ? replacedDays.slice().sort() : [];
     const blLabel = dl.length ? (dl.length === 1 ? dayLabel(dl[0]) : dayLabel(dl[0]) + ' s/d ' + dayLabel(dl[dl.length-1]) + ' (' + dl.length + ' hari)') : '';
     const extra = blLabel ? ' — digabung (tanggal diperbarui: ' + blLabel + '; baris baru: ' + (newCount||0).toLocaleString('id-ID') + ')' : '';
@@ -2626,7 +2626,7 @@ self.onmessage = function(e){
       document.getElementById('save').disabled          = false;
       buildColPicker();
       await applyFilters();
-      show('s6', document.querySelector('.tabs button.active') || document.querySelector('.tabs button'));
+      show(_activeTab || 's6', document.querySelector('.tabs button.active') || document.querySelector('.tabs button'));
       setStatus('Data dari IndexedDB dimuat: ' + total.toLocaleString('id-ID') + ' baris (persistensi aktif).');
     } catch(e){ console.warn('restoreFromDB gagal', e); }
   }
