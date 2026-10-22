@@ -492,7 +492,6 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               <button class="active" onclick="show('s6',this)">Faktur</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
-              <button onclick="show('s11',this)">Rekap Penjualan Per Sales Produk</button>
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
               <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
@@ -556,7 +555,6 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         <div id="panel_s3" class="view" style="display:none"></div>
         <div id="panel_s9" class="view" style="display:none"></div>
         <div id="panel_s10" class="view" style="display:none"></div>
-        <div id="panel_s11" class="view" style="display:none"></div>
         <div id="panel_s12" class="view" style="display:none"></div>
         <div id="panel_s13" class="view" style="display:none"></div>
       </div>
@@ -1631,19 +1629,6 @@ self.onmessage = function(e){
     if (tab === 's9'){
       return { name:'Data Harga', title:'Data Harga Beli & Jual', head:['PRODUK','SATUAN','HARGA BELI TERENDAH','HARGA BELI TERTINGGI','HARGA JUAL TERENDAH','HARGA JUAL TERTINGGI','KET'], types:['t','c','rp','rp','rp','rp','t'], rows:(r.s9||[]).map(x=>[x[0],x[1]||'',x[2],x[3],x[4],x[5], x[6] ? ((x[6].dir==='naik'?'Naik':'Turun')+' sejak '+fmtTgl(new Date(x[6].ts))) : '']), total:null };
     }
-    if (tab === 's11'){
-      const noRp = v => { const t = String(v == null ? '' : v); if (!t) return ''; if (t.indexOf(' - ') < 0) { const num = Number(t.replace(/Rp\s*/g,'').replace(/\./g,'').replace(/,/g,'.')); return isFinite(num) ? num : t.replace(/Rp\s*/g,''); } return t.replace(/Rp\s*/g,''); };
-      const full = !!(opts && opts.full);
-      const list = full ? (r.s11 || []) : s11Filtered();
-      const rows = list.map(x => [x[0], x[1] || '', x[2] || '', x[3]||'', x[4], noRp(x[5]), noRp(x[6]), noRp(x[7]), x[8], x[9]]);
-      const tC = list.reduce((a,x)=>a+x[1],0), tT = list.reduce((a,x)=>a+x[2],0);
-      const tPr = list.reduce((a,x)=>a+x[4],0), tH = list.reduce((a,x)=>a+x[8],0), tV = list.reduce((a,x)=>a+x[9],0);
-      const info = 'Bulan : ' + monthFilterLabel() + '  |  Produk : ' + produkFilterLabel() + '  |  Sales : ' + (filters.sales || 'Semua sales') + (full ? '' : '  |  Kategori : ' + s11CatLabel() + '  |  Pilihan produk : ' + (s11Sel.size ? s11Sel.size + ' produk' : 'Semua'));
-      return { name:'Rekap Per Sales Produk', title:'Rekap Penjualan Per Sales Produk', info,
-        head:['PRODUK','QTY CASH','QTY TEMPO','SATUAN','PROFIT','HARGA BELI','JUAL CASH','JUAL TEMPO','BELI X QTY','JUAL X QTY'],
-        head2:[['PRODUK',null],['TOTAL QTY','CASH'],['TOTAL QTY','TEMPO'],['SATUAN',null],['PROFIT',null],['HARGA BELI',null],['HARGA JUAL','CASH'],['HARGA JUAL','TEMPO'],['BELI X QTY',null],['JUAL X QTY',null]],
-        types:['t','n','n','c','n','nt','nt','nt','n','n'], rows, total:['TOTAL',tC,tT,'',tPr,'','','',tH,tV] };
-    }
     if (tab === 's12') return rekapBlnExcelSpec();
     if (tab === 's10' || tab === 's10r' || tab === 's10a'){
       const key = tab === 's10a' ? 'all' : tab === 's10' ? 'fitri' : 'rupa', byMonth = monthlyAgg();
@@ -1938,8 +1923,7 @@ self.onmessage = function(e){
       return s3SortBarHtml() + '<div id="s3tbl">' + s3TableHtml() + '</div>';
     } else if (t === 's6'){ return renderRekapPerFaktur();
     } else if (t === 's9'){ return renderS9();
-    } else if (t === 's10'){ return renderDataBulanan();
-    } else if (t === 's11'){ return renderRekapSalesProduk(); }
+    } else if (t === 's10'){ return renderDataBulanan(); }
   }
   function monthFilterLabel(){ const fm = document.getElementById('filterMonth'); return fm && fm.value ? (fm.options[fm.selectedIndex]?.text || fm.value) : 'Semua bulan'; }
   function renderS9(){
@@ -1959,68 +1943,6 @@ self.onmessage = function(e){
   function onSalesTabChange(v){
     const fs = document.getElementById('filterSales'); if (!fs) return;
     fs.value = v; applyFilters();
-  }
-  /* ===== Filter Kategori + pilih Produk (khusus tab Rekap Per Sales Produk) ===== */
-  let s11Cat = '', s11Sel = new Set(), s11PickNames = [];
-  function s11CatLabel(){ return s11Cat === 'FITRI' ? 'Fitri' : s11Cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
-  function s11CatList(){ return (R.s11 || []).filter(x => !s11Cat || ((s11Cat === 'FITRI') === isFitriProduct(x[0]))); }
-  function s11Filtered(){ const base = s11CatList(); return s11Sel.size ? base.filter(x => s11Sel.has(x[0])) : base; }
-  function s11CountText(){ return s11Sel.size ? s11Sel.size + ' produk dipilih' : 'Semua produk'; }
-  function s11TableHtml(){
-    const list = s11Filtered();
-    const pageRows = sliceRekap('s11', list);
-    const q = v => v ? v.toLocaleString('id-ID') : '';
-    const body = pageRows.length ? pageRows.map(x => '<tr><td>' + escHtml(x[0]) + '</td><td class="num">' + q(x[1]) + '</td><td class="num">' + q(x[2]) + '</td><td>' + escHtml(x[3]||'') + '</td><td class="num">' + rp(x[4]) + '</td><td class="num">' + x[5] + '</td><td class="num">' + (x[6]||'') + '</td><td class="num">' + (x[7]||'') + '</td><td class="num">' + rp(x[8]) + '</td><td class="num">' + rp(x[9]) + '</td></tr>').join('')
-      : '<tr><td colspan="10" style="text-align:center;padding:28px;color:#64748b">Tidak ada data untuk filter saat ini.</td></tr>';
-    const tC = list.reduce((a,x)=>a+x[1],0), tT = list.reduce((a,x)=>a+x[2],0);
-    const tPr = list.reduce((a,x)=>a+x[4],0), tH = list.reduce((a,x)=>a+x[8],0), tV = list.reduce((a,x)=>a+x[9],0);
-    const foot = '<tr><td>TOTAL</td><td class="num">' + tC.toLocaleString('id-ID') + '</td><td class="num">' + tT.toLocaleString('id-ID') + '</td><td></td><td class="num">' + rp(tPr) + '</td><td></td><td></td><td></td><td class="num">' + rp(tH) + '</td><td class="num">' + rp(tV) + '</td></tr>';
-    const head = '<thead><tr><th class="s10-h0" rowspan="2">PRODUK</th><th class="s10-h1" colspan="2">TOTAL QTY</th><th class="s10-h0" rowspan="2">SATUAN</th><th class="s10-h0" rowspan="2">PROFIT</th><th class="s10-h0" rowspan="2">HARGA BELI</th><th class="s10-h1" colspan="2">HARGA JUAL</th><th class="s10-h0" rowspan="2">BELI X QTY</th><th class="s10-h0" rowspan="2">JUAL X QTY</th></tr><tr><th class="s10-h2">CASH</th><th class="s10-h2">TEMPO</th><th class="s10-h2">CASH</th><th class="s10-h2">TEMPO</th></tr></thead>';
-    return rekapPagerHtml('s11', list.length) + '<div class="tablebox"><table class="s10table">' + head + '<tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
-  }
-  function s11PickerItemsHtml(){
-    s11PickNames = s11CatList().map(x => x[0]);
-    return s11PickNames.map((n, i) => '<label class="s11-item" data-n="' + escHtml(n.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (s11Sel.has(n) ? ' checked' : '') + ' onchange="s11Toggle(this)"><span>' + escHtml(n) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
-  }
-  function s11Changed(){
-    rekapPage.s11 = 0; viewCache['s11'] = null;
-    const t = document.getElementById('s11tbl'); if (t) t.innerHTML = s11TableHtml();
-    const c = document.getElementById('s11Count'); if (c) c.textContent = s11CountText();
-  }
-  function s11Toggle(cb){ const n = s11PickNames[+cb.dataset.i]; if (n == null) return; if (cb.checked) s11Sel.add(n); else s11Sel.delete(n); s11Changed(); }
-  function s11SelectAll(){
-    const box = document.getElementById('s11List'); if (!box) return;
-    box.querySelectorAll('.s11-item').forEach(l => { if (l.style.display === 'none') return; const cb = l.querySelector('input'); cb.checked = true; const n = s11PickNames[+cb.dataset.i]; if (n != null) s11Sel.add(n); });
-    s11Changed();
-  }
-  function s11Clear(){
-    s11Sel.clear();
-    document.querySelectorAll('#s11List input[type=checkbox]').forEach(cb => cb.checked = false);
-    s11Changed();
-  }
-  function s11Search(v){
-    const t = String(v || '').trim().toLowerCase();
-    document.querySelectorAll('#s11List .s11-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; });
-  }
-  function s11TogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('s11Dd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
-  function s11SetCat(v){
-    s11Cat = v || ''; rekapPage.s11 = 0; viewCache['s11'] = null;
-    const panel = document.getElementById('panel_s11'); if (panel) panel.innerHTML = renderRekapSalesProduk();
-  }
-  document.addEventListener('click', function(e){ const d = document.getElementById('s11Dd'); if (d && d.style.display === 'block' && !e.target.closest('#s11Pick')) d.style.display = 'none'; });
-  function renderRekapSalesProduk(){
-    const fs = document.getElementById('filterSales');
-    const salesList = fs ? Array.from(fs.options).map(o => o.value).filter(Boolean) : SO;
-    const salesOpts = '<option value="">Semua sales</option>' + salesList.map(v => '<option value="' + escHtml(v) + '"' + (filters.sales === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
-    const selSt = 'padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)';
-    const catOpts = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (s11Cat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
-    const picker = '<span id="s11Pick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="s11TogglePicker(event)"><span id="s11Count">' + s11CountText() + '</span> ▼</button>'
-      + '<div id="s11Dd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px">'
-      + '<input type="search" placeholder="Cari produk..." oninput="s11Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;' + selSt + '">'
-      + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s11SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s11Clear()">Kosongkan</button></div>'
-      + '<div id="s11List" style="max-height:260px;overflow:auto">' + s11PickerItemsHtml() + '</div></div></span>';
-    const caption = '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 20px;margin:2px 0 10px;font-size:12.5px;color:var(--text)"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan Per Sales Produk</span><span>Bulan : <b>' + escHtml(monthFilterLabel()) + '</b></span><label style="display:inline-flex;align-items:center;gap:6px">Kategori : <select onchange="s11SetCat(this.value)" style="' + selSt + '">' + catOpts + '</select></label>' + picker + '<label style="display:inline-flex;align-items:center;gap:6px">Sales : <select onchange="onSalesTabChange(this.value)" style="' + selSt + '">' + salesOpts + '</select></label></div>';
-    return caption + '<div id="s11tbl">' + s11TableHtml() + '</div>';
   }
   function monthLabelShort(key){ if (!key) return ''; const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long' }).toLowerCase(); }
   function monthlyAgg(){
@@ -2714,7 +2636,7 @@ self.onmessage = function(e){
     try {
       showBusy('Membuat file Excel…');
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
-      ['s0','s6','s1','s3','s9','s10a','s10','s10r','s11'].forEach(t => { const sp = excelSpec(t, {full:true}); if (sp) addStyledSheet(wb, sp); });
+      ['s6','s1','s3','s9','s10a','s10','s10r'].forEach(t => { const sp = excelSpec(t, {full:true}); if (sp) addStyledSheet(wb, sp); });
       await downloadWorkbook(wb, 'Rekap_Penjualan_Hasil.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
