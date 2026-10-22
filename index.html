@@ -1620,8 +1620,10 @@ self.onmessage = function(e){
       return { name:'Transaksi', title:'Laporan Transaksi Penjualan', head:['NO','TANGGAL','NO. FAKTUR','PRODUK','QTY','SATUAN','HARGA JUAL','HARGA BELI','DISC','TOTAL','HPP','PROFIT','SALES','PEMBAYARAN','CUSTOMER','KODE CUSTOMER','ALAMAT'], types:['c','d','t','t','n','c','rp','rp','rp','rp','rp','rp','t','t','t','t','w'], rows, total:['TOTAL','','','',r.qty,'','','','',r.sales,r.hpp,r.profit,'','','','',''] };
     }
     if (tab === 's1'){
-      const rows = (r.s1||[]).map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],x[n+5],x[n+6],x[n+7]); return row; });
-      return { name:'Produk', title:'Rekap Penjualan per Produk', head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...SO2.map((s,i)=>(r.s1||[]).reduce((a,x)=>a+(x[1+i]||0),0)),r.qty,'','','',r.hpp,r.sales,r.profit] };
+      const full = !!(opts && opts.full), l1 = s1Sorted(full), T1 = s1Totals(l1);
+      const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],x[n+5],x[n+6],x[n+7]); return row; });
+      const info = exportInfoLine() + (full ? '' : '  |  Urutan : ' + s1SortLabel() + '  |  Kategori : ' + s1CatLabel() + '  |  Pilihan produk : ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
+      return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit] };
     }
     if (tab === 's3'){
       const full = !!(opts && opts.full), l3 = s3Sorted(full), T3 = s3Totals(l3);
@@ -1875,14 +1877,68 @@ self.onmessage = function(e){
     return '<div class="s3sortbar"><label>Kategori : <select onchange="s3SetCat(this.value)">' + cat + '</select></label>' + picker + '<label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
   }
 
+  /* ===== Tab Produk: Urutkan + Kategori + pilih Produk ===== */
+  let s1Cat = '', s1Sel = new Set(), s1Sort = 'nama', s1PickNames = [];
+  function s1CatLabel(){ return s1Cat === 'FITRI' ? 'Fitri' : s1Cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
+  function s1SortLabel(){ return ({desc:'Profit terbesar', asc:'Profit terkecil', qty:'Total qty terbesar'})[s1Sort] || 'Nama produk (A–Z)'; }
+  function s1CountText(){ return s1Sel.size ? s1Sel.size + ' produk dipilih' : 'Semua produk'; }
+  function s1CatList(){ return (R.s1 || []).filter(x => !s1Cat || ((s1Cat === 'FITRI') === isFitriProduct(x[0]))); }
+  function s1Sorted(full){
+    const n = (R.SO2 || SO).length;
+    let a = full ? (R.s1 || []).slice() : s1CatList();
+    if (!full && s1Sel.size) a = a.filter(x => s1Sel.has(x[0]));
+    if (s1Sort === 'desc') a.sort((x,y) => (y[n+7]||0) - (x[n+7]||0));
+    else if (s1Sort === 'asc') a.sort((x,y) => (x[n+7]||0) - (y[n+7]||0));
+    else if (s1Sort === 'qty') a.sort((x,y) => (y[n+1]||0) - (x[n+1]||0));
+    return a;
+  }
+  function s1Totals(list){
+    const n = (R.SO2 || SO).length;
+    const sum = i => list.reduce((a,x) => a + (x[i]||0), 0);
+    return { per: (R.SO2 || SO).map((_,i) => sum(1+i)), qty: sum(n+1), hpp: sum(n+5), sales: sum(n+6), profit: sum(n+7) };
+  }
+  function s1TableHtml(){
+    const SO2 = R.SO2 || SO, n = SO2.length;
+    const list = s1Sorted(), T = s1Totals(list);
+    const h = ['PRODUK', ...SO2, 'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'];
+    const d = sliceRekap('s1', list).map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],rp(x[n+5]),rp(x[n+6]),rp(x[n+7])); return row; });
+    return rekapPagerHtml('s1', list.length) + tbl(h, d, ['TOTAL', ...T.per, T.qty, '', '', '', rp(T.hpp), rp(T.sales), rp(T.profit)]);
+  }
+  function s1BarHtml(){
+    const o = (v,l) => '<option value="' + v + '"' + (s1Sort === v ? ' selected' : '') + '>' + l + '</option>';
+    const cat = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(x => '<option value="' + x[0] + '"' + (s1Cat === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('');
+    s1PickNames = s1CatList().map(x => x[0]);
+    const items = s1PickNames.map((nm, i) => '<label class="s1-item" data-n="' + escHtml(nm.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (s1Sel.has(nm) ? ' checked' : '') + ' onchange="s1Toggle(this)"><span>' + escHtml(nm) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
+    const picker = '<span id="s1Pick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="s1TogglePicker(event)"><span id="s1Count">' + s1CountText() + '</span> ▼</button>'
+      + '<div id="s1Dd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px;text-align:left">'
+      + '<input type="search" placeholder="Cari produk..." oninput="s1Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
+      + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s1SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s1Clear()">Kosongkan</button></div>'
+      + '<div id="s1List" style="max-height:260px;overflow:auto">' + items + '</div></div></span>';
+    return '<div class="s3sortbar" style="justify-content:flex-start"><label>Urutkan : <select onchange="s1SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Profit terbesar') + o('asc','Profit terkecil') + o('qty','Total qty terbesar') + '</select></label><label>Kategori : <select onchange="s1SetCat(this.value)">' + cat + '</select></label>' + picker + '</div>';
+  }
+  function s1Changed(){
+    rekapPage.s1 = 0; viewCache['s1'] = null;
+    const t = document.getElementById('s1tbl'); if (t) t.innerHTML = s1TableHtml();
+    const c = document.getElementById('s1Count'); if (c) c.textContent = s1CountText();
+  }
+  function s1SetSort(v){ s1Sort = v || 'nama'; s1Changed(); }
+  function s1Toggle(cb){ const nm = s1PickNames[+cb.dataset.i]; if (nm == null) return; if (cb.checked) s1Sel.add(nm); else s1Sel.delete(nm); s1Changed(); }
+  function s1SelectAll(){
+    document.querySelectorAll('#s1List .s1-item').forEach(l => { if (l.style.display === 'none') return; const cb = l.querySelector('input'); cb.checked = true; const nm = s1PickNames[+cb.dataset.i]; if (nm != null) s1Sel.add(nm); });
+    s1Changed();
+  }
+  function s1Clear(){ s1Sel.clear(); document.querySelectorAll('#s1List input[type=checkbox]').forEach(cb => cb.checked = false); s1Changed(); }
+  function s1Search(v){
+    const t = String(v || '').trim().toLowerCase();
+    document.querySelectorAll('#s1List .s1-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; });
+  }
+  function s1TogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('s1Dd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
+  function s1SetCat(v){ s1Cat = v || ''; rekapPage.s1 = 0; viewCache['s1'] = null; const panel = document.getElementById('panel_s1'); if (panel) panel.innerHTML = renderTab('s1'); }
+  document.addEventListener('click', function(e){ const d = document.getElementById('s1Dd'); if (d && d.style.display === 'block' && !e.target.closest('#s1Pick')) d.style.display = 'none'; });
   function renderTab(t){
     const SO2 = R.SO2 || SO;
     if (t === 's1'){
-      const n = SO2.length, h = ['PRODUK', ...SO2, 'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'];
-      const pageRows = sliceRekap('s1', R.s1 || []);
-      const d = pageRows.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],rp(x[n+5]),rp(x[n+6]),rp(x[n+7])); return row });
-      const sums = SO2.map((s,i) => (R.s1||[]).reduce((a,x) => a + (x[1+i]||0), 0));
-      return rekapPagerHtml('s1', (R.s1||[]).length) + tbl(h, d, ['TOTAL', ...sums, R.qty, '', '', '', rp(R.hpp), rp(R.sales), rp(R.profit)]);
+      return s1BarHtml() + '<div id="s1tbl">' + s1TableHtml() + '</div>';
     } else if (t === 's3'){
       return s3SortBarHtml() + '<div id="s3tbl">' + s3TableHtml() + '</div>';
     } else if (t === 's6'){ return renderRekapPerFaktur();
