@@ -29,7 +29,6 @@
   --chip-bg:#e2e8f0;--chip-text:#334155;--chip-active-bg:#1f4e78;--chip-active-text:#fff;
   --body-dark-header:#1e3a5f;--green:#166534;--red:#b42318;--red-bg:#fee2e2;--red-text:#b42318;
   --fk-minus-bg:#fef2f2;--fk-minus-text:#7f1d1d;--fk-batal-bg:#f1f5f9;--fk-batal-text:#94a3b8;
-  --low-margin-bg:#fecaca;--low-margin-text:#7f1d1d;--low-margin-hover:#fca5a5;
 }
 body.dark{
   --bg:#0f172a;--text:#e2e8f0;--card:#1e293b;--card-shadow:0 2px 10px #0006;
@@ -41,7 +40,6 @@ body.dark{
   --chip-bg:#334155;--chip-text:#cbd5e1;--chip-active-bg:#3b82f6;--chip-active-text:#fff;
   --green:#4ade80;--red:#fca5a5;--red-bg:#7f1d1d;--red-text:#fecaca;
   --fk-minus-bg:#450a0a;--fk-minus-text:#fecaca;--fk-batal-bg:#1e293b;--fk-batal-text:#64748b;
-  --low-margin-bg:#7f1d1d;--low-margin-text:#fecaca;--low-margin-hover:#991b1b;
 }
 
 /* ===== BASE ===== */
@@ -105,24 +103,18 @@ body.dark .faktur-card .fc-items .fc-qty{color:#93c5fd}
 #page-penjualan #result.card{padding:8px 12px;margin:2px 0 0}
 #page-penjualan .tabs{gap:5px;margin-bottom:6px}
 #page-penjualan .tabs button{padding:6px 10px;font-size:11px;border-radius:6px;line-height:1.1}
-#page-penjualan .col-picker-btn{padding:5px 10px;font-size:11px;border-radius:6px}
 #page-penjualan .card + .card{margin-top:2px}
 #summary{margin:0}
 #summary .kpis{margin:4px 0 2px;gap:8px}
 
 /* ===== TABEL ===== */
 .tablebox{overflow:auto;max-height:68vh;position:relative}
-.vrow td{height:34px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis}
-.vspace td{padding:0!important;border:0!important}
-.vfootwrap{overflow:hidden;width:100%;margin-top:2px}
-.vfoot{width:100%;min-width:1100px;font-size:12px;border-collapse:collapse;table-layout:fixed}
 table{border-collapse:collapse;width:100%;min-width:1100px;font-size:12px;color:var(--text)}
 th{background:var(--th-bg);color:#fff;position:sticky;top:0;padding:8px;border:1px solid var(--th-border)}
 td{padding:7px;border:1px solid var(--border);white-space:nowrap}
 td.num{text-align:right}
 tfoot td{background:var(--tfoot-bg);font-weight:bold;color:var(--text)}
 body.dark tbody tr:hover{background:var(--hover-bg2)}
-body.dark .vfoot td{background:var(--tfoot-bg)}
 
 /* Header tabel khusus s9 & s10 */
 .s9table th,.s10table th{padding:4px 8px;font-size:11px;line-height:1.25}
@@ -170,15 +162,9 @@ body.dark .kpi{background:linear-gradient(145deg,#1e293b 0%,#1a2744 100%);box-sh
 .status{font-size:13px;margin-top:8px;color:var(--subtle)}
 
 /* ===== PICKERS: kolom, filter, menu ===== */
-.col-picker{position:relative;margin-left:0}
-.col-picker-btn,.filter-btn{background:var(--chip-bg);color:var(--chip-text);padding:6px 10px;font-size:12px;border-radius:6px}
+.filter-btn{background:var(--chip-bg);color:var(--chip-text);padding:6px 10px;font-size:12px;border-radius:6px}
 .filter-btn.active{background:var(--chip-active-bg);color:var(--chip-active-text)}
-.col-picker-menu,.filter-menu,.dd-menu,.action-menu,.tabs.tabs-collapsible{background:var(--menu-bg);box-shadow:var(--menu-shadow)}
-.col-picker-menu{display:none;position:absolute;left:0;top:calc(100% + 6px);border-radius:10px;padding:12px;z-index:50;min-width:200px;max-height:320px;overflow:auto}
-.col-picker.open .col-picker-menu{display:block}
-.col-picker-menu label{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:12px;cursor:pointer;color:var(--text)}
-.col-picker-menu label:hover{background:var(--hover-bg2);border-radius:4px}
-.col-picker-menu input{accent-color:#1f4e78}
+.filter-menu,.dd-menu,.action-menu,.tabs.tabs-collapsible{background:var(--menu-bg);box-shadow:var(--menu-shadow)}
 .filter-picker{position:relative}
 .filter-menu{display:none;position:absolute;left:0;top:calc(100% + 6px);border-radius:10px;padding:14px;z-index:100;min-width:260px;max-width:min(360px,94vw)}
 .filter-picker.open .filter-menu{display:block}
@@ -227,11 +213,8 @@ body.dark .menu-section{border-color:#334155}
 body.dark .busy{background:rgba(15,23,42,.7);color:#93c5fd}
 .busy .spin{width:18px;height:18px;border:3px solid var(--input-border);border-top-color:#1f4e78;border-radius:50%;animation:rot .8s linear infinite;margin-right:8px}
 @keyframes rot{to{transform:rotate(360deg)}}
-.busy.hidden{display:none}
 
 /* ===== BARIS LOW MARGIN ===== */
-#page-penjualan tr.low-margin td{background:var(--low-margin-bg);color:var(--low-margin-text);cursor:pointer}
-#page-penjualan tr.low-margin:hover td{background:var(--low-margin-hover)}
 
 /* ===== TABS COLLAPSIBLE ===== */
 .tabs-wrap{position:relative;display:inline-block;margin-bottom:8px}
@@ -625,17 +608,6 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
   function normSales(s){ const u = U(s); return (u === 'PRTIMIN' || u === 'PARIMIN') ? 'PARIMIN' : u; }
   const rp = x => 'Rp ' + Math.round(N(x)).toLocaleString('id-ID');
   const range = (a,b) => a === b ? rp(a) : rp(a) + ' - ' + rp(b);
-  const ROW_H = 34, OVERSCAN = 6;
-
-  const TX_COLS = [
-    {k:'no',label:'NO',def:true},{k:'tgl',label:'TANGGAL',def:true},{k:'faktur',label:'NO. FAKTUR',def:true},
-    {k:'produk',label:'PRODUK',def:true},{k:'qty',label:'QTY',def:true},{k:'satuan',label:'SATUAN',def:true},
-    {k:'hjual',label:'HARGA JUAL',def:true},{k:'hargabeli',label:'HARGA BELI',def:true},{k:'disc',label:'DISC',def:true},
-    {k:'total',label:'TOTAL',def:true},{k:'hpp',label:'HPP',def:true},{k:'profit',label:'PROFIT',def:true},
-    {k:'sales',label:'SALES',def:true},{k:'bayar',label:'PEMBAYARAN',def:true},
-    {k:'customer',label:'CUSTOMER',def:true},{k:'kdcustomer',label:'KODE CUSTOMER',def:true},{k:'alamat',label:'ALAMAT',def:true}
-  ];
-  let colVis = {}; TX_COLS.forEach(c => colVis[c.k] = c.def);
 
   let rows = [], filteredRows = [], filteredRowsInclBatal = [], materialisedRows = [], R = {};
   let filters = {month:'',sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''};
@@ -690,7 +662,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
   }
   let viewCache = {}, buildCache = new Map();
   const BUILD_CACHE_MAX = 20, LARGE_RESULT_WARN = 20000;
-  let dataVersion = 0, s0KeyBuilt = '', s0Vis = [], s0FootHtml = '', s0Cols = '', s0Widths = {};
+  let dataVersion = 0;
 
   const SYNC_ROW_ID  = 'main';
   const SUPABASE_URL = 'https://nqwdyptujoffakfhmhft.supabase.co';
@@ -951,9 +923,10 @@ self.onmessage = function(e){
       hideBusy();
       const decisions = await showHbDiffModal(conflicts);
       if (!decisions) return false;
-      const produkOverride = new Map();
-      conflicts.forEach((c, i) => { if (decisions[i] === 'html') produkOverride.set(c.produk, c.htmlPrice); });
-      if (produkOverride.size) for (const r of incomingRows){ const key = U(r.produk); if (produkOverride.has(key)) r.hargaBeli = produkOverride.get(key); }
+      // Override hanya berlaku untuk pasangan PRODUK + BULAN yang konflik dan dipilih "html" (bukan seluruh bulan/produk lain)
+      const overrideMap = new Map();
+      conflicts.forEach((c, i) => { if (decisions[i] === 'html') overrideMap.set(c.produk + '|' + c.bulan, c.htmlPrice); });
+      if (overrideMap.size) for (const r of incomingRows){ const key = U(r.produk) + '|' + r.bulan; if (overrideMap.has(key)) r.hargaBeli = overrideMap.get(key); }
       showBusy('Menyimpan data...');
       return true;
     } catch(e){ console.warn('resolveHargaBeliConflicts gagal, lanjut tanpa cek', e); return true; }
@@ -1026,8 +999,7 @@ self.onmessage = function(e){
         const lanjut = await resolveHargaBeliConflicts(out, monthList);
         if (!lanjut){ setStatus('Import dibatalkan.'); hideBusy(); return; }
         const replacedDays = await commitIncomingTx(out, monthList);
-        const merged = await mergeMetaFromIncoming({products:[...products], sales:[...sales], months:monthList});
-        populateFiltersFromMeta(merged);
+        await mergeMetaFromIncoming({products:[...products], sales:[...sales], months:monthList});
         await postParseDone(raw.length, replacedDays, out.length);
       } catch(err){ console.error(err); setStatus('Gagal menyimpan data: ' + (err.message || err)); hideBusy(); }
     } catch(err){ setStatus('Gagal membaca Excel: ' + (err.message || err)); hideBusy(); }
@@ -1059,14 +1031,12 @@ self.onmessage = function(e){
         const lanjut = await resolveHargaBeliConflicts(incoming, monthList);
         if (!lanjut){ setStatus('Import dibatalkan.'); hideBusy(); return; }
         const replacedDays = await commitIncomingTx(incoming, monthList);
-        const merged = await mergeMetaFromIncoming({ products: m.products || [], sales: m.sales || [], months: monthList });
-        populateFiltersFromMeta(merged);
+        await mergeMetaFromIncoming({ products: m.products || [], sales: m.sales || [], months: monthList });
         await postParseDone(incoming.length, replacedDays, incoming.length);
       } catch(err){ console.error(err); setStatus('Gagal menyimpan data: ' + (err.message || err)); hideBusy(); }
     }
   }
   async function postParseDone(_totalRaw, replacedDays, newCount){
-    populatedFiltersBound = true;
     try { await populateFiltersDOM(); } catch(e){ console.warn('populateFiltersDOM gagal', e); }
     let totalRows, sortData;
     if (useIDB){ totalRows = await db.tx.count(); sortData = await fetchFiltered(); }
@@ -1075,11 +1045,10 @@ self.onmessage = function(e){
     filteredRows = sortData;
     try { const withBatal = await fetchFiltered({ includeBatal: true }); withBatal.sort((a,b) => (b._ts||0) - (a._ts||0)); filteredRowsInclBatal = withBatal; }
     catch(e){ filteredRowsInclBatal = sortData.slice(); }
-    materialise(); invalidateBuildCache(); build(materialisedRows); updateSummary();
+    materialisedRows = filteredRows; invalidateBuildCache(); build(materialisedRows); updateSummary();
     document.getElementById('summary').style.display = 'block';
     document.getElementById('result').style.display   = 'block';
     document.getElementById('save').disabled          = totalRows === 0;
-    if (typeof buildColPicker === 'function') buildColPicker();
     show(_activeTab || 's6', document.querySelector('.tabs button.active') || document.querySelector('.tabs button'));
     const dl = (replacedDays && replacedDays.length) ? replacedDays.slice().sort() : [];
     const blLabel = dl.length ? (dl.length === 1 ? dayLabel(dl[0]) : dayLabel(dl[0]) + ' s/d ' + dayLabel(dl[dl.length-1]) + ' (' + dl.length + ' hari)') : '';
@@ -1093,7 +1062,6 @@ self.onmessage = function(e){
   function materialiseOne(r){
     return { 'No. Faktur': r['No. Faktur'] ?? r.faktur, 'Produk': r.Produk ?? r.produk, 'Jumlah': r.Jumlah ?? r.jumlah, 'Satuan': r.Satuan ?? r.satuan, 'Harga Jual': r['Harga Jual'] ?? r.hargaJual, 'Discount': r.Discount ?? r.discount, 'Total': r.Total ?? r.total, 'Harga Beli': r['Harga Beli'] ?? r.hargaBeli, 'Sales': r.Sales ?? r.sales, 'Pembayaran': r.Pembayaran ?? r.pembayaran, 'Customer': r.Customer ?? r.customer, 'Kd Customer': r['Kd Customer'] ?? r.kdCustomer, 'Alamat': r.Alamat ?? r.alamat, 'Tanggal': r.Tanggal ?? r.tanggal, '_ts': r._ts };
   }
-  function materialise(){ materialisedRows = filteredRows; }
   let _uiRowCache = new WeakMap(), _uiRowCacheVersion = -1;
   function getUiRow(i){
     if (_uiRowCacheVersion !== dataVersion){ _uiRowCache = new WeakMap(); _uiRowCacheVersion = dataVersion; }
@@ -1199,7 +1167,7 @@ self.onmessage = function(e){
     filteredRows = filtr;
     try { const withBatal = await fetchFiltered({ includeBatal: true }); withBatal.sort((a,b) => (b._ts||0) - (a._ts||0)); filteredRowsInclBatal = withBatal; }
     catch(e){ filteredRowsInclBatal = filtr.slice(); }
-    materialise(); buildCached(materialisedRows); viewCache = {};
+    materialisedRows = filteredRows; buildCached(materialisedRows); viewCache = {};
     updateSummary(); updateFilterUi();
     const activeBtn = document.querySelector('.tabs button.active') || document.querySelector('.tabs button');
     let tabId = 's6';
@@ -1218,12 +1186,9 @@ self.onmessage = function(e){
     await populateFiltersDOM();
     await applyFilters();
   }
-  let populatedFiltersBound = false;
   function toggleDd(){ const dd = document.getElementById('menuDd'); dd.classList.toggle('open'); if (dd.classList.contains('open')) { try { updateBackupPanelStatus(); } catch(e){} } }
   function closeDd(){ document.getElementById('menuDd').classList.remove('open') }
-  function toggleColPicker(){ const cp = document.getElementById('colPicker'); if (cp) cp.classList.toggle('open'); closeFilterPicker() }
-  function closeColPicker(){ const cp = document.getElementById('colPicker'); if (cp) cp.classList.remove('open') }
-  function toggleFilterPicker(){ document.getElementById('filterPicker').classList.toggle('open'); closeColPicker() }
+  function toggleFilterPicker(){ document.getElementById('filterPicker').classList.toggle('open') }
   function closeFilterPicker(){ document.getElementById('filterPicker').classList.remove('open') }
   function setStatus(s){ const el = document.getElementById('status'); if (el) el.textContent = s; }
   function showBusy(label){
@@ -1234,8 +1199,7 @@ self.onmessage = function(e){
   }
   function hideBusy(){ const old = document.getElementById('__busy'); if (old) old.remove(); }
   document.addEventListener('click', function(e){
-    const cp = document.getElementById('colPicker'), fp = document.getElementById('filterPicker');
-    if (cp && cp.classList.contains('open') && !cp.contains(e.target)) closeColPicker();
+    const fp = document.getElementById('filterPicker');
     if (fp && fp.classList.contains('open') && !fp.contains(e.target)) closeFilterPicker();
     const w = document.getElementById('tabsWrap');
     if (w && w.classList.contains('open') && !w.contains(e.target)) closeTabsMenu();
@@ -1246,7 +1210,6 @@ self.onmessage = function(e){
   function closeTabsMenu(){ const w = document.getElementById('tabsWrap'); if (w) w.classList.remove('open'); }
   function toggleActionMenu(e){ if (e) e.stopPropagation(); const dd = document.getElementById('actionDd'); if (dd) dd.classList.toggle('open'); }
   function closeActionMenu(){ const dd = document.getElementById('actionDd'); if (dd) dd.classList.remove('open'); }
-  function buildColPicker(){ /* tab Transaksi dihapus: tidak ada pemilih kolom lagi */ }
   function toDate(v){
     if (!v) return null;
     if (v instanceof Date) return v;
@@ -1291,6 +1254,7 @@ self.onmessage = function(e){
       sales    = [...new Set(rows.map(x => U(x.sales)).filter(Boolean))].sort();
       products = [...new Set(rows.map(x => U(x.produk)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id'));
     }
+    allProductsMeta = products.slice();
     document.getElementById('filterMonth').innerHTML = '<option value="">Semua bulan</option>' + months.map(m => '<option value="'+m+'">'+monthLabel(m)+'</option>').join('');
     document.getElementById('filterSales').innerHTML = '<option value="">Semua sales</option>' + sales.map(s => '<option value="'+s+'">'+s+'</option>').join('');
     if (!filters.month || !months.includes(filters.month)) filters.month = pickLatestMonth(months);
@@ -1326,7 +1290,7 @@ self.onmessage = function(e){
     filteredRows = await fetchFiltered(); filteredRows.sort((a,b) => (b._ts||0) - (a._ts||0));
     try { const withBatal = await fetchFiltered({ includeBatal: true }); withBatal.sort((a,b) => (b._ts||0) - (a._ts||0)); filteredRowsInclBatal = withBatal; }
     catch(e){ filteredRowsInclBatal = filteredRows.slice(); }
-    materialise(); invalidateBuildCache(); build(materialisedRows); updateSummary();
+    materialisedRows = filteredRows; invalidateBuildCache(); build(materialisedRows); updateSummary();
     if (!useIDB){
       const dm = document.getElementById('deleteMonth'); if (dm) dm.innerHTML = '<option value="">Pilih bulan...</option>' + [...new Set(rows.map(x => monthKey(x.Tanggal || x.tanggal)).filter(Boolean))].sort().reverse().map(m => '<option value="'+m+'">'+monthLabel(m)+'</option>').join('');
     }
@@ -1361,7 +1325,7 @@ self.onmessage = function(e){
     rows = rows.filter(x => monthKey(x.Tanggal || x.tanggal) !== m);
     if (!rows.length){
       filteredRows = []; filteredRowsInclBatal = []; materialisedRows = []; R = {};
-      dataVersion++; viewCache = {}; s0KeyBuilt = ''; invalidateBuildCache();
+      dataVersion++; viewCache = {}; invalidateBuildCache();
       document.getElementById('summary').style.display = 'none';
       document.getElementById('result').style.display = 'none';
       document.getElementById('save').disabled = true;
@@ -1440,10 +1404,8 @@ self.onmessage = function(e){
       if (SO.includes(salesName)) salesQty[salesName] = (salesQty[salesName] || 0) + j;
       if (nf) fakturSet.add(nf);
       let st = byProd.get(produk);
-      if (!st){ st = { qq:0, v:0, h:0, sat:'', bmin:Infinity, bmax:-Infinity, jmin:Infinity, jmax:-Infinity, qBySales:{}, hbLog:[], qc:0, qt:0, jcmin:Infinity, jcmax:-Infinity, jtmin:Infinity, jtmax:-Infinity }; byProd.set(produk, st); }
+      if (!st){ st = { qq:0, v:0, h:0, sat:'', bmin:Infinity, bmax:-Infinity, jmin:Infinity, jmax:-Infinity, qBySales:{}, hbLog:[] }; byProd.set(produk, st); }
       st.qq += j; st.v += t; st.h += hLine;
-      if (pay.includes('TEMPO')) { st.qt += j; if (!isNaN(hj)) { if (hj < st.jtmin) st.jtmin = hj; if (hj > st.jtmax) st.jtmax = hj; } }
-      else if (pay.includes('CASH')) { st.qc += j; if (!isNaN(hj)) { if (hj < st.jcmin) st.jcmin = hj; if (hj > st.jcmax) st.jcmax = hj; } }
       if (sat && !st.sat) st.sat = sat;
       if (!isNaN(hb)) { if (hb < st.bmin) st.bmin = hb; if (hb > st.bmax) st.bmax = hb; }
       if (!isNaN(hj)) { if (hj < st.jmin) st.jmin = hj; if (hj > st.jmax) st.jmax = hj; }
@@ -1451,7 +1413,7 @@ self.onmessage = function(e){
       if (SO.includes(salesName)) st.qBySales[salesName] = (st.qBySales[salesName] || 0) + j;
     });
     const faktur = fakturSet.size, SO2 = SO.filter(s => salesQty[s] > 0);
-    const s1 = [], s3 = [], s5 = [], s9 = [], s11 = [];
+    const s1 = [], s3 = [], s5 = [], s9 = [];
     byProd.forEach((st, p) => {
       if (st.bmin === Infinity) { st.bmin = 0; st.bmax = 0; }
       if (st.jmin === Infinity) { st.jmin = 0; st.jmax = 0; }
@@ -1466,21 +1428,19 @@ self.onmessage = function(e){
         if (changed) hbChange = { ts: changed.ts, dir: changed.hb > base ? 'naik' : 'turun' };
       }
       s9.push([p, st.sat, st.bmin, st.bmax, st.jmin, st.jmax, hbChange]);
-      s11.push([p, st.qc, st.qt, st.sat, pr, range(st.bmin,st.bmax), st.jcmin === Infinity ? '' : range(st.jcmin,st.jcmax), st.jtmin === Infinity ? '' : range(st.jtmin,st.jtmax), st.h, st.v]);
     });
     s9.sort((a,b) => natCmp(a[0], b[0]));
     const byName = (a,b) => natCmp(a[0], b[0]);
     s1.sort(byName);
     s3.sort(byName);
     s5.sort(byName);
-    s11.sort(byName);
-    R = { s1, s3, s5, s9, s11, qty, sales, hpp, profit, SO2, faktur, fitriQty, fitriSales, rupaQty, rupaSales };
-    rekapPage = { s1:0, s3:0, s5:0, s6:0, s8:0, s9:0 };
+    R = { s1, s3, s5, s9, qty, sales, hpp, profit, SO2, faktur, fitriQty, fitriSales, rupaQty, rupaSales };
+    rekapPage = { s1:0, s3:0, s6:0, s9:0, s14:0 };
   }
   function filterSignature(){ return JSON.stringify(filters); }
   function buildCached(data){
     const sig = filterSignature(), cached = buildCache.get(sig);
-    if (cached){ R = cached; dataVersion++; rekapPage = { s1:0, s3:0, s5:0, s6:0, s8:0, s9:0 }; return; }
+    if (cached){ R = cached; dataVersion++; rekapPage = { s1:0, s3:0, s6:0, s9:0, s14:0 }; return; }
     build(data);
     buildCache.set(sig, R);
     if (buildCache.size > BUILD_CACHE_MAX) buildCache.delete(buildCache.keys().next().value);
@@ -1614,10 +1574,6 @@ self.onmessage = function(e){
   }
   function excelSpec(tab, opts){
     const r = R, SO2 = r.SO2 || SO, n = SO2.length;
-    if (tab === 's0'){
-      const rows = filteredRows.map((_,i) => { const x = getUiRow(i); const hpp = N(x.Jumlah) * N(x['Harga Beli']); return [i+1, x.Tanggal, x['No. Faktur'], x.Produk, N(x.Jumlah), x.Satuan||'', N(x['Harga Jual']), N(x['Harga Beli']), N(x.Discount), N(x.Total), hpp, N(x.Total) - hpp, x.Sales, x.Pembayaran, x.Customer||'', x['Kd Customer']||'', x.Alamat||'']; });
-      return { name:'Transaksi', title:'Laporan Transaksi Penjualan', head:['NO','TANGGAL','NO. FAKTUR','PRODUK','QTY','SATUAN','HARGA JUAL','HARGA BELI','DISC','TOTAL','HPP','PROFIT','SALES','PEMBAYARAN','CUSTOMER','KODE CUSTOMER','ALAMAT'], types:['c','d','t','t','n','c','rp','rp','rp','rp','rp','rp','t','t','t','t','w'], rows, total:['TOTAL','','','',r.qty,'','','','',r.sales,r.hpp,r.profit,'','','','',''] };
-    }
     if (tab === 's1'){
       const full = !!(opts && opts.full), l1 = s1Sorted(full), T1 = s1Totals(l1);
       const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],x[n+5],x[n+6],x[n+7]); return row; });
@@ -1668,7 +1624,6 @@ self.onmessage = function(e){
       if (tab === 's12') addRekapBlnChartSheet(wb);
       if (tab === 's10'){ const sp2 = excelSpec('s10r'); if (sp2) addStyledSheet(wb, sp2); }
       await downloadWorkbook(wb, sp.fileName || ('Laporan_' + (tab === 's10' ? 'Data_Bulanan' : sp.name.replace(/[^A-Za-z0-9]+/g,'_')) + '.xlsx'));
-      // + sp.name.replace(/[^A-Za-z0-9]+/g,'_') + '.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
   }
@@ -1687,7 +1642,6 @@ self.onmessage = function(e){
       fmt.style.display = (t === 's6') ? 'flex' : 'none';
       if (t === 's6'){ const tb = document.getElementById('fmTableBtn'), cb = document.getElementById('fmCardBtn'); if (tb) tb.classList.toggle('active', fakturViewMode === 'table'); if (cb) cb.classList.toggle('active', fakturViewMode === 'card'); }
     }
-    closeColPicker();
     document.querySelectorAll('#table .view').forEach(v => v.style.display = 'none');
     const panel = document.getElementById('panel_' + t);
     if (panel) panel.style.display = 'block';
@@ -1705,105 +1659,7 @@ self.onmessage = function(e){
       });
     } else if (panel && viewCache[t]) { panel.innerHTML = viewCache[t].html; }
   }
-  function s0Key(){ return dataVersion + '|' + TX_COLS.filter(c => colVis[c.k]).map(c => c.k).join(','); }
-  function computeColWidths(rowsArg){
-    const w = {no:34,tgl:78,faktur:90,produk:120,qty:38,satuan:50,hjual:90,hargabeli:90,disc:80,total:95,hpp:95,profit:95,sales:65,bayar:90,customer:110,kdcustomer:110,alamat:150};
-    const upd = (k,v) => { const q = Math.round(v); if (q > w[k]) w[k] = q; };
-    const numW = v => { const a = Math.abs(N(v)); if (!a) return 42; const digs = Math.ceil(Math.log10(a + 1)); return Math.min(190, (digs + Math.ceil(digs/3) + 2) * 7 + 14); };
-    const data = rowsArg || materialisedRows;
-    const n = data.length, MAX_SAMPLE = 400;
-    let indices;
-    if (n <= MAX_SAMPLE) { indices = null; }
-    else { indices = []; const head = Math.floor(MAX_SAMPLE * 0.4), tail = Math.floor(MAX_SAMPLE * 0.3), mid = MAX_SAMPLE - head - tail; for (let i = 0; i < head; i++) indices.push(i); const midStart = Math.floor(n / 2 - mid / 2); for (let i = 0; i < mid; i++) indices.push(midStart + i); for (let i = n - tail; i < n; i++) indices.push(i); }
-    const visit = (x) => {
-      if (!x) return;
-      const produk = x.Produk ?? x.produk, customer = x.Customer ?? x.customer, alamat = x.Alamat ?? x.alamat;
-      const kd = x['Kd Customer'] ?? x.kdCustomer, faktur = x['No. Faktur'] ?? x.faktur, satuan = x.Satuan ?? x.satuan;
-      const tanggal = x.Tanggal ?? x.tanggal, sales = x.Sales ?? x.sales, bayar = x.Pembayaran ?? x.pembayaran;
-      const jumlah = x.Jumlah ?? x.jumlah, hj = x['Harga Jual'] ?? x.hargaJual, hb = x['Harga Beli'] ?? x.hargaBeli;
-      const disc = x.Discount ?? x.discount, total = x.Total ?? x.total;
-      if (produk) upd('produk', String(produk).length * 7.2 + 18);
-      if (customer) upd('customer', String(customer).length * 7.2 + 18);
-      if (alamat) upd('alamat', String(alamat).length * 7 + 18);
-      if (kd) upd('kdcustomer', String(kd).length * 7.5 + 18);
-      if (faktur) upd('faktur', String(faktur).length * 7.5 + 18);
-      if (satuan) upd('satuan', String(satuan).length * 7 + 18);
-      if (tanggal) upd('tgl', fmtTgl(tanggal).length * 6 + 18);
-      if (sales) upd('sales', String(sales).length * 7.2 + 18);
-      if (bayar) upd('bayar', String(bayar).length * 7.2 + 18);
-      upd('qty', numW(N(jumlah))); upd('hjual', numW(N(hj))); upd('hargabeli', numW(N(hb)));
-      upd('disc', numW(N(disc))); upd('total', numW(N(total))); upd('hpp', numW(N(jumlah) * N(hb))); upd('profit', numW(N(total) - N(jumlah) * N(hb)));
-    };
-    if (!indices) for (let i = 0; i < n; i++) visit(data[i]);
-    else for (let i = 0; i < indices.length; i++) visit(data[indices[i]]);
-    TX_COLS.forEach(c => { w[c.k] = Math.max(34, Math.min(340, Math.round(w[c.k]))); });
-    return w;
-  }
-  function buildPanelS0(){
-    const box = document.getElementById('s0box'); if (!box) return;
-    const act = document.getElementById('s0actions'); if (act) act.innerHTML = '';
-    s0Vis = TX_COLS.filter(c => colVis[c.k]);
-    const head = s0Vis.map(c => '<th>' + c.label + '</th>').join('');
-    const totMap = {no:'TOTAL',tgl:'',faktur:'',produk:'',qty:R.qty,satuan:'',hjual:'',hargabeli:'',disc:'',total:rp(R.sales),hpp:rp(R.hpp),profit:rp(R.profit),sales:'',bayar:'',customer:'',kdcustomer:'',alamat:''};
-    s0FootHtml = s0Vis.map(c => '<td class="num">' + totMap[c.k] + '</td>').join('');
-    s0Cols = s0Vis.map(c => '<col style="width:' + (s0Widths[c.k] || 90) + 'px">').join('');
-    box.innerHTML = '<table style="table-layout:fixed"><colgroup>' + s0Cols + '</colgroup><thead><tr>' + head + '</tr></thead><tbody id="s0tbody"></tbody></table>';
-    const ft = document.getElementById('s0foot');
-    if (ft) ft.innerHTML = '<colgroup>' + s0Cols + '</colgroup><tfoot><tr>' + s0FootHtml + '</tr></tfoot>';
-    if (!box._vb){ box._vb = true; box.onscroll = function(){ const fw = document.getElementById('s0footwrap'); if (fw) fw.scrollLeft = box.scrollLeft; if (box._raf) return; box._raf = true; requestAnimationFrame(function(){ box._raf = false; s0Render(); }); }; }
-    box.scrollTop = 0; s0Render();
-  }
-  function s0Render(){
-    const box = document.getElementById('s0box'), tb = document.getElementById('s0tbody');
-    if (!box || !tb) return;
-    const n = filteredRows.length, C = s0Vis.length;
-    if (!n){ tb.innerHTML = ''; return; }
-    const vh = box.clientHeight || 600, vis = Math.max(1, Math.ceil(vh / ROW_H));
-    let top = Math.floor(box.scrollTop / ROW_H) - OVERSCAN; if (top < 0) top = 0;
-    const maxTop = Math.max(0, n - vis - OVERSCAN); if (top > maxTop) top = maxTop;
-    const cnt = Math.min(vis + OVERSCAN*2, n - top);
-    let h = '<tr class="vspace"><td colspan="' + C + '" style="height:' + (top * ROW_H) + 'px"></td></tr>';
-    for (let i = top; i < top + cnt; i++) h += s0RowHTML(i);
-    h += '<tr class="vspace"><td colspan="' + C + '" style="height:' + (Math.max(0, n - top - cnt) * ROW_H) + 'px"></td></tr>';
-    tb.innerHTML = h;
-  }
-  function s0RowHTML(i){
-    const x = getUiRow(i); if (!x) return '';
-    const pr = N(x.Total) - N(x.Jumlah) * N(x['Harga Beli']);
-    const totVal = N(x.Total), margin = totVal !== 0 ? (pr / totVal) * 100 : null;
-    const lowMargin = margin !== null && margin < 3;
-    const qtyVal = N(x.Jumlah);
-    const nf = String(x['No. Faktur'] ?? '').trim();
-    let fakturCell;
-    if (nf && qtyVal < 0) fakturCell = '<span class="fk-link has-minus" onclick="event.stopPropagation();openFkBatalModal(\'' + nf.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Klik untuk detail / transaksi batal">' + nf.replace(/</g,'&lt;') + '</span>';
-    else fakturCell = String(nf).replace(/</g,'&lt;');
-    const all = {no:i+1,tgl:fmtTgl(x.Tanggal),faktur:fakturCell,produk:x.Produk,qty:x.Jumlah,satuan:x.Satuan||'',hjual:rp(x['Harga Jual']),hargabeli:rp(x['Harga Beli']),disc:rp(x.Discount),total:rp(x.Total),hpp:rp(N(x.Jumlah) * N(x['Harga Beli'])),profit:rp(pr),sales:x.Sales,bayar:x.Pembayaran,customer:x.Customer||'',kdcustomer:x['Kd Customer']||'',alamat:x.Alamat||''};
-    const cells = s0Vis.map(c => { const v = all[c.k], cls = (typeof v === 'number') ? 'num' : ''; const title = (c.k !== 'faktur' && typeof v === 'string' && v.length > 10) ? ' title="' + v.replace(/"/g,'&quot;') + '"' : ''; return '<td class="' + cls + '"' + title + '>' + v + '</td>'; }).join('');
-    const clickAttr = lowMargin ? ' onclick="showMarginDetail(' + i + ')" title="Klik untuk lihat detail anomali margin"' : '';
-    const rowExtra = qtyVal < 0 ? ' style="background:#fef2f2"' : '';
-    return '<tr class="vrow' + (lowMargin ? ' low-margin' : '') + '"' + clickAttr + rowExtra + '>' + cells + '</tr>';
-  }
-  const MARGIN_MIN = 3;
-  function showMarginDetail(i){
-    const existing = document.getElementById('marginDetailWrap'); if (existing) existing.remove();
-    const x = getUiRow(i); if (!x) return;
-    const qty = N(x.Jumlah), hjual = N(x['Harga Jual']), hbeli = N(x['Harga Beli']), disc = N(x.Discount), total = N(x.Total);
-    const hpp = qty * hbeli, profit = total - hpp, margin = total !== 0 ? (profit / total) * 100 : 0;
-    const hjualNet = qty ? (total / qty) : 0;
-    const totalMin = hpp / (1 - MARGIN_MIN / 100), hjualMinSatuan = qty ? totalMin / qty : 0, kurangProfit = totalMin - total;
-    const rows = [['Tanggal', fmtTgl(x.Tanggal)],['No. Faktur', x['No. Faktur'] || '-'],['Produk', x.Produk || '-'],['Qty', qty.toLocaleString('id-ID') + (x.Satuan ? ' ' + x.Satuan : '')],['Harga Beli (satuan)', rp(hbeli)],['Harga Jual (satuan)', rp(hjual)],['Discount', rp(disc)],['Harga Jual (satuan) setelah Discount', rp(hjualNet), true],['Total Jual', rp(total)],['HPP (Beli x Qty)', rp(hpp)],['Profit Aktual', rp(profit)],['Margin Aktual', margin.toFixed(2) + ' %']];
-    const rowsHtml = rows.map(r => {
-      const isRed = r[2] === true;
-      return '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 10px;border-bottom:1px solid #eef1f5"><span style="color:' + (isRed ? '#b91c1c' : '#64748b') + ';flex:0 0 auto;font-weight:' + (isRed ? '700' : '400') + '">' + r[0] + '</span><span style="font-weight:' + (isRed ? '800' : '700') + ';color:' + (isRed ? '#b91c1c' : '#172033') + ';text-align:right">' + r[1] + '</span></div>';
-    }).join('');
-    const saranRow = (label, val) => '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0"><span style="color:#7f1d1d">' + label + '</span><span style="font-weight:800;color:#7f1d1d;text-align:right;white-space:nowrap">' + val + '</span></div>';
-    const saranHtml = '<div style="margin-top:14px;padding:12px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px"><div style="font-weight:800;color:#b91c1c;margin-bottom:6px">⚠ Anomali: Margin di bawah ' + MARGIN_MIN + '%</div>' + saranRow('Agar margin minimal ' + MARGIN_MIN + '%, Total Jual seharusnya', rp(totalMin)) + saranRow('Harga Jual satuan seharusnya (qty tetap)', rp(hjualMinSatuan)) + saranRow('Kekurangan profit dari target', rp(kurangProfit)) + '</div>';
-    const html = '<div id="marginDetailOverlay" onclick="if(event.target===this) closeMarginDetail()" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box"><div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.3);box-sizing:border-box"><div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e2e8f0;position:sticky;top:0;background:#fff"><div style="font-weight:800;color:#172033;font-size:14px">Detail Anomali Margin</div><button onclick="closeMarginDetail()" style="background:#f1f5f9;color:#334155;border-radius:6px;padding:4px 10px;font-weight:700">✕</button></div><div style="padding:6px 16px 16px;box-sizing:border-box;font-size:13px"><div style="border:1px solid #eef1f5;border-radius:8px;overflow:hidden">' + rowsHtml + '</div>' + saranHtml + '</div></div></div>';
-    const wrap = document.createElement('div'); wrap.id = 'marginDetailWrap'; wrap.innerHTML = html; document.body.appendChild(wrap);
-  }
-  function closeMarginDetail(){ const el = document.getElementById('marginDetailWrap'); if (el) el.remove(); }
-
-  let rekapPage = { s1:0, s3:0, s5:0, s6:0, s8:0, s9:0 };
+  let rekapPage = { s1:0, s3:0, s6:0, s9:0, s14:0 };
   const REKAP_PAGE_SIZE = 60;
   function rekapPagerHtml(tab, total){
     const pages = Math.max(1, Math.ceil(total / REKAP_PAGE_SIZE));
@@ -2590,24 +2446,7 @@ self.onmessage = function(e){
     }
   });
   function buildFakturRows(){
-    const groups = new Map(), src = getFakturSourceRows();
-    for (let i = 0; i < src.length; i++){
-      const x = src[i]; if (!x) continue;
-      const nf = String(x['No. Faktur'] ?? x.faktur ?? '').trim() || '(Tanpa Faktur)';
-      const total = N(x.Total), pr = total - N(x.Jumlah) * N(x['Harga Beli']);
-      let g = groups.get(nf);
-      if (!g){ g = { faktur: nf, items: [], nominal: 0, profit: 0, tgl: x.Tanggal, ts: x._ts || 0, sales: x.Sales || '', bayar: x.Pembayaran || '', customer: x.Customer || '', isBatal: isBatalFaktur(nf), hasMinus: false, hasLineBatal: false }; groups.set(nf, g); }
-      g.items.push(x);
-      const lineBatal = !g.isBatal && batalLineSet.has(lineKeyOf(x));
-      if (lineBatal) g.hasLineBatal = true;
-      if (!g.isBatal && !lineBatal) { g.nominal += total; g.profit += pr; }
-      if (N(x.Jumlah) < 0) g.hasMinus = true;
-      if (x._ts && (!g.ts || x._ts < g.ts)){ g.ts = x._ts; g.tgl = x.Tanggal; }
-      if (!g.sales && x.Sales) g.sales = x.Sales;
-      if (!g.bayar && x.Pembayaran) g.bayar = x.Pembayaran;
-      if (!g.customer && x.Customer) g.customer = x.Customer;
-    }
-    const list = [...groups.values()].sort((a,b) => { if (a.ts !== b.ts) return (b.ts||0) - (a.ts||0); return String(a.faktur).localeCompare(String(b.faktur)); });
+    const list = buildFakturGroups();
     const rows = [];
     list.forEach(g => { g.items.forEach((x, idx) => { rows.push({ x, isFirst: idx === 0, span: g.items.length, nominal: g.nominal, profit: g.profit, faktur: g.faktur, sales: g.sales, bayar: g.bayar, customer: g.customer, isBatal: g.isBatal, hasMinus: g.hasMinus, hasLineBatal: g.hasLineBatal, lineBatal: !g.isBatal && batalLineSet.has(lineKeyOf(x)) }); }); });
     return rows;
@@ -2834,7 +2673,6 @@ self.onmessage = function(e){
       document.getElementById('summary').style.display = 'block';
       document.getElementById('result').style.display   = 'block';
       document.getElementById('save').disabled          = false;
-      buildColPicker();
       await applyFilters();
       show(_activeTab || 's6', document.querySelector('.tabs button.active') || document.querySelector('.tabs button'));
       setStatus('Data dari IndexedDB dimuat: ' + total.toLocaleString('id-ID') + ' baris (persistensi aktif).');
