@@ -148,6 +148,32 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 .s12table th.s12-b{background:var(--th-bg-s10b);top:24px;z-index:3}
 .s12table th.s12-c{background:var(--th-bg-s10b);top:48px;z-index:3}
 .s12bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:2px 0 10px;font-size:12.5px;color:var(--text)}
+/* ===== Tab Ringkasan ===== */
+.s15chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
+.s15chip{min-width:92px;padding:7px 12px;border-radius:10px;background:var(--card);border:1px solid var(--input-border);box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.s15chip small{display:flex;justify-content:space-between;gap:10px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.s15chip b{display:block;font-size:18px;color:#1f4e78;margin-top:2px}
+.s15chip.main{background:linear-gradient(135deg,#1f4e78,#2f6da3);border-color:#1f4e78}
+.s15chip.main small{color:#cfe2f3}.s15chip.main b{color:#fff}
+.s15grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px;align-items:start}
+@media(max-width:900px){.s15grid{grid-template-columns:1fr}}
+.s15card{background:var(--card);border:1px solid var(--input-border);border-radius:12px;padding:10px 10px 6px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.s15head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 2px 10px}
+.s15head h3{margin:0;font-size:15px;color:#1f4e78;border-left:3px solid #1f4e78;padding-left:8px;letter-spacing:.02em}
+.s15head .ctl{display:flex;gap:6px;align-items:center}
+.s15head input{padding:5px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;width:150px;background:var(--input-bg,#fff);color:var(--text)}
+.s15mode{border:0;border-radius:999px;background:#1f4e78;color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:6px 12px;cursor:pointer;text-transform:uppercase}
+.s15mode:hover{background:#2f6da3}
+.s15scroll{max-height:66vh;overflow:auto;border-radius:8px}
+.s15t{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.s15t th{position:sticky;top:0;z-index:2;background:#1f4e78;color:#fff;padding:7px 8px;font-size:11px;letter-spacing:.03em;text-align:right;white-space:nowrap}
+.s15t th:first-child,.s15t td:first-child{text-align:left}
+.s15t td{padding:6px 8px;border-bottom:1px solid var(--input-border);text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.s15t td:first-child{font-weight:600}
+.s15t td.tot{font-weight:700}
+.s15t td.z{color:var(--muted)}
+.s15t tfoot td{position:sticky;bottom:0;background:var(--tfoot-bg);font-weight:700;border-top:1px solid var(--input-border)}
+.s15empty{padding:22px;text-align:center;color:var(--muted);font-size:12.5px}
 .s14bar{gap:8px 12px;flex-wrap:wrap}
 .s14bar label{white-space:nowrap}
 .s14bar select{padding:4px 6px}
@@ -483,6 +509,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
             <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Faktur</span><span class="chev">▼</span></button>
             <div class="tabs tabs-collapsible" id="tabsMenu">
               <button class="active" onclick="show('s6',this)">Faktur</button>
+              <button onclick="show('s15',this)">Ringkasan</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
               <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
@@ -554,6 +581,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         <div id="panel_s12" class="view" style="display:none"></div>
         <div id="panel_s13" class="view" style="display:none"></div>
         <div id="panel_s14" class="view" style="display:none"></div>
+        <div id="panel_s15" class="view" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1604,6 +1632,13 @@ self.onmessage = function(e){
     if (tab === 's9'){
       return { name:'Data Harga', title:'Data Harga Beli & Jual', head:['PRODUK','SATUAN','HARGA BELI TERENDAH','HARGA BELI TERTINGGI','HARGA JUAL TERENDAH','HARGA JUAL TERTINGGI','KET'], types:['t','c','rp','rp','rp','rp','t'], rows:(r.s9||[]).map(x=>[x[0],x[1]||'',x[2],x[3],x[4],x[5], x[6] ? ((x[6].dir==='naik'?'Naik':'Turun')+' sejak '+fmtTgl(new Date(x[6].ts))) : '']), total:null };
     }
+    if (tab === 's15'){
+      const D = s15Data(), nc = D.cols.length;
+      const rows = [].concat(D.fit.map(o => ['Fitri', o.name, ...o.q, o.tot]), D.rup.map(o => ['Rupa Rupa', o.name, ...o.q, o.tot]));
+      const T = s15Sum(D.fit.concat(D.rup), nc);
+      return { name:'Ringkasan', title:'Ringkasan Penjualan (Qty per Sales)', info: exportInfoLine(), fileName:'Ringkasan_Penjualan_' + (filters.month ? monthLabel(filters.month).replace(/[^A-Za-z0-9]+/g, '_') : 'Semua_Bulan') + '.xlsx',
+        head:['KATEGORI','PRODUK',...D.cols,'TOTAL'], types:['t','t',...D.cols.map(() => 'n'),'n'], rows, total: rows.length ? ['TOTAL','',...T.q,T.tot] : null };
+    }
     if (tab === 's14'){
       const rows = s14Rows(), T = s14Total(rows);
       const xl = rows.map(r => [r[0], r[1] === '' ? '' : N(r[1]), r[2], s14PriceXl(r[3]), s14PriceXl(r[4]), r[5], r[6], r[7], r[8]]);
@@ -1642,7 +1677,7 @@ self.onmessage = function(e){
   }
 
   let _activeTab = 's6';
-  const OWN_PRODUCT_TABS = ['s3','s14'];
+  const OWN_PRODUCT_TABS = ['s3','s14','s15'];
   const OWN_BAR_TABS = ['s14'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
     _activeTab = t;
@@ -1822,7 +1857,8 @@ self.onmessage = function(e){
     } else if (t === 's6'){ return renderRekapPerFaktur();
     } else if (t === 's9'){ return renderS9();
     } else if (t === 's10'){ return renderDataBulanan();
-    } else if (t === 's14'){ return renderS14(); }
+    } else if (t === 's14'){ return renderS14();
+    } else if (t === 's15'){ return renderS15(); }
   }
   function monthFilterLabel(){ const fm = document.getElementById('filterMonth'); return fm && fm.value ? (fm.options[fm.selectedIndex]?.text || fm.value) : 'Semua bulan'; }
   function renderS9(){
@@ -1869,6 +1905,55 @@ self.onmessage = function(e){
     } else list.sort((a, b) => natCmp(a[0], b[0]));
     return list;
   }
+  /* ===== Tab Ringkasan: Penjualan Fitri (kiri) & Rupa Rupa (kanan), qty per sales ===== */
+  let s15FitriMode = 'andalan', s15RupaMode = 'all', s15Q = '';
+  const S15_ORDER = ['HAFID','RAJU','JOSSY','GC','PARIMIN'], S15_ANDALAN_N = 5;   /* andalan = 5 produk Fitri terlaris */
+  function s15Data(){
+    const SO2 = R.SO2 || SO, n = SO2.length;
+    const cols = S15_ORDER.filter(x => SO2.includes(x)).concat(SO2.filter(x => !S15_ORDER.includes(x)));
+    const idx = cols.map(x => SO2.indexOf(x) + 1);
+    const fit = [], rup = [];
+    (R.s1 || []).forEach(r => {
+      const o = { name: r[0], q: idx.map(i => N(r[i])), tot: N(r[n + 1]) };
+      if (!o.tot && !o.q.some(Boolean)) return;
+      (isFitriProduct(r[0]) ? fit : rup).push(o);
+    });
+    fit.sort((a, b) => b.tot - a.tot || natCmp(a.name, b.name));
+    rup.sort((a, b) => b.tot - a.tot || natCmp(a.name, b.name));
+    return { cols, fit, rup };
+  }
+  function s15Sum(list, nc){ const t = { q: new Array(nc).fill(0), tot: 0 }; list.forEach(o => { o.q.forEach((v, i) => t.q[i] += v); t.tot += o.tot; }); return t; }
+  const s15F = v => v ? N(v).toLocaleString('id-ID') : '-';
+  function s15TableHtml(list, cols, label){
+    if (!list.length) return '<div class="s15empty">Tidak ada data.</div>';
+    const T = s15Sum(list, cols.length);
+    const th = '<th>PRODUK</th>' + cols.map(c => '<th>' + escHtml(c) + '</th>').join('') + '<th>TOTAL</th>';
+    const body = list.map(o => '<tr><td>' + escHtml(o.name) + '</td>' + o.q.map(v => '<td' + (v ? '' : ' class="z"') + '>' + s15F(v) + '</td>').join('') + '<td class="tot">' + s15F(o.tot) + '</td></tr>').join('');
+    const foot = '<tr><td>' + label + '</td>' + T.q.map(v => '<td>' + s15F(v) + '</td>').join('') + '<td>' + s15F(T.tot) + '</td></tr>';
+    return '<div class="s15scroll"><table class="s15t"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+  }
+  function s15FitriList(D){ return s15FitriMode === 'andalan' ? D.fit.slice(0, S15_ANDALAN_N) : D.fit; }
+  function s15RupaList(D){ const q = s15Q.trim().toUpperCase(); return q ? D.rup.filter(o => o.name.toUpperCase().includes(q)) : D.rup; }
+  function s15RupaLabel(){ return s15Q.trim() ? 'TOTAL (HASIL CARI)' : 'TOTAL'; }
+  function renderS15(){
+    const D = s15Data(), T = s15Sum(D.fit, D.cols.length);
+    const chips = '<div class="s15chips"><div class="s15chip main"><small><span>Total Fitri</span><span>Unit</span></small><b>' + s15F(T.tot) + '</b></div>'
+      + D.cols.map((c, i) => '<div class="s15chip"><small><span>' + escHtml(c) + '</span><span>Unit</span></small><b>' + s15F(T.q[i]) + '</b></div>').join('') + '</div>';
+    const fitLabel = s15FitriMode === 'andalan' ? 'TOTAL ANDALAN' : 'TOTAL';
+    const left = '<div class="s15card"><div class="s15head"><h3>PENJUALAN FITRI</h3><div class="ctl"><button type="button" class="s15mode" onclick="s15ToggleFitri()" title="Klik untuk beralih: Produk Andalan (5 terlaris) / Semua Produk">' + (s15FitriMode === 'andalan' ? 'Produk Andalan' : 'Semua Produk') + '</button></div></div><div id="s15FitriTbl">' + s15TableHtml(s15FitriList(D), D.cols, fitLabel) + '</div></div>';
+    const rupaList = D.rup.slice(0, s15RupaMode === 'all' ? D.rup.length : 10);
+    const right = '<div class="s15card"><div class="s15head"><h3>RUPA RUPA</h3><div class="ctl"><input type="search" id="s15Search" placeholder="Cari produk..." value="' + escHtml(s15Q) + '" oninput="s15Search(this.value)"><button type="button" class="s15mode" onclick="s15ToggleRupa()" title="Klik untuk beralih: Semua Produk / 10 Terlaris">' + (s15RupaMode === 'all' ? 'Semua Produk' : '10 Terlaris') + '</button></div></div><div id="s15RupaTbl">' + s15RupaTableHtml(D) + '</div></div>';
+    return chips + '<div class="s15grid">' + left + right + '</div>';
+  }
+  function s15RupaTableHtml(D){
+    let list = s15RupaList(D);
+    if (s15RupaMode !== 'all') list = list.slice(0, 10);
+    return s15TableHtml(list, D.cols, s15RupaLabel());
+  }
+  function s15Repaint(){ viewCache['s15'] = null; const p = document.getElementById('panel_s15'); if (p) p.innerHTML = renderS15(); }
+  function s15ToggleFitri(){ s15FitriMode = s15FitriMode === 'andalan' ? 'all' : 'andalan'; s15Repaint(); }
+  function s15ToggleRupa(){ s15RupaMode = s15RupaMode === 'all' ? 'top' : 'all'; s15Repaint(); }
+  function s15Search(v){ s15Q = v || ''; viewCache['s15'] = null; const el = document.getElementById('s15RupaTbl'); if (el) el.innerHTML = s15RupaTableHtml(s15Data()); }
   function s14Total(rows){
     return rows.reduce((t, r) => { if (r[5] !== '') { t.q += N(r[1]); t.h += N(r[5]); t.v += N(r[6]); t.p += N(r[7]); } return t; }, { q: 0, h: 0, v: 0, p: 0 });
   }
