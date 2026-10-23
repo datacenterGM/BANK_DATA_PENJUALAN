@@ -58,7 +58,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .month-quick{display:flex;align-items:center;gap:5px;margin-left:0}
 .month-quick label{font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.04em}
 .month-quick select{width:auto;min-width:138px;padding:5px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:11px;background:var(--input-bg);color:var(--input-text)}
-.month-quick .filter-btn{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px;border-radius:6px;position:relative}
+.month-quick .filter-btn{height:28px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:700;border-radius:6px;position:relative}
+.month-quick .filter-btn svg{width:13px;height:13px;flex:none}
+body.hide-global-product .prod-global{display:none!important}
+.filter-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:13px;color:var(--chip-text)}
+.filter-x{background:transparent;color:var(--muted);border:0;padding:2px 6px;font-size:13px;cursor:pointer;border-radius:5px}
+.filter-x:hover{background:var(--chip-bg)}
+.filter-hint{font-size:11px;color:var(--muted);line-height:1.35;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--input-border)}
+.s3sortbar.s3bar-left{justify-content:flex-start;gap:8px 20px;background:var(--card);border:1px solid var(--input-border);border-radius:8px;padding:7px 12px;margin-bottom:8px}
 .month-quick .filter-btn #filterCount{position:absolute;top:-5px;right:-5px;background:#e11d48;color:#fff;font-size:9px;line-height:1;padding:2px 4px;border-radius:8px;font-weight:700;display:none}
 .month-quick .filter-btn #filterCount:not(:empty){display:inline-block}
 .quick-search-wrap{display:flex;align-items:center}
@@ -486,18 +493,20 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
           <div class="month-quick">
             <label for="filterMonth">Bulan</label>
             <select id="filterMonth" onchange="applyFilters()"><option value="">Semua bulan</option></select>
-            <label for="filterProductQuick">Produk</label>
-            <select id="filterProductQuick" onchange="onProductQuickChange()">
+            <label for="filterProductQuick" class="prod-global">Produk</label>
+            <select id="filterProductQuick" class="prod-global" onchange="onProductQuickChange()">
               <option value="">Semua produk</option>
               <option value="FITRI">Fitri</option>
               <option value="RUPA_RUPA">Rupa Rupa</option>
             </select>
             <div class="filter-picker" id="filterPicker">
-              <button type="button" class="filter-btn" id="filterBtn" title="Filter" onclick="event.stopPropagation();toggleFilterPicker()">⚙<span id="filterCount"></span></button>
+              <button type="button" class="filter-btn" id="filterBtn" title="Filter lanjutan: tanggal, sales, pembayaran, kode customer" onclick="event.stopPropagation();toggleFilterPicker()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg><span>Filter</span><span id="filterCount"></span></button>
               <div class="filter-menu" id="filterMenu" onclick="event.stopPropagation()">
-                <div class="filter-group"><label>Tanggal</label><input type="date" id="filterDateSingle" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
+                <div class="filter-head"><b>Filter Lanjutan</b><button type="button" class="filter-x" onclick="closeFilterPicker()" title="Tutup">✕</button></div>
+                <div class="filter-hint">Bulan &amp; pencarian ada di bar atas. Isi kolom di bawah untuk menyaring lebih detail, lalu klik <b>Terapkan Filter</b>.</div>
+                <div class="filter-group"><label>Tanggal Transaksi</label><input type="date" id="filterDateSingle" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
                 <div class="filter-group"><label>Sales</label><select id="filterSales"><option value="">Semua sales</option></select></div>
-                <div class="filter-group"><label>Produk</label>
+                <div class="filter-group prod-global"><label>Produk</label>
                   <select id="filterProduct" onchange="document.getElementById('filterProductQuick') && (document.getElementById('filterProductQuick').value=this.value)">
                     <option value="">Semua produk</option>
                     <option value="FITRI">Fitri</option>
@@ -513,8 +522,8 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
                 </div>
                 <div class="filter-group"><label>Kode Customer</label><input type="search" id="filterKdCustomer" placeholder="Ketik kode customer..." style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
                 <div class="filter-actions">
-                  <button type="button" onclick="applyFilters()">Terapkan Filter</button>
-                  <button type="button" class="filter-reset" onclick="resetFilters()">Reset</button>
+                  <button type="button" onclick="applyFilters();closeFilterPicker()">Terapkan Filter</button>
+                  <button type="button" class="filter-reset" onclick="resetFilters()" title="Kosongkan semua filter, pencarian, dan kembali ke bulan terbaru">Reset Semua</button>
                 </div>
                 <div class="filter-info" id="filterInfo">Filter belum diterapkan.</div>
               </div>
@@ -1272,7 +1281,7 @@ self.onmessage = function(e){
     updateFilterUi();
   }
   function updateFilterUi(){
-    const n = Object.values(filters).filter(Boolean).length;
+    const n = ['dateFrom','sales','payment','kdCustomer'].filter(k => filters[k]).length + ((filters.product && !document.body.classList.contains('hide-global-product')) ? 1 : 0);
     document.getElementById('filterCount').textContent = n ? n : '';
     document.getElementById('filterBtn').classList.toggle('active', n > 0);
     const parts = [];
@@ -1283,7 +1292,7 @@ self.onmessage = function(e){
     if (filters.payment) parts.push(filters.payment);
     if (filters.kdCustomer) parts.push('Kd: ' + filters.kdCustomer);
     if (filters.q) parts.push('Cari: ' + filters.q);
-    document.getElementById('filterInfo').textContent = parts.length ? 'Aktif: ' + parts.join(' • ') : 'Filter belum diterapkan.';
+    document.getElementById('filterInfo').textContent = parts.length ? 'Aktif: ' + parts.join(' • ') : 'Tidak ada filter tambahan.';
   }
   async function refreshAfterDataChange(){
     if (useIDB) await populateFiltersDOM();
@@ -1629,8 +1638,20 @@ self.onmessage = function(e){
   }
 
   let _activeTab = 's6';
+  const OWN_PRODUCT_TABS = ['s3'];   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
     _activeTab = t;
+    try {
+      const own = OWN_PRODUCT_TABS.indexOf(t) >= 0;
+      document.body.classList.toggle('hide-global-product', own);
+      if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
+        if (t === 's3') s3Cat = filters.product;
+        const fp = document.getElementById('filterProduct'), fq = document.getElementById('filterProductQuick');
+        if (fp) fp.value = ''; if (fq) fq.value = '';
+        setTimeout(applyFilters, 0);
+      }
+      updateFilterUi();
+    } catch(e){}
     document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
     if (b) b.classList.add('active');
     const lbl = document.getElementById('tabsToggleLabel');
@@ -1724,7 +1745,7 @@ self.onmessage = function(e){
       + '<input type="search" placeholder="Cari produk..." oninput="s3Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
       + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s3SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s3Clear()">Kosongkan</button></div>'
       + '<div id="s3List" style="max-height:260px;overflow:auto">' + items + '</div></div></span>';
-    return '<div class="s3sortbar"><label>Kategori : <select onchange="s3SetCat(this.value)">' + cat + '</select></label>' + picker + '<label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
+    return '<div class="s3sortbar s3bar-left"><label>Kategori : <select onchange="s3SetCat(this.value)">' + cat + '</select></label>' + picker + '<label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
   }
 
   /* ===== Tab Produk: Urutkan + Kategori + pilih Produk ===== */
