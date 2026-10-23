@@ -149,11 +149,12 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 .s12table th.s12-c{background:var(--th-bg-s10b);top:48px;z-index:3}
 .s12bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:2px 0 10px;font-size:12.5px;color:var(--text)}
 /* ===== Tab Ringkasan ===== */
-.s15chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
-.s15chip{min-width:92px;padding:7px 12px;border-radius:10px;background:var(--card);border:1px solid var(--input-border);box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.s15chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.s15top{margin:2px 0 12px}
+.s15chip{flex:1 1 84px;min-width:0;padding:7px 10px;border-radius:10px;background:var(--card);border:1px solid var(--input-border);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .s15chip small{display:flex;justify-content:space-between;gap:10px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
 .s15chip b{display:block;font-size:18px;color:#1f4e78;margin-top:2px}
-.s15chip.main{background:linear-gradient(135deg,#1f4e78,#2f6da3);border-color:#1f4e78}
+.s15chip.main{flex:1.4 1 112px;background:linear-gradient(135deg,#1f4e78,#2f6da3);border-color:#1f4e78}
 .s15chip.main small{color:#cfe2f3}.s15chip.main b{color:#fff}
 .s15grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px;align-items:start}
 @media(max-width:900px){.s15grid{grid-template-columns:1fr}}
@@ -1954,7 +1955,7 @@ self.onmessage = function(e){
     const left = '<div class="s15card"><div class="s15head"><h3>PENJUALAN FITRI</h3><div class="ctl"><button type="button" class="s15mode" onclick="s15ToggleFitri()" title="Klik untuk beralih: Produk Andalan (5 terlaris) / Semua Produk">' + (s15FitriMode === 'andalan' ? 'Produk Andalan' : 'Semua Produk') + '</button></div></div><div id="s15FitriTbl">' + s15TableHtml(s15FitriList(D), D.cols, fitLabel) + '</div></div>';
     const rupaList = D.rup.slice(0, s15RupaMode === 'all' ? D.rup.length : 10);
     const right = '<div class="s15card"><div class="s15head"><h3>RUPA RUPA</h3><div class="ctl"><input type="search" id="s15Search" placeholder="Cari produk..." value="' + escHtml(s15Q) + '" oninput="s15Search(this.value)"><button type="button" class="s15mode" onclick="s15ToggleRupa()" title="Klik untuk beralih: Semua Produk / 10 Terlaris">' + (s15RupaMode === 'all' ? 'Semua Produk' : '10 Terlaris') + '</button></div></div><div id="s15RupaTbl">' + s15RupaTableHtml(D) + '</div></div>';
-    return chips + '<div class="s15grid">' + left + right + '</div>';
+    return '<div class="s15grid s15top">' + chips + '<div></div></div><div class="s15grid">' + left + right + '</div>';   /* kartu sales selebar kartu Fitri di bawahnya */
   }
   function s15RupaTableHtml(D){
     let list = s15RupaList(D);
