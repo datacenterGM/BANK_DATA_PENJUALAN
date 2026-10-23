@@ -21,7 +21,7 @@
 /* ===== CSS VARIABLES: satu set warna, otomatis ganti saat dark ===== */
 :root{
   --bg:#f4f7fb;--text:#172033;--card:#fff;--card-shadow:0 2px 10px #0001;
-  --border:#d6dde6;--th-border:#b8c5d4;--th-bg:#1f4e78;--th-bg2:#26426e;--th-bg3:#2d4a6f;
+  --border:#d6dde6;--th-border:#b8c5d4;--th-bg:#1f4e78;--th-bg2:#26426e;
   --th-bg-s9a:#1e3a5f;--th-bg-s9b:#2d4a6f;--th-bg-s10b:#3d6fa0;
   --tfoot-bg:#ffe699;--muted:#64748b;--subtle:#475569;--strong:#0f172a;
   --input-bg:#fff;--input-border:#cbd5e1;--input-text:#172033;
@@ -32,7 +32,7 @@
 }
 body.dark{
   --bg:#0f172a;--text:#e2e8f0;--card:#1e293b;--card-shadow:0 2px 10px #0006;
-  --border:#334155;--th-border:#334155;--th-bg:#1e3a5f;--th-bg2:#162c4a;--th-bg3:#1f3a5e;
+  --border:#334155;--th-border:#334155;--th-bg:#1e3a5f;--th-bg2:#162c4a;
   --th-bg-s9a:#162c4a;--th-bg-s9b:#1f3a5e;--th-bg-s10b:#2d4a6f;
   --tfoot-bg:#1e3a5f;--muted:#94a3b8;--subtle:#cbd5e1;--strong:#f1f5f9;
   --input-bg:#0f172a;--input-border:#475569;--input-text:#e2e8f0;
@@ -256,8 +256,6 @@ body.dark .menu-section{border-color:#334155}
 body.dark .busy{background:rgba(15,23,42,.7);color:#93c5fd}
 .busy .spin{width:18px;height:18px;border:3px solid var(--input-border);border-top-color:#1f4e78;border-radius:50%;animation:rot .8s linear infinite;margin-right:8px}
 @keyframes rot{to{transform:rotate(360deg)}}
-
-/* ===== BARIS LOW MARGIN ===== */
 
 /* ===== TABS COLLAPSIBLE ===== */
 .tabs-wrap{position:relative;display:inline-block;margin-bottom:8px}
@@ -1071,7 +1069,7 @@ self.onmessage = function(e){
         if (!lanjut){ setStatus('Import dibatalkan.'); hideBusy(); return; }
         const replacedDays = await commitIncomingTx(out, monthList);
         await mergeMetaFromIncoming({products:[...products], sales:[...sales], months:monthList});
-        await postParseDone(raw.length, replacedDays, out.length);
+        await postParseDone(replacedDays, out.length);
       } catch(err){ console.error(err); setStatus('Gagal menyimpan data: ' + (err.message || err)); hideBusy(); }
     } catch(err){ setStatus('Gagal membaca Excel: ' + (err.message || err)); hideBusy(); }
   }
@@ -1103,11 +1101,11 @@ self.onmessage = function(e){
         if (!lanjut){ setStatus('Import dibatalkan.'); hideBusy(); return; }
         const replacedDays = await commitIncomingTx(incoming, monthList);
         await mergeMetaFromIncoming({ products: m.products || [], sales: m.sales || [], months: monthList });
-        await postParseDone(incoming.length, replacedDays, incoming.length);
+        await postParseDone(replacedDays, incoming.length);
       } catch(err){ console.error(err); setStatus('Gagal menyimpan data: ' + (err.message || err)); hideBusy(); }
     }
   }
-  async function postParseDone(_totalRaw, replacedDays, newCount){
+  async function postParseDone(replacedDays, newCount){
     try { await populateFiltersDOM(); } catch(e){ console.warn('populateFiltersDOM gagal', e); }
     let totalRows, sortData;
     if (useIDB){ totalRows = await db.tx.count(); sortData = await fetchFiltered(); }
@@ -1879,7 +1877,6 @@ self.onmessage = function(e){
   function s1SetCat(v){ s1Cat = v || ''; rekapPage.s1 = 0; viewCache['s1'] = null; const panel = document.getElementById('panel_s1'); if (panel) panel.innerHTML = renderTab('s1'); }
   document.addEventListener('click', function(e){ const d = document.getElementById('s1Dd'); if (d && d.style.display === 'block' && !e.target.closest('#s1Pick')) d.style.display = 'none'; });
   function renderTab(t){
-    const SO2 = R.SO2 || SO;
     if (t === 's1'){
       return s1BarHtml() + '<div id="s1tbl">' + s1TableHtml() + '</div>';
     } else if (t === 's3'){
@@ -1972,7 +1969,6 @@ self.onmessage = function(e){
       + D.cols.map((c, i) => '<div class="s15chip"><small><span>' + escHtml(c) + '</span><span>Unit</span></small><b>' + s15F(T.q[i]) + '</b></div>').join('') + '</div>';
     const fitLabel = 'TOTAL';
     const left = '<div class="s15card"><div class="s15head"><h3>PENJUALAN FITRI</h3><div class="ctl"><button type="button" class="s15mode" onclick="s15ToggleFitri()" title="Klik untuk beralih: Produk Andalan (5 terlaris) / Semua Produk">' + (s15FitriMode === 'andalan' ? 'Produk Andalan' : 'Semua Produk') + '</button></div></div><div id="s15FitriTbl">' + s15TableHtml(s15FitriList(D), D.cols, fitLabel) + '</div></div>';
-    const rupaList = D.rup.slice(0, s15RupaMode === 'all' ? D.rup.length : 10);
     const right = '<div class="s15card"><div class="s15head"><h3>RUPA RUPA</h3><div class="ctl"><input type="search" id="s15Search" placeholder="Cari produk..." value="' + escHtml(s15Q) + '" oninput="s15Search(this.value)"><button type="button" class="s15mode" onclick="s15ToggleRupa()" title="Klik untuk beralih: Semua Produk / 10 Terlaris">' + (s15RupaMode === 'all' ? 'Semua Produk' : '10 Terlaris') + '</button></div></div><div id="s15RupaTbl">' + s15RupaTableHtml(D) + '</div></div>';
     return '<div class="s15grid s15top">' + chips + '<div></div></div><div class="s15grid">' + left + right + '</div>';   /* kartu sales selebar kartu Fitri di bawahnya */
   }
@@ -2186,7 +2182,7 @@ self.onmessage = function(e){
     if (sk === 'desc') list.sort((a,b) => tp(b) - tp(a) || natCmp(a.p, b.p));
     else if (sk === 'asc') list.sort((a,b) => tp(a) - tp(b) || natCmp(a.p, b.p));
     else if (sk && sk.indexOf('m:') === 0){ const i = idx.get(sk.slice(2)); list.sort((a,b) => b.st.m[i].p - a.st.m[i].p || natCmp(a.p, b.p)); }
-    const tot = sel.map((m,i) => list.reduce((a,o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc:0, qt:0, p:0 }));
+    const tot = sel.map((_,i) => list.reduce((a,o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc:0, qt:0, p:0 }));
     return { sel, list, tot };
   }
   function rekapBlnLabel(mk, withYear){ if (!mk) return ''; const [y,m] = mk.split('-').map(Number); return new Date(y, m-1, 1).toLocaleDateString('id-ID', withYear ? { month:'long', year:'numeric' } : { month:'long' }).toUpperCase(); }
@@ -2235,7 +2231,7 @@ self.onmessage = function(e){
   }
   function rekapBlnChartCards(c, multiYear){
     const labels = c.sel.map(m => rekapBlnLabel(m, multiYear)), metric = rekapBln.metric;
-    const grp = isF => c.sel.map((m, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
+    const grp = isF => c.sel.map((_, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
     const mk = (isF, nm, col) => {
       if (!c.list.some(o => isFitriProduct(o.p) === isF)) return '';
       const t = grp(isF);
@@ -2359,7 +2355,7 @@ self.onmessage = function(e){
   /* ---- grafik untuk Excel: digambar ke canvas -> PNG -> disisipkan sebagai gambar ---- */
   function rekapBlnChartSets(c, multiYear){
     const labels = c.sel.map(m => rekapBlnLabel(m, multiYear));
-    const grp = isF => c.sel.map((m, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
+    const grp = isF => c.sel.map((_, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
     const out = [];
     [[true, 'Produk Fitri', '#2f6fb0'], [false, 'Produk Rupa Rupa', '#3b9a5a']].forEach(([isF, nm, col]) => {
       if (!c.list.some(o => isFitriProduct(o.p) === isF)) return;
@@ -2449,7 +2445,7 @@ self.onmessage = function(e){
     const hasMinus = items.some(x => N(x.Jumlah ?? x.jumlah) < 0);
     const lineKeys = items.map(x => lineKeyOf(x));
     const anyLineBatal = lineKeys.some(k => batalLineSet.has(k));
-    _fkBatalCurrent = { faktur: key, items, isBatal, hasMinus, lineKeys };
+    _fkBatalCurrent = { faktur: key, items, isBatal };
     document.getElementById('fkBatalNo').textContent = key;
     document.getElementById('fkBatalSub').textContent = isBatal ? 'Status: TRANSAKSI BATAL (seluruh faktur) — tidak dihitung di tab/sub-tab lain' : (anyLineBatal ? 'Sebagian item faktur sudah dibatalkan' : (hasMinus ? 'Faktur berisi baris qty minus / koreksi — pilih item yang ingin dibatalkan' : 'Detail faktur'));
     const first = items[0];
