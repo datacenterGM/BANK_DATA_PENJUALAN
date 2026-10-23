@@ -520,7 +520,6 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               <button onclick="show('s6',this)">Faktur</button>
               <button class="active" onclick="show('s15',this)">Ringkasan</button>
               <button onclick="show('s1',this)">Produk</button>
-              <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
               <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
@@ -2103,7 +2102,7 @@ self.onmessage = function(e){
   }
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
-  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, metric:'profit', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama' };
+  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, metric:'sales', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama' };
   function rekapBlnSig(){ const f = Object.assign({}, filters); f.month = ''; return dataVersion + '|' + JSON.stringify(f); }
   async function rekapBlnLoad(){
     const sig = rekapBlnSig();
@@ -2167,10 +2166,10 @@ self.onmessage = function(e){
       const i = idx.get(r.mk); if (i === undefined) return;
       if (!rekapBlnPass(r.produk)) return;
       let st = byProd.get(r.produk);
-      if (!st){ st = { sat:'', m: sel.map(() => ({ qc:0, qt:0, p:0 })), bmin:Infinity, bmax:-Infinity, jmin:Infinity, jmax:-Infinity }; byProd.set(r.produk, st); }
+      if (!st){ st = { sat:'', m: sel.map(() => ({ qc:0, qt:0, sc:0, st:0, p:0 })), bmin:Infinity, bmax:-Infinity, jmin:Infinity, jmax:-Infinity }; byProd.set(r.produk, st); }
       if (r.sat && !st.sat) st.sat = r.sat;
       const c = st.m[i];
-      if (r.pay.includes('TEMPO')) c.qt += r.j; else if (r.pay.includes('CASH')) c.qc += r.j;
+      if (r.pay.includes('TEMPO')){ c.qt += r.j; c.st += r.t; } else if (r.pay.includes('CASH')){ c.qc += r.j; c.sc += r.t; }
       c.p += r.t - r.j * r.hb;
       if (r.hb < st.bmin) st.bmin = r.hb; if (r.hb > st.bmax) st.bmax = r.hb;
       if (r.hj < st.jmin) st.jmin = r.hj; if (r.hj > st.jmax) st.jmax = r.hj;
@@ -2182,7 +2181,7 @@ self.onmessage = function(e){
     if (sk === 'desc') list.sort((a,b) => tp(b) - tp(a) || natCmp(a.p, b.p));
     else if (sk === 'asc') list.sort((a,b) => tp(a) - tp(b) || natCmp(a.p, b.p));
     else if (sk && sk.indexOf('m:') === 0){ const i = idx.get(sk.slice(2)); list.sort((a,b) => b.st.m[i].p - a.st.m[i].p || natCmp(a.p, b.p)); }
-    const tot = sel.map((_,i) => list.reduce((a,o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc:0, qt:0, p:0 }));
+    const tot = sel.map((_,i) => list.reduce((a,o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, sc: a.sc + o.st.m[i].sc, st: a.st + o.st.m[i].st, p: a.p + o.st.m[i].p }), { qc:0, qt:0, sc:0, st:0, p:0 }));
     return { sel, list, tot };
   }
   function rekapBlnLabel(mk, withYear){ if (!mk) return ''; const [y,m] = mk.split('-').map(Number); return new Date(y, m-1, 1).toLocaleDateString('id-ID', withYear ? { month:'long', year:'numeric' } : { month:'long' }).toUpperCase(); }
@@ -2231,15 +2230,17 @@ self.onmessage = function(e){
   }
   function rekapBlnChartCards(c, multiYear){
     const labels = c.sel.map(m => rekapBlnLabel(m, multiYear)), metric = rekapBln.metric;
-    const grp = isF => c.sel.map((_, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
+    const grp = isF => c.sel.map((_, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, sc: a.sc + o.st.m[i].sc, st: a.st + o.st.m[i].st, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, sc: 0, st: 0, p: 0 }));
     const mk = (isF, nm, col) => {
       if (!c.list.some(o => isFitriProduct(o.p) === isF)) return '';
       const t = grp(isF);
-      return metric === 'qty'
+      return metric === 'sales'
+        ? rekapBlnSvg(nm + ' - Penjualan (Cash vs Tempo) & Profit', labels, [{ name: 'Penjualan Cash', color: '#2f6fb0', vals: t.map(x => x.sc) }, { name: 'Penjualan Tempo', color: '#e48a2b', vals: t.map(x => x.st) }, { name: 'Profit', color: col, vals: t.map(x => x.p) }], true)
+        : metric === 'qty'
         ? rekapBlnSvg(nm + ' - Total Qty', labels, [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }], false)
         : rekapBlnSvg(nm + ' - Profit', labels, [{ name: 'Profit', color: col, vals: t.map(x => x.p) }], true);
     };
-    const cards = mk(true, 'Produk Fitri', '#2f6fb0') + mk(false, 'Produk Rupa Rupa', '#3b9a5a');
+    const cards = mk(true, 'Produk Fitri', '#3b9a5a') + mk(false, 'Produk Rupa Rupa', '#8e5bb5');
     return cards ? '<div style="display:flex;flex-wrap:wrap;gap:12px">' + cards + '</div>' : '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data pada rentang bulan / pilihan produk ini.</div>';
   }
 
@@ -2275,7 +2276,7 @@ self.onmessage = function(e){
     const sl = fs ? Array.from(fs.options).map(o => o.value).filter(Boolean) : SO;
     const salesOpts = '<option value="">Semua sales</option>' + sl.map(v => '<option value="' + escHtml(v) + '"' + (filters.sales === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
     const catOpts = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (rekapBln.cat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
-    const metricOpts = '<option value="profit"' + (rekapBln.metric === 'profit' ? ' selected' : '') + '>Profit</option><option value="qty"' + (rekapBln.metric === 'qty' ? ' selected' : '') + '>Total Qty (Cash vs Tempo)</option>';
+    const metricOpts = '<option value="sales"' + (rekapBln.metric === 'sales' ? ' selected' : '') + '>Penjualan Cash vs Tempo + Profit</option><option value="profit"' + (rekapBln.metric === 'profit' ? ' selected' : '') + '>Profit saja</option><option value="qty"' + (rekapBln.metric === 'qty' ? ' selected' : '') + '>Total Qty (Cash vs Tempo)</option>';
     const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Grafik Penjualan &amp; Profit</span>'
       + '<label>Dari bulan : <select id="gFrom" onchange="grafikChange()">' + opt(rekapBln.from) + '</select></label>'
       + '<label>Sampai bulan : <select id="gTo" onchange="grafikChange()">' + opt(rekapBln.to) + '</select></label>'
@@ -2355,12 +2356,12 @@ self.onmessage = function(e){
   /* ---- grafik untuk Excel: digambar ke canvas -> PNG -> disisipkan sebagai gambar ---- */
   function rekapBlnChartSets(c, multiYear){
     const labels = c.sel.map(m => rekapBlnLabel(m, multiYear));
-    const grp = isF => c.sel.map((_, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, p: 0 }));
+    const grp = isF => c.sel.map((_, i) => c.list.filter(o => isFitriProduct(o.p) === isF).reduce((a, o) => ({ qc: a.qc + o.st.m[i].qc, qt: a.qt + o.st.m[i].qt, sc: a.sc + o.st.m[i].sc, st: a.st + o.st.m[i].st, p: a.p + o.st.m[i].p }), { qc: 0, qt: 0, sc: 0, st: 0, p: 0 }));
     const out = [];
-    [[true, 'Produk Fitri', '#2f6fb0'], [false, 'Produk Rupa Rupa', '#3b9a5a']].forEach(([isF, nm, col]) => {
+    [[true, 'Produk Fitri', '#3b9a5a'], [false, 'Produk Rupa Rupa', '#8e5bb5']].forEach(([isF, nm, col]) => {
       if (!c.list.some(o => isFitriProduct(o.p) === isF)) return;
       const t = grp(isF);
-      out.push({ title: nm + ' - Profit', labels, money: true, series: [{ name: 'Profit', color: col, vals: t.map(x => x.p) }] });
+      out.push({ title: nm + ' - Penjualan (Cash vs Tempo) & Profit', labels, money: true, series: [{ name: 'Penjualan Cash', color: '#2f6fb0', vals: t.map(x => x.sc) }, { name: 'Penjualan Tempo', color: '#e48a2b', vals: t.map(x => x.st) }, { name: 'Profit', color: col, vals: t.map(x => x.p) }] });
       out.push({ title: nm + ' - Total Qty', labels, money: false, series: [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }] });
     });
     return out;
