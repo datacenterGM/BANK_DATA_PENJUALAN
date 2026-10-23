@@ -148,6 +148,9 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 .s12table th.s12-b{background:var(--th-bg-s10b);top:24px;z-index:3}
 .s12table th.s12-c{background:var(--th-bg-s10b);top:48px;z-index:3}
 .s12bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:2px 0 10px;font-size:12.5px;color:var(--text)}
+.s14bar{gap:8px 12px;flex-wrap:wrap}
+.s14bar label{white-space:nowrap}
+.s14bar select{padding:4px 6px}
 .s12bar select{padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg,#fff);color:var(--text)}
 
 /* ===== KPI ===== */
@@ -1235,7 +1238,7 @@ self.onmessage = function(e){
   function pickLatestMonth(months){
     if (!months || !months.length) return '';
     const now = new Date(), cur = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-    return months.includes(cur) ? cur : months[0];
+    return months.includes(cur) ? cur : months.slice().sort().pop();   /* bulan berjalan; kalau belum ada datanya, bulan terbaru yang ada */
   }
   function isFitriProduct(p){ return U(p).includes('FITRI'); }
 
@@ -1937,13 +1940,13 @@ self.onmessage = function(e){
       + '<input type="search" placeholder="Cari produk..." oninput="s14Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
       + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s14SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s14Clear()">Kosongkan</button></div>'
       + '<div id="s14List" style="max-height:260px;overflow:auto">' + s14ItemsHtml() + '</div></div></span>';
-    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan per Sales</span>'
+    const bar = '<div class="s12bar s14bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan per Sales</span>'
       + '<label>Bulan : <select onchange="onMonthTabChange(this.value)">' + optHtml(opts('filterMonth'), filters.month || '') + '</select></label>'
       + '<label>Sales : <select onchange="onSalesTabChange(this.value)">' + optHtml(opts('filterSales'), filters.sales || '') + '</select></label>'
       + '<label>Kategori : <select onchange="s14SetCat(this.value)">' + fixed([['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']], s14Cat) + '</select></label>'
       + picker
       + '<label>Urutkan : <select onchange="s14SetSort(this.value)">' + fixed([['nama', 'Nama produk (A–Z)'], ['desc', 'Profit terbesar'], ['asc', 'Profit terkecil']], s14Sort) + '</select></label>'
-      + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ' + (s14ShowAll ? 'checked ' : '') + 'onchange="s14SetShowAll(this)"> Tampilkan produk tanpa penjualan</label></div>';
+      + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap"><input type="checkbox" ' + (s14ShowAll ? 'checked ' : '') + 'onchange="s14SetShowAll(this)"> Tampilkan produk tanpa penjualan</label></div>';
     return bar + '<div id="s14body">' + s14BodyHtml() + '</div>';
   }
   function onSalesTabChange(v){
@@ -2745,7 +2748,7 @@ self.onmessage = function(e){
       if (!total) return;
       await loadBatalFaktur();
       const metaFilters = await db.meta.get('filters');
-      if (metaFilters && metaFilters.value) { filters = Object.assign({month:'',sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''}, metaFilters.value); }
+      if (metaFilters && metaFilters.value) { filters = Object.assign({month:'',sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''}, metaFilters.value); filters.month = ''; }   /* bulan tidak diingat: setiap dibuka selalu ke bulan terkini */
       const monthsMeta = ((await db.meta.get('months')) || {}).value || [];
       if (!filters.month || !monthsMeta.includes(filters.month)) filters.month = pickLatestMonth(monthsMeta);
       populateFiltersFromMeta({ products: ((await db.meta.get('products')) || {}).value || [], sales: ((await db.meta.get('sales')) || {}).value || [], months: monthsMeta });
