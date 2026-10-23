@@ -512,10 +512,10 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
       <div class="toolbar-row">
         <div class="toolbar-left">
           <div class="tabs-wrap" id="tabsWrap">
-            <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Faktur</span><span class="chev">▼</span></button>
+            <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Ringkasan</span><span class="chev">▼</span></button>
             <div class="tabs tabs-collapsible" id="tabsMenu">
-              <button class="active" onclick="show('s6',this)">Faktur</button>
-              <button onclick="show('s15',this)">Ringkasan</button>
+              <button onclick="show('s6',this)">Faktur</button>
+              <button class="active" onclick="show('s15',this)">Ringkasan</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s3',this)">Profit Penjualan per Produk</button>
               <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
@@ -579,7 +579,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         </div>
       </div>
       <div id="table">
-        <div id="panel_s6" class="view"></div>
+        <div id="panel_s6" class="view" style="display:none"></div>
         <div id="panel_s1" class="view" style="display:none"></div>
         <div id="panel_s3" class="view" style="display:none"></div>
         <div id="panel_s9" class="view" style="display:none"></div>
@@ -587,7 +587,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         <div id="panel_s12" class="view" style="display:none"></div>
         <div id="panel_s13" class="view" style="display:none"></div>
         <div id="panel_s14" class="view" style="display:none"></div>
-        <div id="panel_s15" class="view" style="display:none"></div>
+        <div id="panel_s15" class="view"></div>
       </div>
     </div>
   </div>
@@ -1682,7 +1682,7 @@ self.onmessage = function(e){
     finally { hideBusy(); }
   }
 
-  let _activeTab = 's6';
+  let _activeTab = 's15';   /* tab awal saat dibuka */
   const OWN_PRODUCT_TABS = ['s3','s14','s15'];
   const OWN_BAR_TABS = ['s14'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
