@@ -2431,13 +2431,19 @@ self.onmessage = function(e){
     const src = (filteredRowsInclBatal && filteredRowsInclBatal.length) ? filteredRowsInclBatal : filteredRows;
     return src.map((r) => (r.Produk !== undefined || r['No. Faktur'] !== undefined) ? r : materialiseOne(r));
   }
-  function collectRowsForFaktur(nf){
+  /* Semua baris sebuah faktur, TANPA terpengaruh filter bulan/produk/sales/cari — agar modal batal-item selalu lengkap. */
+  async function collectRowsForFaktur(nf){
     const key = String(nf || '').trim(); if (!key) return [];
-    return getFakturSourceRows().filter(x => String(x['No. Faktur'] ?? x.faktur ?? '').trim() === key);
+    const same = x => String(x['No. Faktur'] ?? x.faktur ?? '').trim() === key;
+    let src;
+    if (useIDB && db){ try { src = await db.tx.filter(same).toArray(); } catch(e){ console.warn('collectRowsForFaktur', e); src = null; } }
+    if (!src) src = (rows || []).filter(same);
+    src.sort((a,b) => (b._ts||0) - (a._ts||0));
+    return src.map(r => (r.Produk !== undefined || r['No. Faktur'] !== undefined) ? r : materialiseOne(r));
   }
-  function openFkBatalModal(nf){
+  async function openFkBatalModal(nf){
     const key = String(nf || '').trim(); if (!key) return;
-    const items = collectRowsForFaktur(key);
+    const items = await collectRowsForFaktur(key);
     if (!items.length){ alert('Detail faktur tidak ditemukan.'); return; }
     const isBatal = isBatalFaktur(key);
     const hasMinus = items.some(x => N(x.Jumlah ?? x.jumlah) < 0);
