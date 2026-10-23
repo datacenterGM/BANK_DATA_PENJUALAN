@@ -60,7 +60,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .month-quick select{width:auto;min-width:138px;padding:5px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:11px;background:var(--input-bg);color:var(--input-text)}
 .month-quick .filter-btn{height:28px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:700;border-radius:6px;position:relative}
 .month-quick .filter-btn svg{width:13px;height:13px;flex:none}
-body.hide-global-product .prod-global{display:none!important}
+body.hide-global-product .prod-global,body.hide-own-bar .month-global,body.hide-own-bar .sales-global{display:none!important}
 .filter-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:13px;color:var(--chip-text)}
 .filter-x{background:transparent;color:var(--muted);border:0;padding:2px 6px;font-size:13px;cursor:pointer;border-radius:5px}
 .filter-x:hover{background:var(--chip-bg)}
@@ -491,8 +491,8 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
           </div>
           <div class="quick-search-wrap"><input type="search" id="quickSearch" placeholder="🔍 Cari produk / customer / no faktur..." title="Cari berdasarkan nama produk, customer, kode customer, atau nomor faktur" oninput="onQuickSearchInput()"></div>
           <div class="month-quick">
-            <label for="filterMonth">Bulan</label>
-            <select id="filterMonth" onchange="applyFilters()"><option value="">Semua bulan</option></select>
+            <label for="filterMonth" class="month-global">Bulan</label>
+            <select id="filterMonth" class="month-global" onchange="applyFilters()"><option value="">Semua bulan</option></select>
             <label for="filterProductQuick" class="prod-global">Produk</label>
             <select id="filterProductQuick" class="prod-global" onchange="onProductQuickChange()">
               <option value="">Semua produk</option>
@@ -505,7 +505,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
                 <div class="filter-head"><b>Filter Lanjutan</b><button type="button" class="filter-x" onclick="closeFilterPicker()" title="Tutup">✕</button></div>
                 <div class="filter-hint">Bulan &amp; pencarian ada di bar atas. Isi kolom di bawah untuk menyaring lebih detail, lalu klik <b>Terapkan Filter</b>.</div>
                 <div class="filter-group"><label>Tanggal Transaksi</label><input type="date" id="filterDateSingle" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
-                <div class="filter-group"><label>Sales</label><select id="filterSales"><option value="">Semua sales</option></select></div>
+                <div class="filter-group sales-global"><label>Sales</label><select id="filterSales"><option value="">Semua sales</option></select></div>
                 <div class="filter-group prod-global"><label>Produk</label>
                   <select id="filterProduct" onchange="document.getElementById('filterProductQuick') && (document.getElementById('filterProductQuick').value=this.value)">
                     <option value="">Semua produk</option>
@@ -1281,7 +1281,7 @@ self.onmessage = function(e){
     updateFilterUi();
   }
   function updateFilterUi(){
-    const n = ['dateFrom','sales','payment','kdCustomer'].filter(k => filters[k]).length + ((filters.product && !document.body.classList.contains('hide-global-product')) ? 1 : 0);
+    const n = ['dateFrom','payment','kdCustomer'].filter(k => filters[k]).length + ((filters.sales && !document.body.classList.contains('hide-own-bar')) ? 1 : 0) + ((filters.product && !document.body.classList.contains('hide-global-product')) ? 1 : 0);
     document.getElementById('filterCount').textContent = n ? n : '';
     document.getElementById('filterBtn').classList.toggle('active', n > 0);
     const parts = [];
@@ -1638,14 +1638,17 @@ self.onmessage = function(e){
   }
 
   let _activeTab = 's6';
-  const OWN_PRODUCT_TABS = ['s3'];   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
+  const OWN_PRODUCT_TABS = ['s3','s14'];
+  const OWN_BAR_TABS = ['s14'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
     _activeTab = t;
     try {
       const own = OWN_PRODUCT_TABS.indexOf(t) >= 0;
       document.body.classList.toggle('hide-global-product', own);
+      document.body.classList.toggle('hide-own-bar', OWN_BAR_TABS.indexOf(t) >= 0);
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
+        if (t === 's14') s14Cat = filters.product;
         const fp = document.getElementById('filterProduct'), fq = document.getElementById('filterProductQuick');
         if (fp) fp.value = ''; if (fq) fq.value = '';
         setTimeout(applyFilters, 0);
