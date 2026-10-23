@@ -398,6 +398,9 @@ body.dark .hbdiff-choice label{background:#0f172a;color:#cbd5e1}
 /* ===== THEME BUTTON ===== */
 .theme-btn{background:#fff;border:1px solid rgba(255,255,255,.75);color:#24518e;font-size:12px;padding:3px 8px;border-radius:5px;cursor:pointer;font-weight:700;line-height:1.1}
 .theme-btn:hover{background:rgba(255,255,255,.28)}
+.hdr-pull-btn{padding:3px 8px;border:1px solid rgba(255,255,255,.5);border-radius:5px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.1}
+.hdr-pull-btn:hover{background:rgba(255,255,255,.28)}
+@media(max-width:520px){.hdr-pull-btn span{display:none}}
 
 /* ===== JUDUL HEADER ===== */
 .header-title{font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#7dd3fc;text-shadow:0 0 6px rgba(125,211,252,.55),0 0 14px rgba(56,189,248,.35);font-family:Arial,sans-serif;line-height:1;padding:2px 0;position:relative;animation:hdrGlow 3.2s ease-in-out infinite}
@@ -426,6 +429,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
     <div class="header-left"><div class="header-title">Data Penjualan</div></div>
     <button type="button" id="installBtn" style="display:none;padding:3px 8px;border:1px solid rgba(255,255,255,.5);border-radius:5px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.1">⬇ Instal Aplikasi</button>
     <div style="display:flex;align-items:center;gap:10px">
+      <button type="button" class="hdr-pull-btn" id="hdrPullBtn" onclick="backupPullCloud()" title="Ambil Data Terbaru dari Cloud">⬇️ <span>Data Terbaru</span></button>
       <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
       <div class="dd" id="menuDd">
         <button type="button" class="dd-toggle" onclick="toggleDd()"><span>☰ MENU</span><span class="chev">▼</span></button>
