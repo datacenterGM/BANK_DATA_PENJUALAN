@@ -165,11 +165,12 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 .s15mode{border:0;border-radius:999px;background:#1f4e78;color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:6px 12px;cursor:pointer;text-transform:uppercase}
 .s15mode:hover{background:#2f6da3}
 .s15scroll{max-height:66vh;overflow:auto;border-radius:8px}
-.s15t{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
-.s15t th{position:sticky;top:0;z-index:2;background:#1f4e78;color:#fff;padding:7px 8px;font-size:11px;letter-spacing:.03em;text-align:right;white-space:nowrap}
+.s15t{width:100%;min-width:0;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:12px}
+.s15t col.cp{width:38%}
+.s15t th{position:sticky;top:0;z-index:2;background:#1f4e78;color:#fff;padding:7px 5px;border:0;font-size:10.5px;letter-spacing:.02em;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s15t th:first-child,.s15t td:first-child{text-align:left}
-.s15t td{padding:6px 8px;border-bottom:1px solid var(--input-border);text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
-.s15t td:first-child{font-weight:600}
+.s15t td{padding:6px 5px;border:0;border-bottom:1px solid var(--input-border);white-space:nowrap;text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.s15t td:first-child{font-weight:600;white-space:normal;line-height:1.25}
 .s15t td.tot{font-weight:700}
 .s15t td.z{color:var(--muted)}
 .s15t tfoot td{position:sticky;bottom:0;background:var(--tfoot-bg);font-weight:700;border-top:1px solid var(--input-border)}
@@ -1927,19 +1928,20 @@ self.onmessage = function(e){
   function s15TableHtml(list, cols, label){
     if (!list.length) return '<div class="s15empty">Tidak ada data.</div>';
     const T = s15Sum(list, cols.length);
+    const colg = '<colgroup><col class="cp">' + cols.map(() => '<col>').join('') + '<col></colgroup>';
     const th = '<th>PRODUK</th>' + cols.map(c => '<th>' + escHtml(c) + '</th>').join('') + '<th>TOTAL</th>';
     const body = list.map(o => '<tr><td>' + escHtml(o.name) + '</td>' + o.q.map(v => '<td' + (v ? '' : ' class="z"') + '>' + s15F(v) + '</td>').join('') + '<td class="tot">' + s15F(o.tot) + '</td></tr>').join('');
     const foot = '<tr><td>' + label + '</td>' + T.q.map(v => '<td>' + s15F(v) + '</td>').join('') + '<td>' + s15F(T.tot) + '</td></tr>';
-    return '<div class="s15scroll"><table class="s15t"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+    return '<div class="s15scroll"><table class="s15t">' + colg + '<thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
   }
-  function s15FitriList(D){ return s15FitriMode === 'andalan' ? D.fit.slice(0, S15_ANDALAN_N) : D.fit; }
+  function s15FitriList(D){ const l = s15FitriMode === 'andalan' ? D.fit.slice(0, S15_ANDALAN_N) : D.fit; return l.slice().sort((a, b) => natCmp(a.name, b.name)); }   /* urut nama: 200, 400, 800 */
   function s15RupaList(D){ const q = s15Q.trim().toUpperCase(); return q ? D.rup.filter(o => o.name.toUpperCase().includes(q)) : D.rup; }
   function s15RupaLabel(){ return s15Q.trim() ? 'TOTAL (HASIL CARI)' : 'TOTAL'; }
   function renderS15(){
     const D = s15Data(), T = s15Sum(D.fit, D.cols.length);
     const chips = '<div class="s15chips"><div class="s15chip main"><small><span>Total Fitri</span><span>Unit</span></small><b>' + s15F(T.tot) + '</b></div>'
       + D.cols.map((c, i) => '<div class="s15chip"><small><span>' + escHtml(c) + '</span><span>Unit</span></small><b>' + s15F(T.q[i]) + '</b></div>').join('') + '</div>';
-    const fitLabel = s15FitriMode === 'andalan' ? 'TOTAL ANDALAN' : 'TOTAL';
+    const fitLabel = 'TOTAL';
     const left = '<div class="s15card"><div class="s15head"><h3>PENJUALAN FITRI</h3><div class="ctl"><button type="button" class="s15mode" onclick="s15ToggleFitri()" title="Klik untuk beralih: Produk Andalan (5 terlaris) / Semua Produk">' + (s15FitriMode === 'andalan' ? 'Produk Andalan' : 'Semua Produk') + '</button></div></div><div id="s15FitriTbl">' + s15TableHtml(s15FitriList(D), D.cols, fitLabel) + '</div></div>';
     const rupaList = D.rup.slice(0, s15RupaMode === 'all' ? D.rup.length : 10);
     const right = '<div class="s15card"><div class="s15head"><h3>RUPA RUPA</h3><div class="ctl"><input type="search" id="s15Search" placeholder="Cari produk..." value="' + escHtml(s15Q) + '" oninput="s15Search(this.value)"><button type="button" class="s15mode" onclick="s15ToggleRupa()" title="Klik untuk beralih: Semua Produk / 10 Terlaris">' + (s15RupaMode === 'all' ? 'Semua Produk' : '10 Terlaris') + '</button></div></div><div id="s15RupaTbl">' + s15RupaTableHtml(D) + '</div></div>';
