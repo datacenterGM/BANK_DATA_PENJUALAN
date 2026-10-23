@@ -174,6 +174,11 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 .s15t td.tot{font-weight:700}
 .s15t td.z{color:var(--muted)}
 .s15t tfoot td{position:sticky;bottom:0;background:var(--tfoot-bg);font-weight:700;border-top:1px solid var(--input-border)}
+body.dark .s15chip b{color:#e2e8f0}
+body.dark .s15chip.main b{color:#fff}
+body.dark .s15chip small{color:#94a3b8}
+body.dark .s15chip.main small{color:#cfe2f3}
+body.dark .s15head h3{color:#93c5fd;border-left-color:#93c5fd}
 .s15empty{padding:22px;text-align:center;color:var(--muted);font-size:12.5px}
 .s14bar{gap:8px 12px;flex-wrap:wrap}
 .s14bar label{white-space:nowrap}
@@ -2858,8 +2863,8 @@ self.onmessage = function(e){
   }
   function toggleTheme(){ applyTheme(document.body.classList.contains('dark') ? 'light' : 'dark'); }
   function initTheme(){
-    let mode = 'light';
-    try { const saved = localStorage.getItem('rekap-theme'); if (saved === 'dark' || saved === 'light') mode = saved; else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) mode = 'dark'; } catch(e){}
+    let mode = 'dark';   /* default gelap saat pertama dibuka; pilihan terakhir pengguna tetap diingat */
+    try { const saved = localStorage.getItem('rekap-theme'); if (saved === 'dark' || saved === 'light') mode = saved; } catch(e){}
     applyTheme(mode);
   }
 
