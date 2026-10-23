@@ -619,6 +619,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
   const U  = x => String(x ?? '').trim().toUpperCase();
   function normSales(s){ const u = U(s); return (u === 'PRTIMIN' || u === 'PARIMIN') ? 'PARIMIN' : u; }
   const rp = x => 'Rp ' + Math.round(N(x)).toLocaleString('id-ID');
+  const rn = x => Math.round(N(x)).toLocaleString('id-ID');   /* angka rupiah tanpa awalan "Rp" */
   const range = (a,b) => a === b ? rp(a) : rp(a) + ' - ' + rp(b);
 
   let rows = [], filteredRows = [], filteredRowsInclBatal = [], materialisedRows = [], R = {};
@@ -1608,7 +1609,7 @@ self.onmessage = function(e){
       const xl = rows.map(r => [r[0], r[1] === '' ? '' : N(r[1]), r[2], s14PriceXl(r[3]), s14PriceXl(r[4]), r[5], r[6], r[7], r[8]]);
       const tag = (filters.sales || 'Semua_Sales').replace(/[^A-Za-z0-9]+/g, '_') + '_' + (filters.month ? monthLabel(filters.month) : 'Semua_Bulan').replace(/[^A-Za-z0-9]+/g, '_');
       return { name:'Rekap per Sales', title:'Rekap Penjualan per Sales', rightTitle: s14SalesLabel(), titleColor:'FF000000', noPrint:true, info: s14ExcelInfo(), fileName:'Rekap_Penjualan_per_Sales_' + tag + '.xlsx',
-        head:['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT','KET'], types:['t','n','c','nt','nt','rp','rp','rp','t'], rows: xl,
+        head:['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT','KET'], types:['t','n','c','nt','nt','n','n','n','t'], rows: xl,
         total: rows.length ? ['TOTAL','','','','',T.h,T.v,T.p,''] : null };
     }
     if (tab === 's12') return rekapBlnExcelSpec();
@@ -1871,8 +1872,8 @@ self.onmessage = function(e){
   function s14Total(rows){
     return rows.reduce((t, r) => { if (r[5] !== '') { t.h += N(r[5]); t.v += N(r[6]); t.p += N(r[7]); } return t; }, { h: 0, v: 0, p: 0 });
   }
-  function s14PriceText(o){ return o ? (o.a === o.b ? rp(o.a) : rp(o.a) + ' - ' + rp(o.b)) : ''; }
-  function s14PriceXl(o){ return o ? (o.a === o.b ? o.a : rp(o.a) + ' - ' + rp(o.b)) : ''; }
+  function s14PriceText(o){ return o ? (o.a === o.b ? rn(o.a) : rn(o.a) + ' - ' + rn(o.b)) : ''; }
+  function s14PriceXl(o){ return o ? (o.a === o.b ? o.a : rn(o.a) + ' - ' + rn(o.b)) : ''; }
   function s14SalesLabel(){ return filters.sales ? String(filters.sales).toUpperCase() : 'SEMUA SALES'; }
   function s14CatLabel(){ return s14Cat === 'FITRI' ? 'Fitri' : s14Cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
   function s14SortLabel(){ return s14Sort === 'desc' ? 'Profit terbesar' : s14Sort === 'asc' ? 'Profit terkecil' : 'Nama produk (A–Z)'; }
@@ -1924,10 +1925,10 @@ self.onmessage = function(e){
     if (!pageRows.length) body = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">Tidak ada data untuk filter saat ini.</td></tr>';
     else pageRows.forEach(r => {
       const has = r[5] !== '';
-      body += '<tr><td>' + escHtml(r[0]) + '</td><td class="num">' + (has ? N(r[1]).toLocaleString('id-ID') : '') + '</td><td>' + escHtml(r[2]) + '</td><td class="num">' + s14PriceText(r[3]) + '</td><td class="num">' + s14PriceText(r[4]) + '</td><td class="num">' + (has ? rp(r[5]) : '') + '</td><td class="num">' + (has ? rp(r[6]) : '') + '</td><td class="num">' + (has ? rp(r[7]) : '') + '</td><td>' + escHtml(r[8]) + '</td></tr>';
+      body += '<tr><td>' + escHtml(r[0]) + '</td><td class="num">' + (has ? N(r[1]).toLocaleString('id-ID') : '') + '</td><td>' + escHtml(r[2]) + '</td><td class="num">' + s14PriceText(r[3]) + '</td><td class="num">' + s14PriceText(r[4]) + '</td><td class="num">' + (has ? rn(r[5]) : '') + '</td><td class="num">' + (has ? rn(r[6]) : '') + '</td><td class="num">' + (has ? rn(r[7]) : '') + '</td><td>' + escHtml(r[8]) + '</td></tr>';
     });
     const th = ['PRODUK', 'QTY', 'SATUAN', 'HARGA BELI', 'HARGA JUAL', 'BELI X QTY', 'JUAL X QTY', 'PROFIT', 'KET'].map(h => '<th class="s10-h0">' + h + '</th>').join('');
-    const foot = rows.length ? '<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + rp(T.h) + '</td><td class="num">' + rp(T.v) + '</td><td class="num">' + rp(T.p) + '</td><td></td></tr>' : '';
+    const foot = rows.length ? '<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + rn(T.h) + '</td><td class="num">' + rn(T.v) + '</td><td class="num">' + rn(T.p) + '</td><td></td></tr>' : '';
     const caption = '<div style="display:flex;flex-wrap:wrap;gap:6px 24px;margin:0 0 8px;font-size:12.5px"><span><b>' + escHtml(s14SalesLabel()) + '</b></span><span style="color:var(--muted)">' + escHtml(s14PeriodLabel()) + '</span></div>';
     return caption + rekapPagerHtml('s14', rows.length) + '<div class="tablebox"><table class="s10table"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
   }
