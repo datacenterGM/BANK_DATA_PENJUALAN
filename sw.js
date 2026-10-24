@@ -1,6 +1,6 @@
 // Service worker PENJUALAN — app shell offline. Data tetap di IndexedDB + Supabase.
-const VER = 'penjualan-v4';
-const SHELL = ['./', './index.html', './manifest-v2.json?v=2', './icons/pwa-192.png?v=2', './icons/pwa-512.png?v=2'];
+const VER = 'penjualan-v5';
+const SHELL = ['./', './index.html', './Stok-Minyak.html', './Stok-Kecap.html', './manifest-v2.json?v=2', './icons/pwa-192.png?v=2', './icons/pwa-512.png?v=2'];
 // Library CDN yang dipakai index.html — di-cache SAAT INSTALL (bukan menunggu kunjungan ke-2)
 const CDN_LIBS = [
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
