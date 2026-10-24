@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STOK MINYAK</title>
+<meta name="theme-color" content="#1f4e78">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --bg:#f4f7fb;--text:#172033;--card:#fff;--card-shadow:0 2px 10px #0001;
+  --border:#d6dde6;--th-border:#b8c5d4;--th-bg:#1f4e78;--th-bg2:#26426e;--th-bg3:#3d6fa0;
+  --tfoot-bg:#ffe699;--muted:#64748b;--subtle:#475569;--strong:#0f172a;
+  --input-bg:#fff;--input-border:#cbd5e1;--input-text:#172033;
+  --menu-bg:#fff;--menu-shadow:0 8px 28px #0003;--hover-bg2:#f0f4fa;
+  --chip-bg:#e2e8f0;--chip-text:#334155;--green:#166534;--red:#b42318;
+  --stok-bg:#dff3c4;--sun-bg:#fff7ed;--neg-bg:#fee2e2;
+}
+body.dark{
+  --bg:#0f172a;--text:#e2e8f0;--card:#1e293b;--card-shadow:0 2px 10px #0006;
+  --border:#334155;--th-border:#334155;--th-bg:#1e3a5f;--th-bg2:#162c4a;--th-bg3:#2d4a6f;
+  --tfoot-bg:#1e3a5f;--muted:#94a3b8;--subtle:#cbd5e1;--strong:#f1f5f9;
+  --input-bg:#0f172a;--input-border:#475569;--input-text:#e2e8f0;
+  --menu-bg:#1e293b;--menu-shadow:0 8px 28px #0008;--hover-bg2:#243447;
+  --chip-bg:#334155;--chip-text:#cbd5e1;--green:#4ade80;--red:#fca5a5;
+  --stok-bg:#1d3b2a;--sun-bg:#2a2230;--neg-bg:#5b1d1d;
+}
+body{font-family:Arial;margin:0;background:var(--bg);color:var(--text)}
+header{background:#305496;color:#fff;padding:1px 14px}
+body.dark header{background:#1e3a5f}
+.wrap{max-width:1600px;margin:auto;padding:0 12px}
+header .wrap{padding:0}
+.header-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.header-left{flex:1;display:flex;align-items:center;gap:12px;min-height:36px}
+.header-title{font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#7dd3fc;text-shadow:0 0 6px rgba(125,211,252,.55),0 0 14px rgba(56,189,248,.35);line-height:1;padding:2px 0;position:relative}
+.header-title::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:1px;background:linear-gradient(90deg,#7dd3fc,transparent 70%);opacity:.7}
+body.dark .header-title{color:#67e8f9}
+.hdr-btn{padding:3px 8px;border:1px solid rgba(255,255,255,.5);border-radius:5px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.1;text-decoration:none;display:inline-block}
+.hdr-btn:hover{background:rgba(255,255,255,.28)}
+.theme-btn{background:#fff;border:1px solid rgba(255,255,255,.75);color:#24518e;font-size:12px;padding:3px 8px;border-radius:5px;cursor:pointer;font-weight:700;line-height:1.1}
+@media(max-width:520px){.hdr-btn span{display:none}}
+button{padding:9px 14px;border:0;border-radius:7px;background:#1f4e78;color:#fff;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--card);margin:12px 0;padding:14px;border-radius:10px;box-shadow:var(--card-shadow)}
+
+/* menu dropdown */
+.dd{position:relative}
+.dd-toggle{display:flex;align-items:center;gap:5px;background:var(--card);color:#1f4e78;border:0;border-radius:5px;padding:2px 8px;font-weight:bold;font-size:12px;box-shadow:0 1px 4px #0002;line-height:1.1}
+body.dark .dd-toggle{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.dd-toggle .chev{font-size:11px;transition:transform .2s}
+.dd.open .dd-toggle .chev{transform:rotate(180deg)}
+.dd-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:340px;max-width:min(420px,94vw);max-height:78vh;overflow:auto;background:var(--menu-bg);box-shadow:var(--menu-shadow);color:var(--text);border-radius:10px;padding:16px;z-index:100}
+.dd.open .dd-menu{display:block}
+.dd-backdrop{display:none;position:fixed;inset:0;z-index:99}
+.dd.open .dd-backdrop{display:block}
+.menu-title{font-size:14px;font-weight:800;color:#1f4e78;padding-bottom:8px;border-bottom:1px solid var(--border)}
+body.dark .menu-title{color:#93c5fd}
+.menu-section{padding:12px 0;border-bottom:1px solid var(--border)}
+.menu-section:last-child{border-bottom:0;padding-bottom:0}
+.menu-label{font-size:12px;font-weight:800;color:var(--chip-text);margin-bottom:8px}
+.menu-section select,.menu-section input[type=number]{width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--input-border);border-radius:7px;background:var(--input-bg);color:var(--input-text);margin-bottom:8px}
+.menu-section input[type=file]{font-size:13px;max-width:100%;margin-bottom:8px}
+.row2{display:flex;gap:8px}
+.row2>*{flex:1}
+.hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4}
+.danger-btn{background:var(--red);width:100%}
+.secondary-btn{background:#305496}
+.full{width:100%}
+.stack{display:flex;flex-direction:column;gap:7px}
+
+/* toolbar */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.toolbar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.toolbar label{font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.04em}
+.toolbar select{padding:6px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text);min-width:150px}
+.fp-btn{background:var(--chip-bg);color:var(--chip-text);padding:6px 10px;font-size:12px;border-radius:6px}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:var(--chip-bg);color:var(--chip-text)}
+.chip.ok{background:#bbf7d0;color:#14532d}.chip.warn{background:#fed7aa;color:#9a3412}.chip.err{background:#fecaca;color:#7f1d1d}
+body.dark .chip.ok{background:#14532d;color:#bbf7d0}body.dark .chip.warn{background:#7c2d12;color:#fed7aa}body.dark .chip.err{background:#7f1d1d;color:#fecaca}
+
+/* kpi */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:0 0 10px}
+.kpi{background:var(--card);border-radius:10px;padding:10px 12px;box-shadow:var(--card-shadow);border-left:4px solid #1f4e78}
+.kpi.g{border-left-color:#22c55e}.kpi.r{border-left-color:#ef4444}.kpi.o{border-left-color:#f59e0b}
+.kpi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.kpi .v{font-size:20px;font-weight:800;color:var(--strong);margin-top:2px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:1px}
+
+/* tabel */
+.tablebox{overflow:auto;max-height:72vh;position:relative}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:12px;color:var(--text)}
+th{background:var(--th-bg);color:#fff;position:sticky;top:0;padding:6px 8px;border:1px solid var(--th-border);z-index:3;font-size:11px}
+thead tr.h2 th{top:27px;background:var(--th-bg3);font-size:10.5px;font-weight:600;z-index:2}
+td{padding:3px 6px;border:1px solid var(--border);white-space:nowrap;text-align:right}
+td.tgl{text-align:left;font-weight:700;background:var(--card);position:sticky;left:0;z-index:1}
+th.tgl{left:0;z-index:5}
+td.stok,td.tot{background:var(--stok-bg);font-weight:700}
+td.neg{background:var(--neg-bg)!important;color:var(--red)}
+tr.sun td:not(.stok):not(.tot):not(.neg){background:var(--sun-bg)}
+tr.sun td.tgl{color:var(--red)}
+tr.saldo td{font-weight:700}
+tbody tr:hover td:not(.stok):not(.tot){background:var(--hover-bg2)}
+tfoot td{background:var(--tfoot-bg);font-weight:bold;position:sticky;bottom:0;z-index:2}
+input.in{width:58px;box-sizing:border-box;padding:4px 5px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--input-text);text-align:right;font-size:12px;font-family:inherit}
+input.in:hover{border-color:var(--input-border)}
+input.in:focus{outline:none;border-color:#1f4e78;background:var(--input-bg);box-shadow:0 0 0 2px rgba(31,78,120,.2)}
+input.in.sd{width:70px;font-weight:700;border-color:var(--input-border);background:var(--input-bg)}
+input.in::-webkit-outer-spin-button,input.in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input.in[type=number]{-moz-appearance:textfield}
+.empty{padding:40px 10px;text-align:center;color:var(--muted);line-height:1.6}
+.status{font-size:12px;margin-top:8px;color:var(--subtle)}
+.note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:300;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap header-row">
+    <div class="header-left">
+      <a class="hdr-btn" href="./index.html" title="Kembali ke Data Penjualan">← <span>Penjualan</span></a>
+      <a class="hdr-btn" href="./Stok-Kecap.html" title="Buka Stok Kecap &amp; Sambal">🧴 <span>Stok Kecap</span></a>
+      <div class="header-title">Stok Minyak</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button type="button" class="hdr-btn" onclick="cloudPull(false)" title="Ambil data terbaru dari cloud">⬇️ <span>Data Terbaru</span></button>
+      <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
+      <div class="dd" id="menuDd">
+        <button type="button" class="dd-toggle" onclick="toggleDd()"><span>☰ MENU</span><span class="chev">▼</span></button>
+        <div class="dd-backdrop" onclick="closeDd()"></div>
+        <div class="dd-menu">
+          <div class="menu-title">☰ MENU</div>
+
+          <div class="menu-section">
+            <div class="menu-label">📁 UPLOAD EXCEL STOK</div>
+            <input id="file" type="file" accept=".xlsx,.xls" multiple>
+            <button type="button" class="full" onclick="processFiles()">Proses Excel</button>
+            <div class="hint">Gunakan format file <b>Stok_Minyak_….xlsx</b> (kolom MSK, KLR, STOK SFA per botol). Boleh upload beberapa file (per bulan), data digabung otomatis. Jika bulan yang sama diupload lagi, data bulan itu diganti.</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label" style="color:var(--red)">🗑 HAPUS DATA PER BULAN</div>
+            <select id="deleteMonth"><option value="">Pilih bulan...</option></select>
+            <button type="button" class="danger-btn" onclick="deleteMonth()">Hapus Bulan Terpilih</button>
+            <div class="hint">Konfirmasi akan muncul sebelum data dihapus. Penghapusan ikut tersinkron ke cloud.</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label">➕ BUAT BULAN BARU</div>
+            <div class="row2"><select id="newMonth"></select><input id="newYear" type="number" min="2000" max="2100"></div>
+            <button type="button" class="secondary-btn full" onclick="createMonth()">Buat Bulan Kosong</button>
+            <div class="hint">Saldo awal otomatis diambil dari stok akhir bulan sebelumnya (jika ada).</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label">📤 EXPORT</div>
+            <button type="button" class="secondary-btn full" onclick="exportExcel()">Save Excel Bulan Ini</button>
+            <div class="hint">Hasil export memakai rumus yang sama seperti file asli (stok = stok kemarin + MSK − KLR).</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label">☁️ CLOUD (Supabase)</div>
+            <div class="stack">
+              <button type="button" class="secondary-btn" onclick="cloudPush(true)">⬆️ Upload Data Device Ini ke Cloud</button>
+              <button type="button" class="secondary-btn" onclick="cloudPull(false)">⬇️ Ambil Data dari Cloud</button>
+            </div>
+            <div class="hint" id="cloudHint">Memakai database yang sama dengan Data Penjualan (tabel <b>app_sync</b>, baris <b>stok_minyak</b>), jadi data penjualan tidak tersentuh.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card" style="margin-top:10px">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <label for="monthSel">Bulan</label>
+        <select id="monthSel" onchange="selectMonth(this.value)"></select>
+        <button type="button" class="fp-btn" id="sumBtn" onclick="toggleSummary()">📊 Ringkasan ▾</button>
+        <span class="chip" id="cloudChip">Mode lokal</span>
+      </div>
+      <div class="chip" id="infoChip"></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div id="tableWrap"></div>
+    <div class="note">Stok SFA = stok hari sebelumnya + MSK − KLR. Isi kolom MSK (masuk) dan KLR (keluar) per hari; stok &amp; total otomatis terhitung. Saldo awal diisi manual (kotak berbingkai). Perubahan tersimpan otomatis di perangkat dan dikirim ke cloud.</div>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== KONFIGURASI ===================== */
+const SUPABASE_URL = 'https://nqwdyptujoffakfhmhft.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gJ_qnSnhHzDLW7wzO5Uw3g_0NnyhNMb';
+const SYNC_ROW_ID = 'stok_minyak';
+const LS_KEY = 'stokMinyak_v1', DIRTY_KEY = 'stokMinyakPendingPush_v1', MONTH_KEY = 'stokMinyakActiveMonth_v1';
+const BULAN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+const DEF_NAMES = ['FITRI BOTOL 400 ML','FITRI BOTOL 200 ML','FITRI BOTOL 800 ML'];
+
+/* ===================== STATE ===================== */
+let S = { months: {} };          // { 'YYYY-MM': { names:[3], saldo:[3], days:{ '1':[b,c,e,f,h,i] } } }
+let activeMonth = null, showSum = false;
+const SUM_KEY = 'stokMinyakShowSummary_v1';
+let sbClient = null, pushTimer = null, pushInFlight = false, lastPushedAt = 0, isSyncingFromCloud = false, realtimeReady = false;
+
+try { if (window.supabase && window.supabase.createClient) sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession:false, autoRefreshToken:false } }); }
+catch(e){ console.warn('Supabase init gagal', e); sbClient = null; }
+
+const $ = id => document.getElementById(id);
+const nf = n => (n == null || n === '') ? '' : Number(n).toLocaleString('id-ID');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mkKey = (y, m) => y + '-' + String(m).padStart(2, '0');
+const parseKey = k => { const [y, m] = k.split('-').map(Number); return { y, m }; };
+const monthLabel = k => { const { y, m } = parseKey(k); return BULAN[m-1] + ' ' + y; };
+const daysIn = k => { const { y, m } = parseKey(k); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
+const numOrNull = v => { if (v === '' || v == null) return null; const n = Number(v); return isFinite(n) ? n : null; };
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2600); }
+function setStatus(t){ $('status').textContent = t || ''; }
+
+/* ===================== PENYIMPANAN LOKAL ===================== */
+function loadLocal(){ try { const r = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (r && r.months) S = r; } catch(e){} }
+function saveLocal(){ try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e){ toast('Penyimpanan lokal penuh / diblokir.'); } }
+function isDirty(){ try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch(e){ return false; } }
+function setDirty(v){ try { if (v) localStorage.setItem(DIRTY_KEY, '1'); else localStorage.removeItem(DIRTY_KEY); } catch(e){} }
+function changed(){ saveLocal(); setDirty(true); schedulePush(); setCloudChip(); }
+
+/* ===================== CLOUD ===================== */
+function setCloudChip(msg, cls){
+  const c = $('cloudChip');
+  let t = msg, k = cls || '';
+  if (!t){
+    if (!sbClient){ t = 'Mode lokal'; k = 'warn'; }
+    else if (navigator.onLine === false){ t = isDirty() ? 'Offline • belum terkirim' : 'Offline'; k = 'warn'; }
+    else if (isDirty()){ t = 'Menunggu kirim ke cloud…'; k = 'warn'; }
+    else { t = 'Tersinkron ☁️'; k = 'ok'; }
+  }
+  c.textContent = t; c.className = 'chip ' + k;
+}
+function schedulePush(){ clearTimeout(pushTimer); pushTimer = setTimeout(() => { pushTimer = null; cloudPush(false); }, 1200); }
+async function cloudPush(manual){
+  if (!sbClient){ if (manual) alert('Cloud belum terhubung. Coba refresh halaman.'); return; }
+  if (isSyncingFromCloud || pushInFlight) { if (!manual) schedulePush(); return; }
+  pushInFlight = true; setCloudChip('Mengirim ke cloud…', 'warn');
+  try {
+    const payload = { id: SYNC_ROW_ID, data: { months: S.months }, updated_at: new Date().toISOString() };
+    lastPushedAt = new Date(payload.updated_at).getTime();
+    const r = await sbClient.from('app_sync').upsert(payload, { onConflict: 'id' });
+    if (r.error) throw new Error(r.error.message || 'Cloud menolak data.');
+    setDirty(false); setCloudChip();
+    if (manual) toast('Upload ke cloud berhasil.');
+  } catch(e){
+    console.error('Push gagal', e); setCloudChip('Gagal kirim ke cloud', 'err');
+    if (manual) alert('Upload cloud gagal.\n\n' + (e.message || e));
+  } finally { pushInFlight = false; }
+}
+async function cloudPull(silent){
+  if (!sbClient){ if (!silent) alert('Cloud belum terhubung.'); return; }
+  if (!silent && isDirty() && !confirm('Ada perubahan di device ini yang belum terkirim. Data lokal akan diganti data cloud. Lanjutkan?')) return;
+  if (silent && isDirty()){ cloudPush(false); return; }   // data lokal lebih baru: kirim, jangan timpa
+  isSyncingFromCloud = true; setCloudChip('Mengambil dari cloud…', 'warn');
+  try {
+    const { data, error } = await sbClient.from('app_sync').select('data,updated_at').eq('id', SYNC_ROW_ID).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data && data.data && data.data.months){
+      S.months = data.data.months; saveLocal(); setDirty(false);
+      refreshAll();
+      if (!silent) toast('Data terbaru dari cloud dimuat.');
+    } else if (Object.keys(S.months).length){
+      isSyncingFromCloud = false; await cloudPush(false);   // cloud masih kosong → kirim data lokal
+    } else if (!silent) toast('Belum ada data stok di cloud.');
+    setCloudChip();
+  } catch(e){
+    console.error('Pull gagal', e); setCloudChip('Gagal ambil dari cloud', 'err');
+    if (!silent) alert('Ambil data dari cloud gagal: ' + (e.message || e));
+  } finally { isSyncingFromCloud = false; }
+}
+function subscribeRealtime(){
+  if (!sbClient || realtimeReady) return; realtimeReady = true;
+  try {
+    sbClient.channel('stok_live').on('postgres_changes', { event:'*', schema:'public', table:'app_sync', filter:'id=eq.' + SYNC_ROW_ID }, p => {
+      const ts = p && p.new && p.new.updated_at ? new Date(p.new.updated_at).getTime() : 0;
+      if (ts && Math.abs(ts - lastPushedAt) < 50) return;   // gema dari kiriman sendiri
+      if (!isDirty() && !pushTimer && !pushInFlight) cloudPull(true);
+    }).subscribe();
+  } catch(e){ realtimeReady = false; }
+}
+
+/* ===================== PARSING EXCEL ===================== */
+function cellToDate(v){
+  if (v instanceof Date) return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()));
+  if (typeof v === 'number' && v > 30000 && v < 80000) return new Date(Math.round((v - 25569) * 86400000));
+  if (typeof v === 'string'){
+    let m = v.trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if (m) return new Date(Date.UTC(+m[3], +m[2]-1, +m[1]));
+    m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  }
+  return null;
+}
+function parseSheet(ws){
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+  let bulan = null, tahun = null, hdr = -1, saldoRow = -1;
+  for (let i = 0; i < aoa.length; i++){
+    const r = aoa[i] || [], a = r[0] == null ? '' : String(r[0]).trim().toUpperCase();
+    if (a === 'BULAN'){ const v = r.slice(1).find(x => x != null && String(x).trim() !== ':'); if (v != null) bulan = String(v).trim().toUpperCase(); }
+    else if (a === 'TAHUN'){ const v = r.slice(1).find(x => x != null && String(x).trim() !== ':'); if (v != null) tahun = parseInt(v, 10); }
+    else if (a === 'TANGGAL' && hdr < 0) hdr = i;
+    else if (a.startsWith('SALDO') && saldoRow < 0) saldoRow = i;
+  }
+  if (hdr < 0) throw new Error('Baris header "TANGGAL" tidak ditemukan.');
+  const names = [1, 4, 7].map((c, i) => (aoa[hdr][c] != null && String(aoa[hdr][c]).trim()) ? String(aoa[hdr][c]).trim() : DEF_NAMES[i]);
+  const saldo = [3, 6, 9].map(c => saldoRow >= 0 ? numOrNull(aoa[saldoRow][c]) : null);
+  const days = {}; let y = null, m = null;
+  for (let i = Math.max(hdr, saldoRow) + 1; i < aoa.length; i++){
+    const r = aoa[i] || [], d = cellToDate(r[0]); if (!d) continue;
+    if (y == null){ y = d.getUTCFullYear(); m = d.getUTCMonth() + 1; }
+    if (d.getUTCFullYear() !== y || d.getUTCMonth() + 1 !== m) continue;
+    days[d.getUTCDate()] = [1, 2, 4, 5, 7, 8].map(c => numOrNull(r[c]));
+  }
+  if (y == null){
+    const mi = BULAN.indexOf(bulan); if (mi < 0 || !tahun) throw new Error('Bulan/tahun tidak terbaca dari file.');
+    y = tahun; m = mi + 1;
+  }
+  if (!Object.keys(days).length) throw new Error('Tidak ada baris tanggal pada file.');
+  return { key: mkKey(y, m), data: { names, saldo, days } };
+}
+async function processFiles(){
+  const files = Array.from($('file').files || []);
+  if (!files.length){ alert('Pilih file Excel terlebih dahulu.'); return; }
+  const ok = [], bad = [];
+  for (const f of files){
+    try {
+      const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
+      let res = null, lastErr = null;
+      for (const sn of wb.SheetNames){ try { res = parseSheet(wb.Sheets[sn]); break; } catch(e){ lastErr = e; } }
+      if (!res) throw lastErr || new Error('Format tidak dikenali.');
+      const had = !!S.months[res.key];
+      S.months[res.key] = res.data; ok.push(monthLabel(res.key) + (had ? ' (diganti)' : ''));
+      activeMonth = res.key;
+    } catch(e){ bad.push(f.name + ': ' + (e.message || e)); }
+  }
+  if (ok.length){ changed(); refreshAll(); closeDd(); $('file').value = ''; }
+  setStatus((ok.length ? 'Berhasil dimuat: ' + ok.join(', ') + '. ' : '') + (bad.length ? 'Gagal: ' + bad.join(' | ') : ''));
+  if (ok.length) toast(ok.length + ' bulan dimuat.');
+  if (bad.length && !ok.length) alert('Gagal membaca file:\n\n' + bad.join('\n'));
+}
+
+/* ===================== HAPUS / BUAT BULAN ===================== */
+function deleteMonth(){
+  const k = $('deleteMonth').value;
+  if (!k){ alert('Pilih bulan yang akan dihapus.'); return; }
+  const n = Object.keys(S.months[k].days || {}).length;
+  if (!confirm('Hapus semua data stok bulan ' + monthLabel(k) + ' (' + n + ' hari terisi)?\n\nTindakan ini tidak bisa dibatalkan.')) return;
+  delete S.months[k];
+  if (activeMonth === k) activeMonth = null;
+  changed(); refreshAll(); closeDd(); toast('Bulan ' + monthLabel(k) + ' dihapus.');
+}
+function createMonth(){
+  const m = +$('newMonth').value, y = parseInt($('newYear').value, 10);
+  if (!m || !y){ alert('Isi bulan dan tahun.'); return; }
+  const k = mkKey(y, m);
+  if (S.months[k]){ activeMonth = k; refreshAll(); closeDd(); toast('Bulan itu sudah ada.'); return; }
+  const prev = Object.keys(S.months).filter(x => x < k).sort().pop();
+  let saldo = [null, null, null], names = DEF_NAMES.slice();
+  if (prev){ const c = compute(prev); saldo = c.end.slice(); names = S.months[prev].names || names; }
+  S.months[k] = { names, saldo, days: {} };
+  activeMonth = k; changed(); refreshAll(); closeDd(); toast('Bulan ' + monthLabel(k) + ' dibuat.');
+}
+
+/* ===================== HITUNG ===================== */
+function compute(k){
+  const m = S.months[k], N = daysIn(k);
+  const run = (m.saldo || []).map(v => v || 0); while (run.length < 3) run.push(0);
+  const stok = {}, tot = { msk:[0,0,0], klr:[0,0,0], klrAll:0 };
+  const perDay = {};
+  for (let d = 1; d <= N; d++){
+    const r = (m.days && m.days[d]) || [];
+    let klrDay = 0;
+    for (let p = 0; p < 3; p++){
+      const b = r[p*2] || 0, c = r[p*2+1] || 0;
+      run[p] += b - c; tot.msk[p] += b; tot.klr[p] += c; klrDay += c;
+    }
+    stok[d] = run.slice(); perDay[d] = klrDay; tot.klrAll += klrDay;
+  }
+  return { N, stok, perDay, tot, end: run.slice(), start: (m.saldo || []).map(v => v || 0) };
+}
+
+/* ===================== RENDER ===================== */
+function sortedKeys(){ return Object.keys(S.months).sort().reverse(); }
+function refreshSelectors(){
+  const keys = sortedKeys();
+  if (!activeMonth || !S.months[activeMonth]){
+    let saved = null; try { saved = localStorage.getItem(MONTH_KEY); } catch(e){}
+    activeMonth = (saved && S.months[saved]) ? saved : (keys[0] || null);
+  }
+  const opts = keys.map(k => '<option value="' + k + '"' + (k === activeMonth ? ' selected' : '') + '>' + monthLabel(k) + '</option>').join('');
+  $('monthSel').innerHTML = opts || '<option value="">(belum ada data)</option>';
+  $('deleteMonth').innerHTML = '<option value="">Pilih bulan...</option>' + keys.map(k => '<option value="' + k + '">' + monthLabel(k) + '</option>').join('');
+}
+function selectMonth(k){ activeMonth = k || null; try { localStorage.setItem(MONTH_KEY, k); } catch(e){} renderMonth(); }
+function refreshAll(){ refreshSelectors(); renderMonth(); }
+
+function renderMonth(){
+  const k = activeMonth, wrap = $('tableWrap');
+  if (!k || !S.months[k]){
+    $('kpis').innerHTML = ''; $('infoChip').textContent = '';
+    wrap.innerHTML = '<div class="empty">Belum ada data stok.<br>Buka <b>☰ MENU</b> → <b>Upload Excel Stok</b>, atau buat bulan baru.</div>';
+    return;
+  }
+  const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), names = m.names || DEF_NAMES;
+  const saldo = m.saldo || [null, null, null];
+  let h = '<div class="tablebox"><table><thead>' +
+    '<tr><th class="tgl" rowspan="2">TANGGAL</th>' + names.map(n => '<th colspan="3">' + esc(n) + '</th>').join('') + '<th rowspan="2">TOTAL PER HARI</th><th rowspan="2">TOTAL STOK SFA</th></tr>' +
+    '<tr class="h2">' + [0,1,2].map(() => '<th>MSK</th><th>KLR</th><th>STOK SFA</th>').join('') + '</tr></thead><tbody>';
+  h += '<tr class="saldo"><td class="tgl">Saldo Awal</td>';
+  for (let p = 0; p < 3; p++) h += '<td></td><td></td><td class="stok"><input class="in sd" type="number" inputmode="numeric" data-s="' + p + '" value="' + (saldo[p] == null ? '' : saldo[p]) + '"></td>';
+  h += '<td></td><td class="tot" id="t-saldo"></td></tr>';
+  for (let d = 1; d <= N; d++){
+    const dt = new Date(Date.UTC(y, mo - 1, d)), dow = dt.getUTCDay(), r = (m.days && m.days[d]) || [];
+    h += '<tr' + (dow === 0 ? ' class="sun"' : '') + '><td class="tgl">' + String(d).padStart(2,'0') + '/' + String(mo).padStart(2,'0') + '/' + y + ' <span style="font-weight:400;color:var(--muted);font-size:10px">' + HARI[dow] + '</span></td>';
+    for (let p = 0; p < 3; p++){
+      h += '<td><input class="in" type="number" inputmode="numeric" min="0" data-d="' + d + '" data-i="' + (p*2) + '" value="' + (r[p*2] == null ? '' : r[p*2]) + '"></td>' +
+           '<td><input class="in" type="number" inputmode="numeric" min="0" data-d="' + d + '" data-i="' + (p*2+1) + '" value="' + (r[p*2+1] == null ? '' : r[p*2+1]) + '"></td>' +
+           '<td class="stok" id="s-' + d + '-' + p + '"></td>';
+    }
+    h += '<td id="k-' + d + '"></td><td class="tot" id="l-' + d + '"></td></tr>';
+  }
+  h += '</tbody><tfoot><tr><td class="tgl" style="background:var(--tfoot-bg)">TOTAL</td>';
+  for (let p = 0; p < 3; p++) h += '<td id="fm-' + p + '"></td><td id="fk-' + p + '"></td><td id="fs-' + p + '"></td>';
+  h += '<td id="fk-all"></td><td id="fs-all"></td></tr></tfoot></table></div>';
+  wrap.innerHTML = h;
+  recalc();
+}
+
+function recalc(){
+  const k = activeMonth; if (!k || !S.months[k]) return;
+  const c = compute(k), N = c.N, sum = a => a.reduce((x, y) => x + y, 0);
+  $('t-saldo').textContent = nf(sum(c.start));
+  for (let d = 1; d <= N; d++){
+    for (let p = 0; p < 3; p++){
+      const el = $('s-' + d + '-' + p); if (!el) continue;
+      el.textContent = nf(c.stok[d][p]); el.classList.toggle('neg', c.stok[d][p] < 0);
+    }
+    $('k-' + d).textContent = nf(c.perDay[d]);
+    $('l-' + d).textContent = nf(sum(c.stok[d]));
+  }
+  for (let p = 0; p < 3; p++){
+    $('fm-' + p).textContent = nf(c.tot.msk[p]); $('fk-' + p).textContent = nf(c.tot.klr[p]); $('fs-' + p).textContent = nf(c.end[p]);
+  }
+  $('fk-all').textContent = nf(c.tot.klrAll); $('fs-all').textContent = nf(sum(c.end));
+
+  const names = S.months[k].names || DEF_NAMES, totMsk = sum(c.tot.msk), filled = Object.keys(S.months[k].days || {}).filter(d => (S.months[k].days[d] || []).some(v => v != null)).length;
+  const short = n => n.replace(/^FITRI\s*/i, '').replace(/^BOTOL\s*/i, '');
+  let kp = '<div class="kpi g"><div class="l">Total Stok SFA</div><div class="v">' + nf(sum(c.end)) + '</div><div class="s">akhir ' + monthLabel(k) + '</div></div>';
+  for (let p = 0; p < 3; p++) kp += '<div class="kpi' + (c.end[p] < 0 ? ' r' : '') + '"><div class="l">' + esc(short(names[p])) + '</div><div class="v">' + nf(c.end[p]) + '</div><div class="s">masuk ' + nf(c.tot.msk[p]) + ' • keluar ' + nf(c.tot.klr[p]) + '</div></div>';
+  kp += '<div class="kpi o"><div class="l">Total Keluar</div><div class="v">' + nf(c.tot.klrAll) + '</div><div class="s">masuk ' + nf(totMsk) + '</div></div>';
+  $('kpis').innerHTML = kp;
+  $('infoChip').textContent = filled + ' / ' + N + ' hari terisi';
+}
+
+/* edit sel */
+document.addEventListener('input', e => {
+  const t = e.target; if (!t.classList || !t.classList.contains('in')) return;
+  const k = activeMonth; if (!k || !S.months[k]) return;
+  const m = S.months[k], v = numOrNull(t.value);
+  if (t.dataset.s != null){ m.saldo = m.saldo || [null, null, null]; m.saldo[+t.dataset.s] = v; }
+  else {
+    const d = t.dataset.d, i = +t.dataset.i;
+    m.days = m.days || {}; const r = m.days[d] = m.days[d] || [null, null, null, null, null, null];
+    r[i] = v;
+    if (r.every(x => x == null)) delete m.days[d];
+  }
+  recalc(); changed();
+});
+document.addEventListener('keydown', e => {   // Enter = pindah ke baris bawah
+  const t = e.target; if (e.key !== 'Enter' || !t.classList || !t.classList.contains('in')) return;
+  e.preventDefault();
+  const d = t.dataset.d ? +t.dataset.d + 1 : 1, sel = t.dataset.i != null ? '[data-d="' + d + '"][data-i="' + t.dataset.i + '"]' : null;
+  const nxt = sel ? document.querySelector('input.in' + sel) : null; if (nxt){ nxt.focus(); nxt.select(); }
+});
+
+/* ===================== EXPORT EXCEL ===================== */
+async function exportExcel(){
+  const k = activeMonth; if (!k || !S.months[k]){ alert('Belum ada bulan yang dipilih.'); return; }
+  try {
+    const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), names = m.names || DEF_NAMES, c = compute(k);
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Stok Minyak');
+    const thin = { style:'thin', color:{ argb:'FF9AA5B1' } }, bd = { top:thin, left:thin, bottom:thin, right:thin };
+    const GREEN = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF92D050' } };
+    const HEAD = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1F4E78' } };
+    ws.getCell('A1').value = 'STOK MINYAK'; ws.getCell('A1').font = { bold:true, size:14 };
+    ws.getCell('A2').value = 'BULAN'; ws.getCell('B2').value = ':'; ws.getCell('C2').value = BULAN[mo-1];
+    ws.getCell('A3').value = 'TAHUN'; ws.getCell('B3').value = ':'; ws.getCell('C3').value = y;
+    ws.mergeCells('A6:A7'); ws.mergeCells('B6:D6'); ws.mergeCells('E6:G6'); ws.mergeCells('H6:J6'); ws.mergeCells('K6:K7'); ws.mergeCells('L6:L7');
+    ws.getCell('A6').value = 'TANGGAL'; ws.getCell('B6').value = names[0]; ws.getCell('E6').value = names[1]; ws.getCell('H6').value = names[2];
+    ws.getCell('K6').value = 'TOTAL PER HARI'; ws.getCell('L6').value = 'TOTAL STOK SFA';
+    ['B','E','H'].forEach(col => { const i = col.charCodeAt(0) - 64; ['MSK','KLR','STOK SFA'].forEach((t, j) => ws.getCell(7, i + j).value = t); });
+    for (let r = 6; r <= 7; r++) for (let col = 1; col <= 12; col++){
+      const cell = ws.getCell(r, col); cell.fill = HEAD; cell.font = { bold:true, color:{ argb:'FFFFFFFF' } };
+      cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true }; cell.border = bd;
+    }
+    const sd = m.saldo || [];
+    ws.getCell('A8').value = 'Saldo Awal';
+    if (sd[0] != null) ws.getCell('D8').value = sd[0]; if (sd[1] != null) ws.getCell('G8').value = sd[1]; if (sd[2] != null) ws.getCell('J8').value = sd[2];
+    ws.getCell('L8').value = { formula:'D8+G8+J8', result:c.start.reduce((a, b) => a + b, 0) };
+    const first = 9, last = 8 + N, stokCols = ['D','G','J'], inCols = [['B','C'],['E','F'],['H','I']];
+    for (let d = 1; d <= N; d++){
+      const r = 8 + d, row = (m.days && m.days[d]) || [];
+      ws.getCell('A' + r).value = new Date(Date.UTC(y, mo - 1, d)); ws.getCell('A' + r).numFmt = 'dd/mm/yyyy';
+      for (let p = 0; p < 3; p++){
+        const [bc, cc] = inCols[p], sc = stokCols[p];
+        if (row[p*2] != null) ws.getCell(bc + r).value = row[p*2];
+        if (row[p*2+1] != null) ws.getCell(cc + r).value = row[p*2+1]; else if (m.days && m.days[d]) ws.getCell(cc + r).value = 0;
+        ws.getCell(sc + r).value = { formula: sc + (r-1) + '+' + bc + r + '-' + cc + r, result: c.stok[d][p] };
+      }
+      ws.getCell('K' + r).value = { formula:'C' + r + '+F' + r + '+I' + r, result:c.perDay[d] };
+      ws.getCell('L' + r).value = { formula:'D' + r + '+G' + r + '+J' + r, result:c.stok[d].reduce((a, b) => a + b, 0) };
+    }
+    const tr = last + 1; ws.getCell('A' + tr).value = 'TOTAL';
+    inCols.forEach(([bc, cc], p) => {
+      ws.getCell(bc + tr).value = { formula:'SUM(' + bc + first + ':' + bc + last + ')', result:c.tot.msk[p] };
+      ws.getCell(cc + tr).value = { formula:'SUM(' + cc + first + ':' + cc + last + ')', result:c.tot.klr[p] };
+      ws.getCell(stokCols[p] + tr).value = { formula: stokCols[p] + last, result:c.end[p] };
+    });
+    ws.getCell('K' + tr).value = { formula:'SUM(K' + first + ':K' + last + ')', result:c.tot.klrAll };
+    ws.getCell('L' + tr).value = { formula:'L' + last, result:c.end.reduce((a, b) => a + b, 0) };
+    for (let r = 8; r <= tr; r++) for (let col = 1; col <= 12; col++){
+      const cell = ws.getCell(r, col); cell.border = bd;
+      if (col > 1) cell.numFmt = '#,##0';
+      if (r === tr) cell.font = { bold:true };
+      if ([4,7,10,12].includes(col)) cell.fill = GREEN;
+    }
+    ws.getCell('A' + (tr + 2)).value = 'Catatan: Stok SFA = stok hari sebelumnya + MSK - KLR. Isi kolom MSK (masuk) dan KLR (keluar) per hari; stok & total otomatis terhitung. Saldo awal (D8, G8, J8) diisi manual.';
+    ws.getCell('A' + (tr + 2)).font = { italic:true, size:9 };
+    ws.getColumn(1).width = 13; for (let i = 2; i <= 12; i++) ws.getColumn(i).width = 10.5;
+    ws.getColumn(11).width = 13; ws.getColumn(12).width = 14;
+    ws.views = [{ state:'frozen', xSplit:1, ySplit:7 }];
+    const buf = await wb.xlsx.writeBuffer();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = 'Stok_Minyak_' + BULAN[mo-1].charAt(0) + BULAN[mo-1].slice(1).toLowerCase() + '_' + y + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    closeDd(); toast('File Excel dibuat.');
+  } catch(e){ console.error(e); alert('Export gagal: ' + (e.message || e)); }
+}
+
+/* ===================== UI UMUM ===================== */
+function applySummary(){
+  $('kpis').style.display = showSum ? '' : 'none';
+  $('sumBtn').textContent = showSum ? '📊 Ringkasan ▴' : '📊 Ringkasan ▾';
+}
+function toggleSummary(){ showSum = !showSum; try { localStorage.setItem(SUM_KEY, showSum ? '1' : '0'); } catch(e){} applySummary(); }
+function toggleDd(){ $('menuDd').classList.toggle('open'); }
+function closeDd(){ $('menuDd').classList.remove('open'); }
+function applyTheme(mode){
+  const dark = mode === 'dark'; document.body.classList.toggle('dark', dark);
+  $('themeBtn').textContent = dark ? '☀️' : '🌙';
+  const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', dark ? '#1e3a5f' : '#1f4e78');
+  try { localStorage.setItem('rekap-theme', dark ? 'dark' : 'light'); } catch(e){}   // kunci sama dengan index.html
+}
+function toggleTheme(){ applyTheme(document.body.classList.contains('dark') ? 'light' : 'dark'); }
+function initTheme(){ let mode = 'dark'; try { const s = localStorage.getItem('rekap-theme'); if (s === 'dark' || s === 'light') mode = s; } catch(e){} applyTheme(mode); }
+
+(async function init(){
+  initTheme();
+  $('newMonth').innerHTML = BULAN.map((b, i) => '<option value="' + (i+1) + '">' + b.charAt(0) + b.slice(1).toLowerCase() + '</option>').join('');
+  const now = new Date(); $('newMonth').value = now.getMonth() + 1; $('newYear').value = now.getFullYear();
+  try { showSum = localStorage.getItem(SUM_KEY) === '1'; } catch(e){}
+  applySummary();
+  loadLocal(); refreshAll(); setCloudChip();
+  if (sbClient){ await cloudPull(true); subscribeRealtime(); }
+})();
+window.addEventListener('online', () => { if (isDirty()) cloudPush(false); else if (sbClient) cloudPull(true); setCloudChip(); });
+window.addEventListener('offline', () => setCloudChip());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbClient && !pushTimer && !pushInFlight) cloudPull(true); });
+window.addEventListener('beforeunload', e => { if (pushTimer || pushInFlight){ e.preventDefault(); e.returnValue = ''; return ''; } });
+</script>
+</body>
+</html>

@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STOK KECAP &amp; SAMBAL</title>
+<meta name="theme-color" content="#1f4e78">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --bg:#f4f7fb;--text:#172033;--card:#fff;--card-shadow:0 2px 10px #0001;
+  --border:#d6dde6;--th-border:#b8c5d4;--th-bg:#1f4e78;--th-bg3:#3d6fa0;--th-smb:#8a3b12;--th-smb3:#b45a2a;
+  --tfoot-bg:#ffe699;--muted:#64748b;--subtle:#475569;--strong:#0f172a;
+  --input-bg:#fff;--input-border:#cbd5e1;--input-text:#172033;
+  --menu-bg:#fff;--menu-shadow:0 8px 28px #0003;--hover-bg2:#f0f4fa;
+  --chip-bg:#e2e8f0;--chip-text:#334155;--green:#166534;--red:#b42318;
+  --stok-bg:#dff3c4;--stok-smb:#cfe2f7;--adj-bg:#fff59d;--sun-bg:#fff7ed;--neg-bg:#fee2e2;
+}
+body.dark{
+  --bg:#0f172a;--text:#e2e8f0;--card:#1e293b;--card-shadow:0 2px 10px #0006;
+  --border:#334155;--th-border:#334155;--th-bg:#1e3a5f;--th-bg3:#2d4a6f;--th-smb:#6b2d12;--th-smb3:#8a4020;
+  --tfoot-bg:#1e3a5f;--muted:#94a3b8;--subtle:#cbd5e1;--strong:#f1f5f9;
+  --input-bg:#0f172a;--input-border:#475569;--input-text:#e2e8f0;
+  --menu-bg:#1e293b;--menu-shadow:0 8px 28px #0008;--hover-bg2:#243447;
+  --chip-bg:#334155;--chip-text:#cbd5e1;--green:#4ade80;--red:#fca5a5;
+  --stok-bg:#1d3b2a;--stok-smb:#1e3550;--adj-bg:#6b5d10;--sun-bg:#2a2230;--neg-bg:#5b1d1d;
+}
+body{font-family:Arial;margin:0;background:var(--bg);color:var(--text)}
+header{background:#305496;color:#fff;padding:1px 14px}
+body.dark header{background:#1e3a5f}
+.wrap{max-width:1600px;margin:auto;padding:0 12px}
+header .wrap{padding:0}
+.header-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.header-left{flex:1;display:flex;align-items:center;gap:10px;min-height:36px;flex-wrap:wrap}
+.header-title{font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#7dd3fc;text-shadow:0 0 6px rgba(125,211,252,.55),0 0 14px rgba(56,189,248,.35);line-height:1;padding:2px 0;position:relative}
+.header-title::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:1px;background:linear-gradient(90deg,#7dd3fc,transparent 70%);opacity:.7}
+body.dark .header-title{color:#67e8f9}
+.hdr-btn{padding:3px 8px;border:1px solid rgba(255,255,255,.5);border-radius:5px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.1;text-decoration:none;display:inline-block}
+.hdr-btn:hover{background:rgba(255,255,255,.28)}
+.theme-btn{background:#fff;border:1px solid rgba(255,255,255,.75);color:#24518e;font-size:12px;padding:3px 8px;border-radius:5px;cursor:pointer;font-weight:700;line-height:1.1}
+@media(max-width:520px){.hdr-btn span{display:none}}
+button{padding:9px 14px;border:0;border-radius:7px;background:#1f4e78;color:#fff;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--card);margin:12px 0;padding:14px;border-radius:10px;box-shadow:var(--card-shadow)}
+
+.dd{position:relative}
+.dd-toggle{display:flex;align-items:center;gap:5px;background:var(--card);color:#1f4e78;border:0;border-radius:5px;padding:2px 8px;font-weight:bold;font-size:12px;box-shadow:0 1px 4px #0002;line-height:1.1}
+body.dark .dd-toggle{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.dd-toggle .chev{font-size:11px;transition:transform .2s}
+.dd.open .dd-toggle .chev{transform:rotate(180deg)}
+.dd-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:340px;max-width:min(420px,94vw);max-height:78vh;overflow:auto;background:var(--menu-bg);box-shadow:var(--menu-shadow);color:var(--text);border-radius:10px;padding:16px;z-index:100}
+.dd.open .dd-menu{display:block}
+.dd-backdrop{display:none;position:fixed;inset:0;z-index:99}
+.dd.open .dd-backdrop{display:block}
+.menu-title{font-size:14px;font-weight:800;color:#1f4e78;padding-bottom:8px;border-bottom:1px solid var(--border)}
+body.dark .menu-title{color:#93c5fd}
+.menu-section{padding:12px 0;border-bottom:1px solid var(--border)}
+.menu-section:last-child{border-bottom:0;padding-bottom:0}
+.menu-label{font-size:12px;font-weight:800;color:var(--chip-text);margin-bottom:8px}
+.menu-section select,.menu-section input[type=number]{width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--input-border);border-radius:7px;background:var(--input-bg);color:var(--input-text);margin-bottom:8px}
+.menu-section input[type=file]{font-size:13px;max-width:100%;margin-bottom:8px}
+.row2{display:flex;gap:8px}.row2>*{flex:1}
+.hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4}
+.danger-btn{background:var(--red);width:100%}
+.secondary-btn{background:#305496}
+.full{width:100%}
+.stack{display:flex;flex-direction:column;gap:7px}
+
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.toolbar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.toolbar label.lb{font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.04em}
+.toolbar select{padding:6px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text);min-width:150px}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:var(--chip-bg);color:var(--chip-text)}
+.chip.ok{background:#bbf7d0;color:#14532d}.chip.warn{background:#fed7aa;color:#9a3412}.chip.err{background:#fecaca;color:#7f1d1d}
+body.dark .chip.ok{background:#14532d;color:#bbf7d0}body.dark .chip.warn{background:#7c2d12;color:#fed7aa}body.dark .chip.err{background:#7f1d1d;color:#fecaca}
+
+.filter-picker{position:relative}
+.fp-btn{background:var(--chip-bg);color:var(--chip-text);padding:6px 10px;font-size:12px;border-radius:6px}
+.fp-menu{display:none;position:absolute;left:0;top:calc(100% + 6px);background:var(--menu-bg);box-shadow:var(--menu-shadow);border-radius:10px;padding:12px;z-index:100;min-width:270px;max-height:60vh;overflow:auto}
+.filter-picker.open .fp-menu{display:block}
+.fp-menu .fp-quick{display:flex;gap:6px;margin-bottom:8px}
+.fp-menu .fp-quick button{padding:5px 9px;font-size:11px;background:var(--chip-bg);color:var(--chip-text)}
+.fp-menu label{display:flex;align-items:center;gap:7px;font-size:12px;padding:3px 0;cursor:pointer}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:0 0 8px}
+.kpi{background:var(--card);border-radius:10px;padding:10px 12px;box-shadow:var(--card-shadow);border-left:4px solid #1f4e78}
+.kpi.g{border-left-color:#22c55e}.kpi.r{border-left-color:#ef4444}.kpi.o{border-left-color:#f59e0b}
+.kpi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.kpi .v{font-size:20px;font-weight:800;color:var(--strong);margin-top:2px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:1px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:0 0 10px}
+.pc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 9px;border-left:3px solid #3d6fa0}
+.pc.smb{border-left-color:#d9692a}
+.pc.neg{background:var(--neg-bg)}
+.pc .n{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;line-height:1.25;min-height:25px}
+.pc .v{font-size:16px;font-weight:800;color:var(--strong)}
+.pc .s{font-size:10px;color:var(--muted)}
+
+.tablebox{overflow:auto;max-height:72vh;position:relative}
+table{border-collapse:collapse;width:100%;font-size:12px;color:var(--text)}
+th{background:var(--th-bg);color:#fff;position:sticky;top:0;padding:5px 6px;border:1px solid var(--th-border);z-index:3;font-size:11px;white-space:nowrap}
+th.smb{background:var(--th-smb)}
+thead tr.h2 th{top:26px;background:var(--th-bg3);font-size:10px;font-weight:600;z-index:2;text-transform:uppercase}
+thead tr.h2 th.smb{background:var(--th-smb3)}
+td{padding:2px 3px;border:1px solid var(--border);white-space:nowrap;text-align:right}
+td.tgl{text-align:left;font-weight:700;background:var(--card);position:sticky;left:0;z-index:1;padding:2px 6px}
+th.tgl{left:0;z-index:5}
+td.stok{background:var(--stok-bg);font-weight:700}
+td.stok.smb{background:var(--stok-smb)}
+td.tot{background:var(--stok-bg);font-weight:700;padding:2px 6px}
+td.sumk{padding:2px 6px}
+tr.sun td:not(.stok):not(.tot):not(.tgl){background:var(--sun-bg)}
+tr.sun td.tgl{color:var(--red)}
+tr.saldo td{font-weight:700}
+tbody tr:hover td:not(.stok):not(.tot):not(.tgl){background:var(--hover-bg2)}
+tfoot td{background:var(--tfoot-bg);font-weight:bold;position:sticky;bottom:0;z-index:2;padding:3px 6px}
+input.in{width:46px;box-sizing:border-box;padding:3px 3px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--input-text);text-align:right;font-size:12px;font-family:inherit}
+input.in:hover{border-color:var(--input-border)}
+input.in:focus{outline:none;border-color:#1f4e78;background:var(--input-bg);box-shadow:0 0 0 2px rgba(31,78,120,.2)}
+input.in.st{width:62px;font-weight:700;cursor:text}
+input.in.st.adjv{background:var(--adj-bg);border-color:#d6c200}
+input.in.st.neg{background:var(--neg-bg);color:var(--red)}
+input.in.sd{width:62px;font-weight:700;border-color:var(--input-border);background:var(--input-bg)}
+input.in::-webkit-outer-spin-button,input.in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input.in[type=number]{-moz-appearance:textfield}
+.empty{padding:40px 10px;text-align:center;color:var(--muted);line-height:1.6}
+.status{font-size:12px;margin-top:8px;color:var(--subtle)}
+.note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:300;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+</style>
+<style id="hideStyle"></style>
+</head>
+<body>
+<header>
+  <div class="wrap header-row">
+    <div class="header-left">
+      <a class="hdr-btn" href="./index.html" title="Kembali ke Data Penjualan">← <span>Penjualan</span></a>
+      <a class="hdr-btn" href="./Stok-Minyak.html" title="Buka Stok Minyak">🛢️ <span>Stok Minyak</span></a>
+      <div class="header-title">Stok Kecap &amp; Sambal</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button type="button" class="hdr-btn" onclick="cloudPull(false)" title="Ambil data terbaru dari cloud">⬇️ <span>Data Terbaru</span></button>
+      <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
+      <div class="dd" id="menuDd">
+        <button type="button" class="dd-toggle" onclick="toggleDd()"><span>☰ MENU</span><span class="chev">▼</span></button>
+        <div class="dd-backdrop" onclick="closeDd()"></div>
+        <div class="dd-menu">
+          <div class="menu-title">☰ MENU</div>
+
+          <div class="menu-section">
+            <div class="menu-label">📁 UPLOAD EXCEL STOK</div>
+            <input id="file" type="file" accept=".xlsx,.xls" multiple>
+            <button type="button" class="full" onclick="processFiles()">Proses Excel</button>
+            <div class="hint">Gunakan format file <b>Stok_Kecap_Sambal_….xlsx</b>. Boleh upload beberapa file (per bulan), data digabung otomatis. Jika bulan yang sama diupload lagi, data bulan itu diganti. Sel stok yang diisi manual (kuning) ikut terbaca.</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label" style="color:var(--red)">🗑 HAPUS DATA PER BULAN</div>
+            <select id="deleteMonth"><option value="">Pilih bulan...</option></select>
+            <button type="button" class="danger-btn" onclick="deleteMonth()">Hapus Bulan Terpilih</button>
+            <div class="hint">Konfirmasi akan muncul sebelum data dihapus. Penghapusan ikut tersinkron ke cloud.</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label">➕ BUAT BULAN BARU</div>
+            <div class="row2"><select id="newMonth"></select><input id="newYear" type="number" min="2000" max="2100"></div>
+            <button type="button" class="secondary-btn full" onclick="createMonth()">Buat Bulan Kosong</button>
+            <div class="hint">Daftar produk dan saldo awal otomatis diambil dari stok akhir bulan sebelumnya (jika ada).</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label">📤 EXPORT</div>
+            <button type="button" class="secondary-btn full" onclick="exportExcel()">Save Excel Bulan Ini</button>
+            <div class="hint">Hasil export memakai rumus yang sama seperti file asli, termasuk sel kuning penyesuaian stok.</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-label">☁️ CLOUD (Supabase)</div>
+            <div class="stack">
+              <button type="button" class="secondary-btn" onclick="cloudPush(true)">⬆️ Upload Data Device Ini ke Cloud</button>
+              <button type="button" class="secondary-btn" onclick="cloudPull(false)">⬇️ Ambil Data dari Cloud</button>
+            </div>
+            <div class="hint">Memakai database yang sama dengan Data Penjualan (tabel <b>app_sync</b>, baris <b>stok_kecap_sambal</b>), jadi data penjualan dan stok minyak tidak tersentuh.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card" style="margin-top:10px">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <label class="lb" for="monthSel">Bulan</label>
+        <select id="monthSel" onchange="selectMonth(this.value)"></select>
+        <div class="filter-picker" id="fp">
+          <button type="button" class="fp-btn" id="fpBtn" onclick="document.getElementById('fp').classList.toggle('open')">Produk ▾</button>
+          <div class="fp-menu" id="fpMenu"></div>
+        </div>
+        <button type="button" class="fp-btn" id="sumBtn" onclick="toggleSummary()">📊 Ringkasan ▾</button>
+        <span class="chip" id="cloudChip">Mode lokal</span>
+      </div>
+      <div class="chip" id="infoChip"></div>
+    </div>
+    <div class="pgrid" id="pgrid"></div>
+    <div id="tableWrap"></div>
+    <div class="note">Stok = stok hari sebelumnya + MSK − KLR (untuk <b>CABE GNG 600 REF</b>: − BD − REF). Isi MSK / KLR per hari, stok &amp; total terhitung otomatis. <b>Sel kuning</b> = penyesuaian stok manual: ketik angka di kolom STOK untuk mengganti hitungan hari itu, kosongkan untuk kembali otomatis. Produk bertanda <b>*</b> tidak dijumlahkan ke kolom STOCK (sesuai file asli).</div>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== KONFIGURASI ===================== */
+const SUPABASE_URL = 'https://nqwdyptujoffakfhmhft.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gJ_qnSnhHzDLW7wzO5Uw3g_0NnyhNMb';
+const SYNC_ROW_ID = 'stok_kecap_sambal';
+const SUM_KEY = 'stokKecapShowSummary_v1';
+const LS_KEY = 'stokKecap_v1', DIRTY_KEY = 'stokKecapPendingPush_v1', MONTH_KEY = 'stokKecapActiveMonth_v1', HIDE_KEY = 'stokKecapHidden_v1';
+const BULAN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+const MK = ['msk','klr'];
+/* c = nama kolom input (yang pertama = masuk, sisanya = keluar); x = 1 → tidak dijumlahkan ke kolom STOCK */
+const DEF_PRODS = [
+  {n:'KECAP REF 520 ML',c:MK},{n:'KECAP REF 700 GR',c:MK},{n:'KECAP REF 300 ML',c:MK},{n:'KECAP JERIGEN 6 KG',c:MK},
+  {n:'KECAP MEJA BOTOL 130 ML',c:MK},{n:'KECAP NAS PREMIUM 70ML',c:MK},{n:'KECAP GUNA 520 REF',c:MK},{n:'KECAP GUNA JRG',c:MK},
+  {n:'KECAP CG ASIN BESAR 625ML',c:MK,x:1},{n:'SAMBAL GUNA BUNGKUS 1 KG',c:MK,x:1},{n:'SAMBAL CABE 500 GR',c:MK},
+  {n:'CABE GNG 600 REF',c:['msk','bd','ref']},{n:'SAMBAL MEJA BOTOL 140 ML',c:MK},{n:'SAMBAL STIK 9 GR',c:MK}
+];
+
+/* ===================== STATE ===================== */
+let S = { months: {} };   // 'YYYY-MM' → { prods:[{n,c,x}], saldo:[..], days:{d:[input...]}, adj:{d:{p:nilai}} }
+let activeMonth = null, hidden = new Set(), showSum = false;
+let sbClient = null, pushTimer = null, pushInFlight = false, lastPushedAt = 0, isSyncingFromCloud = false, realtimeReady = false;
+try { if (window.supabase && window.supabase.createClient) sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:false, autoRefreshToken:false } }); }
+catch(e){ console.warn('Supabase init gagal', e); sbClient = null; }
+
+const $ = id => document.getElementById(id);
+const nf = n => (n == null || n === '') ? '' : Number(n).toLocaleString('id-ID');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mkKey = (y, m) => y + '-' + String(m).padStart(2, '0');
+const parseKey = k => { const [y, m] = k.split('-').map(Number); return { y, m }; };
+const monthLabel = k => { const { y, m } = parseKey(k); return BULAN[m-1] + ' ' + y; };
+const daysIn = k => { const { y, m } = parseKey(k); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
+const numOrNull = v => { if (v === '' || v == null) return null; const n = Number(v); return isFinite(n) ? n : null; };
+const isSmb = n => /SAMBAL|CABE/i.test(n);
+const colL = n => { let s = ''; while (n > 0){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
+const clone = o => JSON.parse(JSON.stringify(o));
+function offsets(prods){ const off = []; let t = 0; prods.forEach(p => { off.push(t); t += p.c.length; }); return { off, total:t }; }
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2600); }
+function setStatus(t){ $('status').textContent = t || ''; }
+
+/* ===================== PENYIMPANAN LOKAL ===================== */
+function loadLocal(){ try { const r = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (r && r.months) S = r; } catch(e){} try { hidden = new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || '[]')); } catch(e){} }
+function saveLocal(){ try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e){ toast('Penyimpanan lokal penuh / diblokir.'); } }
+function isDirty(){ try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch(e){ return false; } }
+function setDirty(v){ try { if (v) localStorage.setItem(DIRTY_KEY, '1'); else localStorage.removeItem(DIRTY_KEY); } catch(e){} }
+function changed(){ saveLocal(); setDirty(true); schedulePush(); setCloudChip(); }
+
+/* ===================== CLOUD ===================== */
+function setCloudChip(msg, cls){
+  let t = msg, k = cls || '';
+  if (!t){
+    if (!sbClient){ t = 'Mode lokal'; k = 'warn'; }
+    else if (navigator.onLine === false){ t = isDirty() ? 'Offline • belum terkirim' : 'Offline'; k = 'warn'; }
+    else if (isDirty()){ t = 'Menunggu kirim ke cloud…'; k = 'warn'; }
+    else { t = 'Tersinkron ☁️'; k = 'ok'; }
+  }
+  $('cloudChip').textContent = t; $('cloudChip').className = 'chip ' + k;
+}
+function schedulePush(){ clearTimeout(pushTimer); pushTimer = setTimeout(() => { pushTimer = null; cloudPush(false); }, 1200); }
+async function cloudPush(manual){
+  if (!sbClient){ if (manual) alert('Cloud belum terhubung. Coba refresh halaman.'); return; }
+  if (isSyncingFromCloud || pushInFlight){ if (!manual) schedulePush(); return; }
+  pushInFlight = true; setCloudChip('Mengirim ke cloud…', 'warn');
+  try {
+    const payload = { id: SYNC_ROW_ID, data: { months: S.months }, updated_at: new Date().toISOString() };
+    lastPushedAt = new Date(payload.updated_at).getTime();
+    const r = await sbClient.from('app_sync').upsert(payload, { onConflict:'id' });
+    if (r.error) throw new Error(r.error.message || 'Cloud menolak data.');
+    setDirty(false); setCloudChip();
+    if (manual) toast('Upload ke cloud berhasil.');
+  } catch(e){
+    console.error('Push gagal', e); setCloudChip('Gagal kirim ke cloud', 'err');
+    if (manual) alert('Upload cloud gagal.\n\n' + (e.message || e));
+  } finally { pushInFlight = false; }
+}
+async function cloudPull(silent){
+  if (!sbClient){ if (!silent) alert('Cloud belum terhubung.'); return; }
+  if (!silent && isDirty() && !confirm('Ada perubahan di device ini yang belum terkirim. Data lokal akan diganti data cloud. Lanjutkan?')) return;
+  if (silent && isDirty()){ cloudPush(false); return; }
+  isSyncingFromCloud = true; setCloudChip('Mengambil dari cloud…', 'warn');
+  try {
+    const { data, error } = await sbClient.from('app_sync').select('data,updated_at').eq('id', SYNC_ROW_ID).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data && data.data && data.data.months){
+      S.months = data.data.months; saveLocal(); setDirty(false); refreshAll();
+      if (!silent) toast('Data terbaru dari cloud dimuat.');
+    } else if (Object.keys(S.months).length){
+      isSyncingFromCloud = false; await cloudPush(false);
+    } else if (!silent) toast('Belum ada data stok di cloud.');
+    setCloudChip();
+  } catch(e){
+    console.error('Pull gagal', e); setCloudChip('Gagal ambil dari cloud', 'err');
+    if (!silent) alert('Ambil data dari cloud gagal: ' + (e.message || e));
+  } finally { isSyncingFromCloud = false; }
+}
+function subscribeRealtime(){
+  if (!sbClient || realtimeReady) return; realtimeReady = true;
+  try {
+    sbClient.channel('stok_kecap_live').on('postgres_changes', { event:'*', schema:'public', table:'app_sync', filter:'id=eq.' + SYNC_ROW_ID }, p => {
+      const ts = p && p.new && p.new.updated_at ? new Date(p.new.updated_at).getTime() : 0;
+      if (ts && Math.abs(ts - lastPushedAt) < 50) return;
+      if (!isDirty() && !pushTimer && !pushInFlight) cloudPull(true);
+    }).subscribe();
+  } catch(e){ realtimeReady = false; }
+}
+
+/* ===================== PARSING EXCEL ===================== */
+function cellToDate(v){
+  if (v instanceof Date) return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()));
+  if (typeof v === 'number' && v > 30000 && v < 80000) return new Date(Math.round((v - 25569) * 86400000));
+  if (typeof v === 'string'){
+    let m = v.trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if (m) return new Date(Date.UTC(+m[3], +m[2]-1, +m[1]));
+    m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  }
+  return null;
+}
+function parseSheet(ws){
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+  const rg = XLSX.utils.decode_range(ws['!ref'] || 'A1'), r0 = rg.s.r, c0 = rg.s.c;
+  const cellAt = (i, j) => ws[XLSX.utils.encode_cell({ r:r0 + i, c:c0 + j })];
+  let bulan = null, tahun = null, hdr = -1, saldoRow = -1;
+  for (let i = 0; i < aoa.length; i++){
+    const r = aoa[i] || [], a = r[0] == null ? '' : String(r[0]).trim().toUpperCase();
+    if (a === 'BULAN'){ const v = r.slice(1).find(x => x != null && String(x).trim() !== ':'); if (v != null) bulan = String(v).trim().toUpperCase(); }
+    else if (a === 'TAHUN'){ const v = r.slice(1).find(x => x != null && String(x).trim() !== ':'); if (v != null) tahun = parseInt(v, 10); }
+    else if (a === 'TANGGAL' && hdr < 0) hdr = i;
+    else if (a.startsWith('SALDO') && saldoRow < 0) saldoRow = i;
+  }
+  if (hdr < 0) throw new Error('Baris header "TANGGAL" tidak ditemukan.');
+  const H = aoa[hdr], sub = aoa[hdr + 1] || [];
+  /* daftar produk = sel header berisi nama, sampai kolom "TOTAL PER HARI" */
+  const starts = []; let totalCol = -1, stockCol = -1;
+  for (let j = 1; j < H.length; j++){
+    if (H[j] == null || String(H[j]).trim() === '') continue;
+    const t = String(H[j]).trim().toUpperCase();
+    if (t.startsWith('TOTAL')) totalCol = j; else if (t === 'STOCK' || t === 'TOTAL STOK') stockCol = j; else if (totalCol < 0) starts.push(j);
+  }
+  if (!starts.length) throw new Error('Kolom produk tidak ditemukan.');
+  const endCol = totalCol > 0 ? totalCol : (stockCol > 0 ? stockCol : H.length);
+  const prods = starts.map((sj, p) => {
+    const nj = p + 1 < starts.length ? starts[p+1] : endCol;
+    const cols = []; for (let j = sj; j < nj - 1; j++) cols.push(String(sub[j] || (j === sj ? 'msk' : 'klr')).trim().toLowerCase());
+    return { n: String(H[sj]).trim(), c: cols, sj, stokCol: nj - 1 };
+  });
+  /* produk yang tidak ikut kolom STOCK: baca rumus kolom STOCK */
+  if (stockCol > 0){
+    const fr = saldoRow >= 0 ? saldoRow : hdr + 2, cell = cellAt(fr, stockCol), f = cell && cell.f;
+    if (f){
+      const incl = new Set((f.match(/\$?[A-Z]{1,3}(?=\$?\d)/g) || []).map(s => s.replace('$', '')));
+      prods.forEach(p => { if (!incl.has(XLSX.utils.encode_col(c0 + p.stokCol))) p.x = 1; });
+    }
+  }
+  const saldo = prods.map(p => saldoRow >= 0 ? numOrNull(aoa[saldoRow][p.stokCol]) : null);
+  const run = saldo.map(v => v || 0), days = {}, adj = {}; let y = null, m = null;
+  for (let i = Math.max(hdr + 1, saldoRow) + 1; i < aoa.length; i++){
+    const r = aoa[i] || [], d = cellToDate(r[0]); if (!d) continue;
+    if (y == null){ y = d.getUTCFullYear(); m = d.getUTCMonth() + 1; }
+    if (d.getUTCFullYear() !== y || d.getUTCMonth() + 1 !== m) continue;
+    const dn = d.getUTCDate(), row = [];
+    prods.forEach((p, pi) => {
+      let net = 0;
+      p.c.forEach((_, j) => { const v = numOrNull(r[p.sj + j]); row.push(v); net += (j === 0 ? 1 : -1) * (v || 0); });
+      run[pi] += net;
+      const sc = cellAt(i, p.stokCol);   // stok berisi angka tanpa rumus = penyesuaian manual (sel kuning)
+      if (sc && !sc.f && typeof sc.v === 'number' && sc.v !== run[pi]){ (adj[dn] = adj[dn] || {})[pi] = sc.v; run[pi] = sc.v; }
+    });
+    if (row.some(v => v != null)) days[dn] = row;
+  }
+  if (y == null){
+    const mi = BULAN.indexOf(bulan); if (mi < 0 || !tahun) throw new Error('Bulan/tahun tidak terbaca dari file.');
+    y = tahun; m = mi + 1;
+  }
+  if (!Object.keys(days).length && !Object.keys(adj).length) throw new Error('Tidak ada baris tanggal pada file.');
+  return { key: mkKey(y, m), data: { prods: prods.map(p => ({ n:p.n, c:p.c, x:p.x ? 1 : 0 })), saldo, days, adj } };
+}
+async function processFiles(){
+  const files = Array.from($('file').files || []);
+  if (!files.length){ alert('Pilih file Excel terlebih dahulu.'); return; }
+  const ok = [], bad = [];
+  for (const f of files){
+    try {
+      const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
+      let res = null, lastErr = null;
+      for (const sn of wb.SheetNames){ try { res = parseSheet(wb.Sheets[sn]); break; } catch(e){ lastErr = e; } }
+      if (!res) throw lastErr || new Error('Format tidak dikenali.');
+      const had = !!S.months[res.key];
+      S.months[res.key] = res.data; ok.push(monthLabel(res.key) + (had ? ' (diganti)' : ''));
+      activeMonth = res.key;
+    } catch(e){ bad.push(f.name + ': ' + (e.message || e)); }
+  }
+  if (ok.length){ changed(); refreshAll(); closeDd(); $('file').value = ''; }
+  setStatus((ok.length ? 'Berhasil dimuat: ' + ok.join(', ') + '. ' : '') + (bad.length ? 'Gagal: ' + bad.join(' | ') : ''));
+  if (ok.length) toast(ok.length + ' bulan dimuat.');
+  if (bad.length && !ok.length) alert('Gagal membaca file:\n\n' + bad.join('\n'));
+}
+
+/* ===================== HAPUS / BUAT BULAN ===================== */
+function deleteMonth(){
+  const k = $('deleteMonth').value;
+  if (!k){ alert('Pilih bulan yang akan dihapus.'); return; }
+  const m = S.months[k], n = new Set(Object.keys(m.days || {}).concat(Object.keys(m.adj || {}))).size;
+  if (!confirm('Hapus semua data stok bulan ' + monthLabel(k) + ' (' + n + ' hari terisi)?\n\nTindakan ini tidak bisa dibatalkan.')) return;
+  delete S.months[k];
+  if (activeMonth === k) activeMonth = null;
+  changed(); refreshAll(); closeDd(); toast('Bulan ' + monthLabel(k) + ' dihapus.');
+}
+function createMonth(){
+  const m = +$('newMonth').value, y = parseInt($('newYear').value, 10);
+  if (!m || !y){ alert('Isi bulan dan tahun.'); return; }
+  const k = mkKey(y, m);
+  if (S.months[k]){ activeMonth = k; refreshAll(); closeDd(); toast('Bulan itu sudah ada.'); return; }
+  const prev = Object.keys(S.months).filter(x => x < k).sort().pop();
+  let prods = clone(DEF_PRODS), saldo = prods.map(() => null);
+  if (prev){ prods = clone(S.months[prev].prods); saldo = compute(prev).end.slice(); }
+  S.months[k] = { prods, saldo, days:{}, adj:{} };
+  activeMonth = k; changed(); refreshAll(); closeDd(); toast('Bulan ' + monthLabel(k) + ' dibuat.');
+}
+
+/* ===================== HITUNG ===================== */
+function compute(k){
+  const m = S.months[k], N = daysIn(k), P = m.prods, { off } = offsets(P);
+  const run = P.map((_, p) => (m.saldo && m.saldo[p]) || 0), start = run.slice();
+  const stok = {}, outDay = {}, stockDay = {}, adjAt = {};
+  const cols = P.map(p => p.c.map(() => 0)); let outAll = 0;
+  for (let d = 1; d <= N; d++){
+    const r = (m.days && m.days[d]) || [], a = (m.adj && m.adj[d]) || {};
+    let od = 0;
+    P.forEach((p, pi) => {
+      p.c.forEach((_, j) => {
+        const v = r[off[pi] + j] || 0; cols[pi][j] += v;
+        if (j === 0) run[pi] += v; else { run[pi] -= v; od += v; }
+      });
+      if (a[pi] != null){ run[pi] = a[pi]; adjAt[d + '-' + pi] = 1; }
+    });
+    stok[d] = run.slice(); outDay[d] = od; outAll += od;
+    stockDay[d] = run.reduce((s, v, pi) => s + (P[pi].x ? 0 : v), 0);
+  }
+  const inc = P.map((p, pi) => p.x ? 0 : start[pi]).reduce((a, b) => a + b, 0);
+  return { N, stok, outDay, stockDay, cols, outAll, adjAt, end: run.slice(), start, startStock: inc,
+           endStock: run.reduce((s, v, pi) => s + (P[pi].x ? 0 : v), 0) };
+}
+
+/* ===================== RENDER ===================== */
+function sortedKeys(){ return Object.keys(S.months).sort().reverse(); }
+function refreshSelectors(){
+  const keys = sortedKeys();
+  if (!activeMonth || !S.months[activeMonth]){
+    let saved = null; try { saved = localStorage.getItem(MONTH_KEY); } catch(e){}
+    activeMonth = (saved && S.months[saved]) ? saved : (keys[0] || null);
+  }
+  $('monthSel').innerHTML = keys.map(k => '<option value="' + k + '"' + (k === activeMonth ? ' selected' : '') + '>' + monthLabel(k) + '</option>').join('') || '<option value="">(belum ada data)</option>';
+  $('deleteMonth').innerHTML = '<option value="">Pilih bulan...</option>' + keys.map(k => '<option value="' + k + '">' + monthLabel(k) + '</option>').join('');
+}
+function selectMonth(k){ activeMonth = k || null; try { localStorage.setItem(MONTH_KEY, k); } catch(e){} renderMonth(); }
+function refreshAll(){ refreshSelectors(); renderMonth(); }
+
+/* pilih produk yang ditampilkan */
+function renderPicker(){
+  const k = activeMonth, P = (k && S.months[k]) ? S.months[k].prods : [];
+  $('fpMenu').innerHTML = '<div class="fp-quick"><button type="button" onclick="setVis(\'all\')">Semua</button><button type="button" onclick="setVis(\'kecap\')">Kecap</button><button type="button" onclick="setVis(\'sambal\')">Sambal</button></div>' +
+    P.map((p, i) => '<label><input type="checkbox" data-v="' + i + '"' + (hidden.has(i) ? '' : ' checked') + '> ' + esc(p.n) + (p.x ? ' *' : '') + '</label>').join('');
+  applyHide();
+}
+function setVis(w){
+  const P = S.months[activeMonth] ? S.months[activeMonth].prods : [];
+  hidden = new Set(); P.forEach((p, i) => { if (w === 'kecap' && isSmb(p.n)) hidden.add(i); if (w === 'sambal' && !isSmb(p.n)) hidden.add(i); });
+  saveHidden(); renderPicker();
+}
+function applySummary(){
+  $('pgrid').style.display = showSum ? '' : 'none';
+  $('sumBtn').textContent = showSum ? '📊 Ringkasan ▴' : '📊 Ringkasan ▾';
+}
+function toggleSummary(){ showSum = !showSum; try { localStorage.setItem(SUM_KEY, showSum ? '1' : '0'); } catch(e){} applySummary(); }
+function saveHidden(){ try { localStorage.setItem(HIDE_KEY, JSON.stringify(Array.from(hidden))); } catch(e){} }
+function applyHide(){
+  const P = (activeMonth && S.months[activeMonth]) ? S.months[activeMonth].prods : [];
+  $('hideStyle').textContent = Array.from(hidden).map(i => '.p' + i + '{display:none}').join('');
+  $('fpBtn').textContent = 'Produk (' + (P.length - Array.from(hidden).filter(i => i < P.length).length) + '/' + P.length + ') ▾';
+}
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.v != null && t.type === 'checkbox'){ const i = +t.dataset.v; if (t.checked) hidden.delete(i); else hidden.add(i); saveHidden(); applyHide(); return; }
+  if (t.classList && t.classList.contains('st')){   /* penyesuaian stok manual */
+    const k = activeMonth; if (!k || !S.months[k]) return;
+    const m = S.months[k], d = t.dataset.d, p = +t.dataset.a, v = numOrNull(t.value);
+    m.adj = m.adj || {};
+    if (v == null){ if (m.adj[d]){ delete m.adj[d][p]; if (!Object.keys(m.adj[d]).length) delete m.adj[d]; } }
+    else (m.adj[d] = m.adj[d] || {})[p] = v;
+    recalc(true); changed();
+  }
+});
+document.addEventListener('click', e => { const fp = $('fp'); if (fp && !fp.contains(e.target)) fp.classList.remove('open'); });
+
+function renderMonth(){
+  const k = activeMonth, wrap = $('tableWrap');
+  renderPicker();
+  if (!k || !S.months[k]){
+    $('pgrid').innerHTML = ''; $('infoChip').textContent = '';
+    wrap.innerHTML = '<div class="empty">Belum ada data stok.<br>Buka <b>☰ MENU</b> → <b>Upload Excel Stok</b>, atau buat bulan baru.</div>';
+    return;
+  }
+  const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), P = m.prods, { off } = offsets(P), saldo = m.saldo || [];
+  let h = '<div class="tablebox"><table><thead><tr><th class="tgl" rowspan="2">TANGGAL</th>';
+  P.forEach((p, i) => { h += '<th class="p' + i + (isSmb(p.n) ? ' smb' : '') + '" colspan="' + (p.c.length + 1) + '">' + esc(p.n) + (p.x ? ' *' : '') + '</th>'; });
+  h += '<th rowspan="2">TOTAL PER HARI</th><th rowspan="2">STOCK</th></tr><tr class="h2">';
+  P.forEach((p, i) => { const s = isSmb(p.n) ? ' smb' : ''; p.c.forEach(c => { h += '<th class="p' + i + s + '">' + esc(c) + '</th>'; }); h += '<th class="p' + i + s + '">stok</th>'; });
+  h += '</tr></thead><tbody><tr class="saldo"><td class="tgl">Saldo Awal</td>';
+  P.forEach((p, i) => {
+    p.c.forEach(() => { h += '<td class="p' + i + '"></td>'; });
+    h += '<td class="stok p' + i + (isSmb(p.n) ? ' smb' : '') + '"><input class="in sd" type="number" inputmode="numeric" data-s="' + i + '" value="' + (saldo[i] == null ? '' : saldo[i]) + '"></td>';
+  });
+  h += '<td></td><td class="tot" id="t-saldo"></td></tr>';
+  for (let d = 1; d <= N; d++){
+    const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay(), r = (m.days && m.days[d]) || [];
+    h += '<tr' + (dow === 0 ? ' class="sun"' : '') + '><td class="tgl">' + String(d).padStart(2,'0') + '/' + String(mo).padStart(2,'0') + ' <span style="font-weight:400;color:var(--muted);font-size:10px">' + HARI[dow] + '</span></td>';
+    P.forEach((p, i) => {
+      p.c.forEach((_, j) => {
+        const v = r[off[i] + j];
+        h += '<td class="p' + i + '"><input class="in" type="number" inputmode="numeric" min="0" data-d="' + d + '" data-i="' + (off[i] + j) + '" value="' + (v == null ? '' : v) + '"></td>';
+      });
+      h += '<td class="stok p' + i + (isSmb(p.n) ? ' smb' : '') + '"><input class="in st" type="number" inputmode="numeric" data-d="' + d + '" data-a="' + i + '" id="s-' + d + '-' + i + '"></td>';
+    });
+    h += '<td class="sumk" id="k-' + d + '"></td><td class="tot" id="l-' + d + '"></td></tr>';
+  }
+  h += '</tbody><tfoot><tr><td class="tgl" style="background:var(--tfoot-bg)">TOTAL</td>';
+  P.forEach((p, i) => { p.c.forEach((_, j) => { h += '<td class="p' + i + '" id="f-' + i + '-' + j + '"></td>'; }); h += '<td class="p' + i + '" id="fs-' + i + '"></td>'; });
+  h += '<td id="fk-all"></td><td id="fs-all"></td></tr></tfoot></table></div>';
+  wrap.innerHTML = h;
+  recalc(true);
+}
+
+function recalc(force){
+  const k = activeMonth; if (!k || !S.months[k]) return;
+  const m = S.months[k], P = m.prods, c = compute(k), N = c.N, ae = document.activeElement;
+  $('t-saldo').textContent = nf(c.startStock);
+  for (let d = 1; d <= N; d++){
+    P.forEach((p, i) => {
+      const el = $('s-' + d + '-' + i); if (!el) return;
+      const isAdj = !!c.adjAt[d + '-' + i];
+      el.classList.toggle('adjv', isAdj); el.classList.toggle('neg', c.stok[d][i] < 0);
+      if (force || el !== ae) el.value = c.stok[d][i];
+    });
+    $('k-' + d).textContent = nf(c.outDay[d]); $('l-' + d).textContent = nf(c.stockDay[d]);
+  }
+  P.forEach((p, i) => {
+    p.c.forEach((_, j) => { const el = $('f-' + i + '-' + j); if (el) el.textContent = nf(c.cols[i][j]); });
+    const el = $('fs-' + i); if (el) el.textContent = nf(c.end[i]);
+  });
+  $('fk-all').textContent = nf(c.outAll); $('fs-all').textContent = nf(c.endStock);
+
+  const filled = new Set(Object.keys(m.days || {}).concat(Object.keys(m.adj || {}))).size;
+  $('pgrid').innerHTML = P.map((p, i) => {
+    const out = c.cols[i].slice(1).reduce((a, b) => a + b, 0);
+    return '<div class="pc' + (isSmb(p.n) ? ' smb' : '') + (c.end[i] < 0 ? ' neg' : '') + '"><div class="n">' + esc(p.n) + (p.x ? ' *' : '') + '</div><div class="v">' + nf(c.end[i]) + '</div><div class="s">masuk ' + nf(c.cols[i][0]) + ' • keluar ' + nf(out) + '</div></div>';
+  }).join('');
+  $('infoChip').textContent = filled + ' / ' + N + ' hari terisi';
+}
+
+/* edit sel input */
+document.addEventListener('input', e => {
+  const t = e.target; if (!t.classList || !t.classList.contains('in') || t.classList.contains('st')) return;
+  const k = activeMonth; if (!k || !S.months[k]) return;
+  const m = S.months[k], v = numOrNull(t.value), tot = offsets(m.prods).total;
+  if (t.dataset.s != null){ m.saldo = m.saldo || []; m.saldo[+t.dataset.s] = v; }
+  else {
+    const d = t.dataset.d, i = +t.dataset.i;
+    m.days = m.days || {}; const r = m.days[d] = m.days[d] || new Array(tot).fill(null);
+    r[i] = v; if (r.every(x => x == null)) delete m.days[d];
+  }
+  recalc(false); changed();
+});
+document.addEventListener('keydown', e => {   // Enter = pindah ke baris bawah
+  const t = e.target; if (e.key !== 'Enter' || !t.classList || !t.classList.contains('in') || t.dataset.d == null) return;
+  e.preventDefault();
+  const d = +t.dataset.d + 1, sel = t.dataset.a != null ? '[data-a="' + t.dataset.a + '"]' : '[data-i="' + t.dataset.i + '"]';
+  const nxt = document.querySelector('input.in[data-d="' + d + '"]' + sel); if (nxt){ nxt.focus(); nxt.select(); }
+});
+
+/* ===================== EXPORT EXCEL ===================== */
+async function exportExcel(){
+  const k = activeMonth; if (!k || !S.months[k]){ alert('Belum ada bulan yang dipilih.'); return; }
+  try {
+    const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), P = m.prods, { off } = offsets(P), c = compute(k);
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Stok Kecap & Sambal');
+    const thin = { style:'thin', color:{ argb:'FF9AA5B1' } }, bd = { top:thin, left:thin, bottom:thin, right:thin };
+    const fill = rgb => ({ type:'pattern', pattern:'solid', fgColor:{ argb:rgb } });
+    const HEAD = fill('FF1F4E78'), HEADS = fill('FF8A3B12'), GREEN = fill('FF92D050'), BLUE = fill('FFB4C6E7'), YEL = fill('FFFFFF99'), RED = fill('FFFF0000');
+    /* peta kolom */
+    const cm = []; let col = 2;
+    P.forEach(p => { const o = { start:col, ins:[], stok:col + p.c.length }; for (let j = 0; j < p.c.length; j++) o.ins.push(col + j); cm.push(o); col += p.c.length + 1; });
+    const totCol = col, stockCol = col + 1, lastCol = stockCol;
+    const rHdr = 5, rSaldo = 7, rFirst = 8, rLast = 7 + N, rClose = rLast + 1, rTot = rLast + 2;
+    ws.getCell('A1').value = 'STOK KECAP & SAMBAL'; ws.getCell('A1').font = { bold:true, size:14 };
+    ws.getCell('A2').value = 'BULAN'; ws.getCell('B2').value = ':'; ws.getCell('C2').value = BULAN[mo-1];
+    ws.getCell('A3').value = 'TAHUN'; ws.getCell('B3').value = ':'; ws.getCell('C3').value = y;
+    ws.mergeCells(rHdr, 1, rHdr + 1, 1); ws.getCell(rHdr, 1).value = 'TANGGAL';
+    P.forEach((p, i) => {
+      const o = cm[i]; ws.mergeCells(rHdr, o.start, rHdr, o.stok); ws.getCell(rHdr, o.start).value = p.n;
+      p.c.forEach((cn, j) => { ws.getCell(rHdr + 1, o.ins[j]).value = cn; }); ws.getCell(rHdr + 1, o.stok).value = 'stok';
+    });
+    ws.mergeCells(rHdr, totCol, rHdr + 1, totCol); ws.getCell(rHdr, totCol).value = 'TOTAL PER HARI';
+    ws.mergeCells(rHdr, stockCol, rHdr + 1, stockCol); ws.getCell(rHdr, stockCol).value = 'STOCK';
+    for (let r = rHdr; r <= rHdr + 1; r++) for (let cc = 1; cc <= lastCol; cc++){
+      const cell = ws.getCell(r, cc), pi = cm.findIndex(o => cc >= o.start && cc <= o.stok);
+      cell.fill = (pi >= 0 && isSmb(P[pi].n)) ? HEADS : HEAD; cell.font = { bold:true, color:{ argb:'FFFFFFFF' } };
+      cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true }; cell.border = bd;
+    }
+    const incl = P.map((p, i) => p.x ? null : colL(cm[i].stok)).filter(Boolean);
+    const sumStock = r => incl.length ? incl.map(L => L + r).join('+') : '0';
+    ws.getCell(rSaldo, 1).value = 'Saldo Awal';
+    P.forEach((p, i) => { const v = m.saldo && m.saldo[i]; if (v != null) ws.getCell(rSaldo, cm[i].stok).value = v; });
+    ws.getCell(rSaldo, stockCol).value = { formula: sumStock(rSaldo), result: c.startStock };
+    for (let d = 1; d <= N; d++){
+      const r = rSaldo + d, row = (m.days && m.days[d]) || [], a = (m.adj && m.adj[d]) || {};
+      ws.getCell(r, 1).value = new Date(Date.UTC(y, mo - 1, d)); ws.getCell(r, 1).numFmt = 'dd/mm/yyyy';
+      const outs = [];
+      P.forEach((p, i) => {
+        const o = cm[i];
+        p.c.forEach((_, j) => {
+          const v = row[off[i] + j];
+          if (v != null) ws.getCell(r, o.ins[j]).value = v; else if (j > 0 && (m.days && m.days[d])) ws.getCell(r, o.ins[j]).value = 0;
+          if (j > 0) outs.push(colL(o.ins[j]) + r);
+        });
+        const sc = ws.getCell(r, o.stok);
+        if (a[i] != null){ sc.value = a[i]; sc.fill = YEL; }
+        else {
+          const f = colL(o.stok) + (r - 1) + '+' + colL(o.ins[0]) + r + p.c.slice(1).map((_, j) => '-' + colL(o.ins[j+1]) + r).join('');
+          sc.value = { formula:f, result:c.stok[d][i] };
+        }
+      });
+      ws.getCell(r, totCol).value = { formula: outs.join('+'), result: c.outDay[d] };
+      ws.getCell(r, stockCol).value = { formula: sumStock(r), result: c.stockDay[d] };
+    }
+    P.forEach((p, i) => { ws.getCell(rClose, cm[i].stok).value = { formula: colL(cm[i].stok) + rLast, result: c.end[i] }; });
+    ws.getCell(rClose, stockCol).value = { formula: colL(stockCol) + rLast, result: c.endStock };
+    ws.getCell(rTot, 1).value = 'TOTAL';
+    P.forEach((p, i) => p.c.forEach((_, j) => {
+      const L = colL(cm[i].ins[j]), cell = ws.getCell(rTot, cm[i].ins[j]);
+      cell.value = { formula:'SUM(' + L + rFirst + ':' + L + rLast + ')', result:c.cols[i][j] };
+      if (j > 0){ cell.fill = RED; cell.font = { bold:true, color:{ argb:'FFFFFFFF' } }; }
+    }));
+    const tc = ws.getCell(rTot, totCol); tc.value = { formula:'SUM(' + colL(totCol) + rFirst + ':' + colL(totCol) + rLast + ')', result:c.outAll }; tc.fill = RED; tc.font = { bold:true, color:{ argb:'FFFFFFFF' } };
+    for (let r = rSaldo; r <= rTot; r++) for (let cc = 1; cc <= lastCol; cc++){
+      const cell = ws.getCell(r, cc); cell.border = bd; if (cc > 1) cell.numFmt = '#,##0';
+      if (r === rTot || r === rSaldo){ if (!cell.font || !cell.font.color) cell.font = { bold:true }; }
+      const pi = cm.findIndex(o => o.stok === cc);
+      if ((pi >= 0 || cc === stockCol) && r !== rTot && !(cell.fill && cell.fill.fgColor && cell.fill.fgColor.argb === 'FFFFFF99')) cell.fill = (pi >= 9 || (pi < 0 && false)) ? BLUE : GREEN;
+    }
+    ws.getCell(rTot + 2, 1).value = "Catatan: stok = stok hari sebelumnya + msk - klr. Sel kuning = penyesuaian stok manual; kolom STOCK tidak menjumlahkan produk bertanda * pada aplikasi (sesuai file asli).";
+    ws.getCell(rTot + 2, 1).font = { italic:true, size:9 };
+    ws.getColumn(1).width = 11;
+    P.forEach((p, i) => { cm[i].ins.forEach(cc => ws.getColumn(cc).width = 6.5); ws.getColumn(cm[i].stok).width = 8; });
+    ws.getColumn(totCol).width = 9; ws.getColumn(stockCol).width = 10;
+    ws.views = [{ state:'frozen', xSplit:1, ySplit:6 }];
+    const buf = await wb.xlsx.writeBuffer();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = 'Stok_Kecap_Sambal_' + BULAN[mo-1].charAt(0) + BULAN[mo-1].slice(1).toLowerCase() + '_' + y + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    closeDd(); toast('File Excel dibuat.');
+  } catch(e){ console.error(e); alert('Export gagal: ' + (e.message || e)); }
+}
+
+/* ===================== UI UMUM ===================== */
+function toggleDd(){ $('menuDd').classList.toggle('open'); }
+function closeDd(){ $('menuDd').classList.remove('open'); }
+function applyTheme(mode){
+  const dark = mode === 'dark'; document.body.classList.toggle('dark', dark);
+  $('themeBtn').textContent = dark ? '☀️' : '🌙';
+  const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', dark ? '#1e3a5f' : '#1f4e78');
+  try { localStorage.setItem('rekap-theme', dark ? 'dark' : 'light'); } catch(e){}
+}
+function toggleTheme(){ applyTheme(document.body.classList.contains('dark') ? 'light' : 'dark'); }
+function initTheme(){ let mode = 'dark'; try { const s = localStorage.getItem('rekap-theme'); if (s === 'dark' || s === 'light') mode = s; } catch(e){} applyTheme(mode); }
+
+(async function init(){
+  initTheme();
+  $('newMonth').innerHTML = BULAN.map((b, i) => '<option value="' + (i+1) + '">' + b.charAt(0) + b.slice(1).toLowerCase() + '</option>').join('');
+  const now = new Date(); $('newMonth').value = now.getMonth() + 1; $('newYear').value = now.getFullYear();
+  try { showSum = localStorage.getItem(SUM_KEY) === '1'; } catch(e){}
+  applySummary();
+  loadLocal(); refreshAll(); setCloudChip();
+  if (sbClient){ await cloudPull(true); subscribeRealtime(); }
+})();
+window.addEventListener('online', () => { if (isDirty()) cloudPush(false); else if (sbClient) cloudPull(true); setCloudChip(); });
+window.addEventListener('offline', () => setCloudChip());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbClient && !pushTimer && !pushInFlight) cloudPull(true); });
+window.addEventListener('beforeunload', e => { if (pushTimer || pushInFlight){ e.preventDefault(); e.returnValue = ''; return ''; } });
+</script>
+</body>
+</html>
