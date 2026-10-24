@@ -420,6 +420,26 @@ body.dark .pager-btn{background:#334155;color:#cbd5e1}
 body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
 .pager-btn:disabled{opacity:.45;cursor:not-allowed}
 .pager-bar b{color:var(--strong);font-weight:700}
+
+/* ===== TAB ANALISA: Cek Selisih Penjualan vs Output Gudang ===== */
+body.is-analisa .toolbar-left > :not(.tabs-wrap), body.is-analisa .toolbar-row .action-dd{display:none!important}
+.s16bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;font-size:13px;color:var(--text)}
+.s16bar select,.s16bar input[type=search]{padding:5px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)}
+.s16bar input[type=search]{width:170px;max-width:46vw}
+.s16btn{padding:8px 14px;border:0;border-radius:8px;background:#1f4e78;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
+.s16btn:hover{background:#26426e}
+.s16title{font-size:15px;font-weight:700;color:var(--text);margin:0 0 6px}
+.s16warn{font-size:12px;font-weight:700;color:#b91c1c;margin:6px 0 8px}
+body.dark .s16warn{color:#fca5a5}
+.s16ok{font-size:12px;font-weight:700;color:#15803d;margin:6px 0 8px}
+body.dark .s16ok{color:#86efac}
+.s16note{font-size:11.5px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+.s16table{min-width:760px}
+.s16table td.sel{text-align:right;font-weight:700;color:#15803d}
+.s16table tr.bad td{background:var(--fk-minus-bg)}
+.s16table tr.bad td.sel{color:#b91c1c}
+body.dark .s16table td.sel{color:#86efac}
+body.dark .s16table tr.bad td.sel{color:#fca5a5}
 </style>
 </head>
 <body>
@@ -430,6 +450,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
     <div style="display:flex;align-items:center;gap:10px">
       <a class="hdr-pull-btn" href="./Stok-Minyak.html" style="text-decoration:none;display:inline-block" title="Buka Stok Minyak">🛢️ <span>Minyak</span></a>
       <a class="hdr-pull-btn" href="./Stok-Kecap.html" style="text-decoration:none;display:inline-block" title="Buka Stok Kecap &amp; Sambal">🧴 <span>Kecap</span></a>
+      <button type="button" class="hdr-pull-btn" id="hdrAnalisaBtn" onclick="openAnalisa()" title="Analisa: cek selisih Penjualan vs Output Gudang per tanggal">⚖️ <span>Analisa</span></button>
       <button type="button" class="hdr-pull-btn" id="hdrPullBtn" onclick="backupPullCloud()" title="Ambil Data Terbaru dari Cloud">⬇️ <span>Data Terbaru</span></button>
       <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
       <div class="dd" id="menuDd">
@@ -527,6 +548,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
               <button onclick="show('s10',this)">Data Bulanan</button>
               <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
               <button onclick="show('s13',this)">📊 Grafik Penjualan &amp; Profit</button>
+              <button onclick="show('s16',this)">⚖️ Analisa</button>
             </div>
           </div>
           <div class="quick-search-wrap"><input type="search" id="quickSearch" placeholder="🔍 Cari produk / customer / no faktur..." title="Cari berdasarkan nama produk, customer, kode customer, atau nomor faktur" oninput="onQuickSearchInput()"></div>
@@ -592,6 +614,7 @@ body.dark .pager-btn:hover:not(:disabled){background:#475569;color:#fff}
         <div id="panel_s13" class="view" style="display:none"></div>
         <div id="panel_s14" class="view" style="display:none"></div>
         <div id="panel_s15" class="view"></div>
+        <div id="panel_s16" class="view" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1706,14 +1729,15 @@ self.onmessage = function(e){
   }
 
   let _activeTab = 's15';   /* tab awal saat dibuka */
-  const OWN_PRODUCT_TABS = ['s3','s14','s15'];
-  const OWN_BAR_TABS = ['s14'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
+  const OWN_PRODUCT_TABS = ['s3','s14','s15','s16'];
+  const OWN_BAR_TABS = ['s14','s16'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
     _activeTab = t;
     try {
       const own = OWN_PRODUCT_TABS.indexOf(t) >= 0;
       document.body.classList.toggle('hide-global-product', own);
       document.body.classList.toggle('hide-own-bar', OWN_BAR_TABS.indexOf(t) >= 0);
+      document.body.classList.toggle('is-analisa', t === 's16');
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
         if (t === 's14') s14Cat = filters.product;
@@ -1737,7 +1761,8 @@ self.onmessage = function(e){
     document.querySelectorAll('#table .view').forEach(v => v.style.display = 'none');
     const panel = document.getElementById('panel_' + t);
     if (panel) panel.style.display = 'block';
-    if (t === 's12'){ renderRekapBulanan(); }
+    if (t === 's16'){ renderAnalisa(); }
+    else if (t === 's12'){ renderRekapBulanan(); }
     else if (t === 's13'){ renderGrafikBulanan(); }
     else if (!viewCache[t] || viewCache[t].ver !== dataVersion){
       if (panel) panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Menyiapkan rekap…</div>';
@@ -1763,6 +1788,196 @@ self.onmessage = function(e){
     const from = page * REKAP_PAGE_SIZE + 1, to = Math.min(total, (page + 1) * REKAP_PAGE_SIZE);
     return '<div class="pager-bar"><span>Menampilkan <b>' + from + '–' + to + '</b> dari <b>' + total.toLocaleString('id-ID') + '</b> baris</span><span class="pager-nav"><button type="button" class="pager-btn" ' + (page<=0?'disabled ':'') + 'onclick="rekapGo(\'' + tab + '\',' + (page-1) + ')">‹ Prev</button><span class="pager-info">Halaman <b>' + (page+1) + '</b> / ' + pages + '</span><button type="button" class="pager-btn" ' + (page>=pages-1?'disabled ':'') + 'onclick="rekapGo(\'' + tab + '\',' + (page+1) + ')">Next ›</button></span></div>';
   }
+  /* ===== Tab Analisa: Cek Selisih Penjualan vs Output Gudang per tanggal =====
+     Penjualan     = qty transaksi (faktur batal tidak dihitung)
+     Output Gudang = kolom KLR (keluar) di halaman Stok Minyak / Stok Kecap & Sambal (tabel app_sync) */
+  const S16_GROUPS = {
+    FITRI: { label: 'Fitri (Minyak)',  rowId: 'stok_minyak',       lsKey: 'stokMinyak_v1', dirtyKey: 'stokMinyakPendingPush_v1', page: 'Minyak' },
+    KECAP: { label: 'Kecap & Sambal',  rowId: 'stok_kecap_sambal', lsKey: 'stokKecap_v1',  dirtyKey: 'stokKecapPendingPush_v1',  page: 'Kecap' }
+  };
+  const S16_BLN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  let s16 = { group: 'FITRI', month: '', show: 'all', prod: '', q: '', stock: null, sales: [], months: [] };
+  let s16Token = 0;
+  const s16Esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const s16Norm = x => String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const s16Nf = n => Number(n || 0).toLocaleString('id-ID');
+
+  /* Daftar produk di data stok + posisi kolom "keluar" pada baris harian */
+  function s16StockProducts(groupKey, m){
+    if (!m) return [];
+    if (groupKey === 'FITRI'){
+      const names = (m.names && m.names.length) ? m.names : ['FITRI BOTOL 400 ML', 'FITRI BOTOL 200 ML', 'FITRI BOTOL 800 ML'];
+      return names.slice(0, 3).map((n, i) => ({ name: n, idx: [i * 2 + 1] }));        /* baris: [msk,klr, msk,klr, msk,klr] */
+    }
+    let off = 0;
+    return (m.prods || []).map(p => {
+      const cols = p.c || ['msk', 'klr'], idx = [];
+      for (let j = 1; j < cols.length; j++) idx.push(off + j);                         /* kolom pertama = masuk, sisanya = keluar */
+      off += cols.length;
+      return { name: p.n, idx: idx };
+    });
+  }
+
+  /* Hitung baris perbandingan. salesRows = transaksi 1 bulan, m = data stok bulan itu */
+  function s16Compute(salesRows, m, groupKey, month){
+    const prods = s16StockProducts(groupKey, m), sales = {}, salesNames = new Set();
+    salesRows.forEach(r => {
+      const nm = s16Norm(r.produk != null ? r.produk : r.Produk); if (!nm) return;
+      let ts = r._ts;
+      if (ts == null || isNaN(ts)) { const d = toDate(r.tanggal != null ? r.tanggal : r.Tanggal); ts = d ? d.getTime() : null; }
+      const dk = dayKeyOfTs(ts); if (!dk || dk.slice(0, 7) !== month) return;
+      const day = +dk.slice(8, 10), q = N(r.jumlah != null ? r.jumlah : r.Jumlah);
+      salesNames.add(nm);
+      (sales[nm] = sales[nm] || {})[day] = ((sales[nm] || {})[day] || 0) + q;
+    });
+    const parts = month.split('-').map(Number), y = parts[0], mo = parts[1];
+    const nDays = new Date(y, mo, 0).getDate(), out = [], outTotal = prods.map(() => 0);
+    for (let d = 1; d <= nDays; d++){
+      const row = (m && m.days && m.days[d]) || [];
+      prods.forEach((p, pi) => {
+        const o = p.idx.reduce((s, i) => s + (Number(row[i]) || 0), 0);
+        outTotal[pi] += o;
+        const pen = (sales[s16Norm(p.name)] || {})[d] || 0;
+        if (!pen && !o) return;
+        const sel = pen - o;
+        out.push({ day: d, label: String(d).padStart(2, '0') + '-' + S16_BLN[mo - 1] + '-' + String(y).slice(2), name: p.name, pen: pen, out: o, sel: sel,
+          ket: sel === 0 ? 'Cocok' : (sel > 0 ? 'Output gudang kurang ' + s16Nf(sel) : 'Output gudang lebih ' + s16Nf(-sel)) });
+      });
+    }
+    const unmatched = prods.filter((p, pi) => outTotal[pi] > 0 && !salesNames.has(s16Norm(p.name))).map(p => p.name);
+    return { prods: prods, rows: out, unmatched: unmatched };
+  }
+
+  async function s16LoadStock(groupKey){
+    const g = S16_GROUPS[groupKey];
+    let local = null, dirty = false, err = '';
+    try { local = JSON.parse(localStorage.getItem(g.lsKey) || 'null'); dirty = localStorage.getItem(g.dirtyKey) === '1'; } catch(e){}
+    let cloud = null;
+    if (!dirty && sbClient){        /* ada perubahan stok lokal yang belum terkirim → pakai lokal (lebih baru) */
+      try {
+        const r = await sbClient.from('app_sync').select('data,updated_at').eq('id', g.rowId).maybeSingle();
+        if (r.error) throw r.error;
+        if (r.data && r.data.data && r.data.data.months) cloud = r.data.data;
+      } catch(e){ err = (e && e.message) || 'gagal terhubung'; }
+    }
+    const data = cloud || ((local && local.months) ? local : null);
+    return { data: data, from: cloud ? 'cloud' : (data ? 'perangkat ini' : ''), err: err };
+  }
+  async function s16SalesMonths(){
+    if (useIDB && db){ try { return (await db.tx.orderBy('bulan').uniqueKeys()).filter(Boolean); } catch(e){} }
+    return Array.from(new Set(rows.map(x => x.bulan).filter(Boolean)));
+  }
+  async function s16LoadSales(month){
+    if (!month) return [];
+    const list = (useIDB && db) ? await db.tx.where('bulan').equals(month).toArray() : rows.filter(x => x.bulan === month);
+    return list.filter(r => !isBatalLine(r));
+  }
+
+  function s16View(){
+    const st = s16.stock && s16.stock.data, m = (st && st.months) ? st.months[s16.month] : null;
+    if (!m) return { m: null };
+    const c = s16Compute(s16.sales, m, s16.group, s16.month), q = s16Norm(s16.q);
+    let shown = c.rows;
+    if (s16.prod) shown = shown.filter(r => r.name === s16.prod);
+    if (s16.show === 'diff') shown = shown.filter(r => r.sel !== 0);
+    if (q) shown = shown.filter(r => s16Norm(r.name).indexOf(q) >= 0 || s16Norm(r.label).indexOf(q) >= 0);
+    return { m: m, c: c, shown: shown };
+  }
+
+  async function renderAnalisa(){
+    const panel = document.getElementById('panel_s16'); if (!panel) return;
+    if (!document.getElementById('s16res')){
+      panel.innerHTML = '<div class="s16title">⚖️ CEK SELISIH — PENJUALAN vs OUTPUT GUDANG PER TANGGAL</div><div class="s16bar" id="s16bar"></div><div id="s16res"></div>';
+    }
+    const res = document.getElementById('s16res'), token = ++s16Token;
+    res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Memuat data…</div>';
+    try {
+      const pair = await Promise.all([s16SalesMonths(), s16LoadStock(s16.group)]);
+      if (token !== s16Token) return;
+      const salesMonths = pair[0]; s16.stock = pair[1];
+      const stockMonths = (s16.stock.data && s16.stock.data.months) ? Object.keys(s16.stock.data.months) : [];
+      s16.months = Array.from(new Set(salesMonths.concat(stockMonths))).sort().reverse();
+      if (!s16.month || s16.months.indexOf(s16.month) < 0){
+        s16.month = s16.months.find(k => salesMonths.indexOf(k) >= 0 && stockMonths.indexOf(k) >= 0) || s16.months[0] || '';
+      }
+      s16.sales = await s16LoadSales(s16.month);
+      if (token !== s16Token) return;
+    } catch(e){
+      console.warn('Analisa gagal dimuat', e);
+      res.innerHTML = '<div style="padding:24px;text-align:center;color:#b91c1c;font-size:13px">Gagal memuat data Analisa. Coba tekan tombol ↻.</div>';
+      s16RenderBar(); return;
+    }
+    s16RenderBar(); s16RenderResult();
+  }
+
+  function s16RenderBar(){
+    const bar = document.getElementById('s16bar'); if (!bar) return;
+    const st = s16.stock && s16.stock.data, m = (st && st.months) ? st.months[s16.month] : null;
+    const prods = m ? s16StockProducts(s16.group, m) : [];
+    const grp = Object.keys(S16_GROUPS).map(k => '<option value="' + k + '"' + (k === s16.group ? ' selected' : '') + '>' + S16_GROUPS[k].label + '</option>').join('');
+    const mon = s16.months.map(k => '<option value="' + k + '"' + (k === s16.month ? ' selected' : '') + '>' + s16Esc(monthLabel(k)) + '</option>').join('') || '<option value="">(belum ada data)</option>';
+    const prd = '<option value="">Semua produk</option>' + prods.map(p => '<option value="' + s16Esc(p.name) + '"' + (p.name === s16.prod ? ' selected' : '') + '>' + s16Esc(p.name) + '</option>').join('');
+    bar.innerHTML = '<label>Kelompok</label><select onchange="s16SetGroup(this.value)">' + grp + '</select>'
+      + '<label>Bulan</label><select onchange="s16SetMonth(this.value)">' + mon + '</select>'
+      + '<label>Produk</label><select onchange="s16Set(\'prod\',this.value)">' + prd + '</select>'
+      + '<label>Tampilkan</label><select onchange="s16Set(\'show\',this.value)"><option value="all"' + (s16.show === 'all' ? ' selected' : '') + '>Semua tanggal</option><option value="diff"' + (s16.show === 'diff' ? ' selected' : '') + '>Hanya yang selisih</option></select>'
+      + '<input type="search" placeholder="Cari produk..." value="' + s16Esc(s16.q) + '" oninput="s16Set(\'q\',this.value)">'
+      + '<button type="button" class="s16btn" onclick="renderAnalisa()" title="Muat ulang data penjualan &amp; stok dari cloud">↻</button>'
+      + '<button type="button" class="s16btn" onclick="s16Download()">⬇ Download</button>';
+  }
+
+  function s16RenderResult(){
+    const res = document.getElementById('s16res'); if (!res) return;
+    const g = S16_GROUPS[s16.group], v = s16View();
+    if (!s16.stock || !s16.stock.data){
+      res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Belum ada data stok <b>' + g.page + '</b>' + (s16.stock && s16.stock.err ? ' (cloud: ' + s16Esc(s16.stock.err) + ')' : '') + '. Buka halaman <b>' + g.page + '</b> lalu isi / upload kolom MSK &amp; KLR terlebih dulu.</div>';
+      return;
+    }
+    if (!v.m){
+      res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Data stok <b>' + g.page + '</b> untuk bulan <b>' + s16Esc(monthLabel(s16.month)) + '</b> belum ada. Isi dulu di halaman ' + g.page + '.</div>';
+      return;
+    }
+    const bad = v.c.rows.filter(r => r.sel !== 0), days = Array.from(new Set(bad.map(r => r.label)));
+    let head;
+    if (!v.c.rows.length) head = '<div class="s16note">Tidak ada transaksi maupun output gudang pada bulan ini.</div>';
+    else if (bad.length) head = '<div class="s16warn">⚠ ' + bad.length + ' baris selisih pada ' + days.length + ' tanggal: ' + s16Esc(days.slice(0, 12).join(', ')) + (days.length > 12 ? ' …' : '') + '</div>';
+    else head = '<div class="s16ok">✅ Semua cocok — tidak ada selisih pada bulan ini.</div>';
+    let body = '';
+    if (!v.shown.length) body = '<tr><td colspan="6" style="text-align:center;padding:28px;color:#64748b">Tidak ada baris untuk filter saat ini.</td></tr>';
+    else v.shown.forEach(r => {
+      body += '<tr' + (r.sel !== 0 ? ' class="bad"' : '') + '><td>' + s16Esc(r.label) + '</td><td>' + s16Esc(r.name) + '</td><td class="num">' + s16Nf(r.pen) + '</td><td class="num">' + s16Nf(r.out) + '</td><td class="sel">' + (r.sel > 0 ? '+' : '') + s16Nf(r.sel) + '</td><td>' + (r.sel === 0 ? '✅ ' : '⚠️ ') + s16Esc(r.ket) + '</td></tr>';
+    });
+    const table = '<div class="tablebox"><table class="s16table"><thead><tr><th>TANGGAL</th><th>PRODUK</th><th>PENJUALAN</th><th>OUTPUT GUDANG</th><th>SELISIH</th><th>KET</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+    let note = '<div class="s16note">Output Gudang = kolom <b>KLR</b> di halaman ' + g.page + ' (sumber: ' + s16Esc(s16.stock.from) + '). Penjualan = qty transaksi, tanpa faktur batal. Selisih = Penjualan − Output Gudang. Hanya produk yang ada di halaman ' + g.page + ' yang dibandingkan.</div>';
+    if (v.c.unmatched.length) note += '<div class="s16note" style="color:#b45309">⚠ Nama produk ini punya output gudang tetapi tidak ditemukan padanan namanya di data penjualan bulan ini: ' + s16Esc(v.c.unmatched.join(', ')) + '. Cek penulisan namanya.</div>';
+    res.innerHTML = head + table + note;
+  }
+
+  function s16Set(k, v){ s16[k] = v; s16RenderResult(); }
+  function s16SetGroup(v){ s16.group = v; s16.prod = ''; renderAnalisa(); }
+  async function s16SetMonth(v){
+    s16.month = v; s16.prod = '';
+    const t = ++s16Token;
+    try { const list = await s16LoadSales(v); if (t !== s16Token) return; s16.sales = list; } catch(e){ s16.sales = []; }
+    s16RenderBar(); s16RenderResult();
+  }
+  function s16Download(){
+    const v = s16View();
+    if (!v.m || !v.shown.length){ alert('Tidak ada data untuk diunduh.'); return; }
+    const aoa = [['TANGGAL', 'PRODUK', 'PENJUALAN', 'OUTPUT GUDANG', 'SELISIH', 'KET']].concat(v.shown.map(r => [r.label, r.name, r.pen, r.out, r.sel, r.ket]));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 15 }, { wch: 28 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Cek Selisih');
+    XLSX.writeFile(wb, 'Cek_Selisih_' + s16.group + '_' + s16.month + '.xlsx');
+  }
+  function openAnalisa(){
+    const res = document.getElementById('result');
+    if (res && res.style.display === 'none') res.style.display = 'block';
+    const btn = Array.from(document.querySelectorAll('#tabsMenu button')).find(b => b.textContent.indexOf('Analisa') >= 0);
+    show('s16', btn);
+    try { closeDd(); } catch(e){}
+    if (res && res.scrollIntoView) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function rekapGo(tab, page){ rekapPage[tab] = Math.max(0, page|0); viewCache[tab] = null; const btn = document.querySelector('.tabs button.active'); show(tab, btn); }
   function sliceRekap(tab, arr){ const page = rekapPage[tab] || 0, start = page * REKAP_PAGE_SIZE; return arr.slice(start, start + REKAP_PAGE_SIZE); }
 
