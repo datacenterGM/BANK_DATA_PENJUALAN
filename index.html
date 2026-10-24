@@ -561,6 +561,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
               <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
               <button onclick="show('s13',this)">📊 Grafik Penjualan &amp; Profit</button>
               <button onclick="show('s16',this)">⚖️ Analisa</button>
+              <button onclick="show('s17',this)">📦 Rekap Gudang &amp; Profit</button>
             </div>
           </div>
           <div class="quick-search-wrap"><input type="search" id="quickSearch" placeholder="🔍 Cari produk / customer / no faktur..." title="Cari berdasarkan nama produk, customer, kode customer, atau nomor faktur" oninput="onQuickSearchInput()"></div>
@@ -627,6 +628,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
         <div id="panel_s14" class="view" style="display:none"></div>
         <div id="panel_s15" class="view"></div>
         <div id="panel_s16" class="view" style="display:none"></div>
+        <div id="panel_s17" class="view" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1750,15 +1752,15 @@ self.onmessage = function(e){
   }
 
   let _activeTab = 's15';   /* tab awal saat dibuka */
-  const OWN_PRODUCT_TABS = ['s3','s14','s15','s16'];
-  const OWN_BAR_TABS = ['s14','s16'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
+  const OWN_PRODUCT_TABS = ['s3','s14','s15','s16','s17'];
+  const OWN_BAR_TABS = ['s14','s16','s17'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
     _activeTab = t;
     try {
       const own = OWN_PRODUCT_TABS.indexOf(t) >= 0;
       document.body.classList.toggle('hide-global-product', own);
       document.body.classList.toggle('hide-own-bar', OWN_BAR_TABS.indexOf(t) >= 0);
-      document.body.classList.toggle('is-analisa', t === 's16');
+      document.body.classList.toggle('is-analisa', t === 's16' || t === 's17');
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
         if (t === 's14') s14Cat = filters.product;
@@ -1783,6 +1785,7 @@ self.onmessage = function(e){
     const panel = document.getElementById('panel_' + t);
     if (panel) panel.style.display = 'block';
     if (t === 's16'){ renderAnalisa(); }
+    else if (t === 's17'){ renderS17(); }
     else if (t === 's12'){ renderRekapBulanan(); }
     else if (t === 's13'){ renderGrafikBulanan(); }
     else if (!viewCache[t] || viewCache[t].ver !== dataVersion){
@@ -2032,6 +2035,179 @@ self.onmessage = function(e){
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Cek Selisih');
     XLSX.writeFile(wb, 'Cek_Selisih_' + s16.group + '_' + s16.month + '.xlsx');
   }
+
+  /* ===== Tab Rekap Gudang & Profit =====
+     Per produk (yang ada di halaman Stok Minyak / Kecap & Sambal), per bulan:
+     Output Penjualan, Total Nominal Penjualan, HPP, Profit, Output Gudang (KLR), Stok Akhir (SFA), Harga Beli Terbaru, Nominal Stok Akhir.
+     Stok Akhir memakai rumus halaman stok: Saldo Awal + MSK - KLR (Kecap & Sambal: ikut koreksi/adj). */
+  let s17 = { group: 'FITRI', month: '', q: '', stock: null, sales: [], months: [], data: null };
+  let s17Token = 0;
+
+  function s17Calc(groupKey, m, month){
+    if (!m) return [];
+    const pr = month.split('-').map(Number), nd = new Date(pr[0], pr[1], 0).getDate(), out = [], sd = m.saldo || [];
+    if (groupKey === 'FITRI'){
+      s16StockProducts('FITRI', m).forEach((p, i) => {
+        let run = Number(sd[i]) || 0, o = 0;
+        for (let d = 1; d <= nd; d++){
+          const r = (m.days && m.days[d]) || [], b = Number(r[i * 2]) || 0, c = Number(r[i * 2 + 1]) || 0;
+          run += b - c; o += c;
+        }
+        out.push({ name: p.name, out: o, end: run });
+      });
+      return out;
+    }
+    let off = 0;
+    (m.prods || []).forEach((p, i) => {
+      const cols = p.c || ['msk', 'klr'];
+      let run = Number(sd[i]) || 0, o = 0;
+      for (let d = 1; d <= nd; d++){
+        const r = (m.days && m.days[d]) || [], a = (m.adj && m.adj[d]) || {};
+        cols.forEach((_, j) => { const v = Number(r[off + j]) || 0; if (j === 0) run += v; else { run -= v; o += v; } });
+        if (a[i] != null) run = Number(a[i]) || 0;
+      }
+      off += cols.length;
+      out.push({ name: p.n, out: o, end: run });
+    });
+    return out;
+  }
+
+  /* Agregat penjualan per nama produk (sudah dinormalkan) untuk bulan tertentu */
+  function s17Agg(list, month, canon){
+    const agg = {};
+    list.forEach(r => {
+      const nm = canon(r.produk != null ? r.produk : r.Produk); if (!nm) return;
+      let ts = r._ts;
+      if (ts == null || isNaN(ts)) { const d = toDate(r.tanggal != null ? r.tanggal : r.Tanggal); ts = d ? d.getTime() : 0; }
+      const dk = dayKeyOfTs(ts); if (!dk || dk.slice(0, 7) !== month) return;
+      const q = N(r.jumlah != null ? r.jumlah : r.Jumlah), t = N(r.total != null ? r.total : r.Total), hb = N(r.hargaBeli != null ? r.hargaBeli : r['Harga Beli']);
+      const a = (agg[nm] = agg[nm] || { qty: 0, nom: 0, hpp: 0, hb: 0, hbTs: -1 });
+      a.qty += q; a.nom += t; a.hpp += q * hb;
+      if (hb > 0 && ts >= a.hbTs) { a.hbTs = ts; a.hb = hb; }
+    });
+    return agg;
+  }
+
+  async function s17Build(){
+    const st = s17.stock && s17.stock.data, m = (st && st.months) ? st.months[s17.month] : null;
+    if (!m) return null;
+    const map = s16NameMap(), canon = x => { const n = s16Norm(x); return map[n] || n; };
+    const stockRows = s17Calc(s17.group, m, s17.month), agg = s17Agg(s17.sales, s17.month, canon);
+    const rowsOut = stockRows.map(sr => {
+      const a = agg[canon(sr.name)] || { qty: 0, nom: 0, hpp: 0, hb: 0 };
+      return { name: sr.name, qty: a.qty, nom: a.nom, hpp: a.hpp, profit: a.nom - a.hpp, out: sr.out, end: sr.end, hb: a.hb, hbFrom: '' };
+    });
+    /* produk tanpa penjualan bulan ini → cari harga beli terbaru dari bulan sebelumnya */
+    const need = () => rowsOut.filter(r => !(r.hb > 0));
+    if (need().length){
+      const older = s17.months.filter(k => k < s17.month);
+      for (const mk of older){
+        if (!need().length) break;
+        let list = []; try { list = await s16LoadSales(mk); } catch(e){ continue; }
+        if (!list.length) continue;
+        const ag = s17Agg(list, mk, canon);
+        need().forEach(r => { const a = ag[canon(r.name)]; if (a && a.hb > 0){ r.hb = a.hb; r.hbFrom = mk; } });
+      }
+    }
+    rowsOut.forEach(r => { r.nomStok = r.end * (r.hb || 0); });
+    return rowsOut;
+  }
+
+  async function renderS17(){
+    const panel = document.getElementById('panel_s17'); if (!panel) return;
+    if (!document.getElementById('s17res')){
+      panel.innerHTML = '<div class="s16title">📦 REKAP GUDANG &amp; PROFIT PER PRODUK</div><div class="s16bar" id="s17bar"></div><div id="s17res"></div>';
+    }
+    const res = document.getElementById('s17res'), token = ++s17Token;
+    res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Memuat data…</div>';
+    try {
+      const pair = await Promise.all([s16SalesMonths(), s16LoadStock(s17.group)]);
+      if (token !== s17Token) return;
+      const salesMonths = pair[0]; s17.stock = pair[1];
+      const stockMonths = (s17.stock.data && s17.stock.data.months) ? Object.keys(s17.stock.data.months) : [];
+      s17.months = Array.from(new Set(salesMonths.concat(stockMonths))).sort().reverse();
+      if (!s17.month || s17.months.indexOf(s17.month) < 0){
+        s17.month = s17.months.find(k => salesMonths.indexOf(k) >= 0 && stockMonths.indexOf(k) >= 0) || s17.months[0] || '';
+      }
+      s17.sales = await s16LoadSales(s17.month);
+      if (token !== s17Token) return;
+      s17.data = await s17Build();
+      if (token !== s17Token) return;
+    } catch(e){
+      console.warn('Rekap Gudang gagal dimuat', e);
+      res.innerHTML = '<div style="padding:24px;text-align:center;color:#b91c1c;font-size:13px">Gagal memuat data. Coba tekan tombol ↻.</div>';
+      s17RenderBar(); return;
+    }
+    s17RenderBar(); s17RenderResult();
+  }
+
+  function s17RenderBar(){
+    const bar = document.getElementById('s17bar'); if (!bar) return;
+    const grp = Object.keys(S16_GROUPS).map(k => '<option value="' + k + '"' + (k === s17.group ? ' selected' : '') + '>' + S16_GROUPS[k].label + '</option>').join('');
+    const mon = s17.months.map(k => '<option value="' + k + '"' + (k === s17.month ? ' selected' : '') + '>' + s16Esc(monthLabel(k)) + '</option>').join('') || '<option value="">(belum ada data)</option>';
+    bar.innerHTML = '<label>Kelompok</label><select onchange="s17SetGroup(this.value)">' + grp + '</select>'
+      + '<label>Bulan</label><select onchange="s17SetMonth(this.value)">' + mon + '</select>'
+      + '<input type="search" placeholder="Cari produk..." value="' + s16Esc(s17.q) + '" oninput="s17SetQ(this.value)">'
+      + '<button type="button" class="s16btn" onclick="renderS17()" title="Muat ulang data penjualan &amp; stok dari cloud">↻</button>'
+      + '<button type="button" class="s16btn" onclick="s17Download()">⬇ Download</button>';
+  }
+
+  function s17Shown(){
+    const q = s16Norm(s17.q);
+    return (s17.data || []).filter(r => !q || s16Norm(r.name).indexOf(q) >= 0);
+  }
+  function s17Tot(list){
+    const t = { qty: 0, nom: 0, hpp: 0, profit: 0, out: 0, end: 0, nomStok: 0 };
+    list.forEach(r => { t.qty += r.qty; t.nom += r.nom; t.hpp += r.hpp; t.profit += r.profit; t.out += r.out; t.end += r.end; t.nomStok += r.nomStok; });
+    return t;
+  }
+
+  function s17RenderResult(){
+    const res = document.getElementById('s17res'); if (!res) return;
+    const g = S16_GROUPS[s17.group];
+    if (!s17.stock || !s17.stock.data){
+      res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Belum ada data stok <b>' + g.page + '</b>' + (s17.stock && s17.stock.err ? ' (cloud: ' + s16Esc(s17.stock.err) + ')' : '') + '. Buka halaman <b>' + g.page + '</b> lalu isi / upload data stok terlebih dulu.</div>';
+      return;
+    }
+    if (!s17.data){
+      res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Data stok <b>' + g.page + '</b> untuk bulan <b>' + s16Esc(monthLabel(s17.month)) + '</b> belum ada.</div>';
+      return;
+    }
+    const list = s17Shown(), T = s17Tot(list);
+    let body = '';
+    if (!list.length) body = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">Tidak ada produk untuk filter saat ini.</td></tr>';
+    list.forEach((r, i) => {
+      const hbTxt = r.hb > 0 ? rp(r.hb) + (r.hbFrom ? ' <sup title="Tidak ada penjualan bulan ini; harga beli dari ' + s16Esc(monthLabel(r.hbFrom)) + '">*</sup>' : '') : '-';
+      body += '<tr' + (r.end < 0 ? ' class="bad"' : '') + '><td>' + (i + 1) + '</td><td>' + s16Esc(r.name) + '</td>'
+        + '<td class="num">' + s16Nf(r.qty) + '</td><td class="num">' + rp(r.nom) + '</td><td class="num">' + rp(r.hpp) + '</td><td class="num">' + rp(r.profit) + '</td>'
+        + '<td class="num">' + s16Nf(r.out) + '</td><td class="num"><b>' + s16Nf(r.end) + '</b></td><td class="num">' + hbTxt + '</td><td class="num">' + rp(r.nomStok) + '</td></tr>';
+    });
+    const foot = '<tfoot><tr><td></td><td>TOTAL</td><td class="num">' + s16Nf(T.qty) + '</td><td class="num">' + rp(T.nom) + '</td><td class="num">' + rp(T.hpp) + '</td><td class="num">' + rp(T.profit) + '</td><td class="num">' + s16Nf(T.out) + '</td><td class="num">' + s16Nf(T.end) + '</td><td></td><td class="num">' + rp(T.nomStok) + '</td></tr></tfoot>';
+    const table = '<div class="tablebox"><table class="s16table" style="min-width:1000px"><thead><tr><th>NO</th><th>PRODUK</th><th>OUTPUT PENJUALAN</th><th>TOTAL NOMINAL PENJUALAN</th><th>HPP</th><th>PROFIT PENJUALAN</th><th>OUTPUT GUDANG</th><th>STOK AKHIR GUDANG</th><th>HARGA BELI TERBARU</th><th>NOMINAL STOK AKHIR</th></tr></thead><tbody>' + body + '</tbody>' + foot + '</table></div>';
+    const note = '<div class="s16note">Output Penjualan, Nominal, HPP &amp; Profit dari transaksi bulan ini (faktur batal tidak dihitung). Output Gudang = total <b>KLR</b> sebulan; Stok Akhir = <b>STOK SFA</b> hari terakhir bulan itu di halaman ' + g.page + ' (sumber: ' + s16Esc(s17.stock.from) + '). Harga Beli Terbaru = harga beli pada transaksi paling akhir; Nominal Stok Akhir = Stok Akhir × Harga Beli Terbaru. Baris merah = stok akhir minus. Total qty menjumlahkan satuan berbeda, jadi pakai sebagai gambaran saja.</div>';
+    res.innerHTML = table + note;
+  }
+
+  function s17SetQ(v){ s17.q = v; s17RenderResult(); }
+  function s17SetGroup(v){ s17.group = v; renderS17(); }
+  async function s17SetMonth(v){
+    s17.month = v;
+    const t = ++s17Token;
+    try { const list = await s16LoadSales(v); if (t !== s17Token) return; s17.sales = list; s17.data = await s17Build(); if (t !== s17Token) return; } catch(e){ s17.sales = []; s17.data = null; }
+    s17RenderBar(); s17RenderResult();
+  }
+  function s17Download(){
+    const list = s17Shown();
+    if (!list.length){ alert('Tidak ada data untuk diunduh.'); return; }
+    const T = s17Tot(list);
+    const aoa = [['PRODUK', 'OUTPUT PENJUALAN', 'TOTAL NOMINAL PENJUALAN', 'HPP', 'PROFIT PENJUALAN', 'OUTPUT GUDANG', 'STOK AKHIR GUDANG', 'HARGA BELI TERBARU', 'NOMINAL STOK AKHIR']]
+      .concat(list.map(r => [r.name, r.qty, Math.round(r.nom), Math.round(r.hpp), Math.round(r.profit), r.out, r.end, r.hb || 0, Math.round(r.nomStok)]))
+      .concat([['TOTAL', T.qty, Math.round(T.nom), Math.round(T.hpp), Math.round(T.profit), T.out, T.end, '', Math.round(T.nomStok)]]);
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 18 }, { wch: 15 }, { wch: 17 }, { wch: 19 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Rekap Gudang');
+    XLSX.writeFile(wb, 'Rekap_Gudang_Profit_' + s17.group + '_' + s17.month + '.xlsx');
+  }
+
   function openAnalisa(){
     const res = document.getElementById('result');
     if (res && res.style.display === 'none') res.style.display = 'block';
