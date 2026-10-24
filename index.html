@@ -1823,6 +1823,29 @@ self.onmessage = function(e){
   const s16Norm = x => String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
   const s16Nf = n => Number(n || 0).toLocaleString('id-ID');
 
+  /* Pemetaan nama produk penjualan → nama di halaman stok. Dipakai bersama peta "manual =" milik aplikasi (cekRupaNamaProdukMap_v1);
+     peta aplikasi menimpa daftar bawaan ini. Nama stok yang beda urutan kata juga disamakan di sini. */
+  const S16_ALIAS = {
+    'KECAP BOTOL NAS 130ML': 'KECAP MEJA BOTOL 130 ML', 'KECAP CG ASIN BESAR 625ML': 'KECAP CG ASIN BESAR 625ML',
+    'KECAP GUNA 520 REFF': 'KECAP GUNA 520 REF', 'KECAP GUNA JRG': 'KECAP GUNA JRG', 'KECAP JERIGEN 6KG': 'KECAP JERIGEN 6 KG',
+    'KECAP NAS REFF 520ML': 'KECAP REF 520 ML', 'KECAP REF 300ML': 'KECAP REF 300 ML',
+    'SAMBAL BOTOL MEJA 130ML': 'SAMBAL BOTOL MEJA 140 ML', 'SAMBAL CABE 500GR': 'SAMBAL CABE 500 GR',
+    'SAMBAL REFFIL 600ML': 'CABE GNG 600 REF', 'SAMBAL STICK 9 GR': 'SAMBAL STIK 9 GR',
+    'SAMBAL MEJA BOTOL 140 ML': 'SAMBAL BOTOL MEJA 140 ML'
+  };
+  function s16NameMap(){
+    const out = {};
+    Object.keys(S16_ALIAS).forEach(k => { out[s16Norm(k)] = s16Norm(S16_ALIAS[k]); });
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem('cekRupaNamaProdukMap_v1') || 'null'); } catch(e){}
+    if (raw && typeof raw === 'object') Object.keys(raw).forEach(k => {
+      let v = raw[k];
+      if (v && typeof v === 'object') { const f = ['nama', 'name', 'to', 'target', 'value', 'manual', 'produk'].find(x => typeof v[x] === 'string'); v = f ? v[f] : null; }
+      if (typeof v === 'string' && v.trim()) out[s16Norm(k)] = s16Norm(v);
+    });
+    return out;
+  }
+
   /* Daftar produk di data stok + posisi kolom "keluar" pada baris harian */
   function s16StockProducts(groupKey, m){
     if (!m) return [];
@@ -1840,10 +1863,11 @@ self.onmessage = function(e){
   }
 
   /* Hitung baris perbandingan. salesRows = transaksi 1 bulan, m = data stok bulan itu */
-  function s16Compute(salesRows, m, groupKey, month){
+  function s16Compute(salesRows, m, groupKey, month, nameMap){
+    const map = nameMap || s16NameMap(), canon = x => { const n = s16Norm(x); return map[n] || n; };
     const prods = s16StockProducts(groupKey, m), sales = {}, det = {}, salesNames = new Set();
     salesRows.forEach(r => {
-      const nm = s16Norm(r.produk != null ? r.produk : r.Produk); if (!nm) return;
+      const nm = canon(r.produk != null ? r.produk : r.Produk); if (!nm) return;
       let ts = r._ts;
       if (ts == null || isNaN(ts)) { const d = toDate(r.tanggal != null ? r.tanggal : r.Tanggal); ts = d ? d.getTime() : null; }
       const dk = dayKeyOfTs(ts); if (!dk || dk.slice(0, 7) !== month) return;
@@ -1859,14 +1883,14 @@ self.onmessage = function(e){
       prods.forEach((p, pi) => {
         const o = p.idx.reduce((s, i) => s + (Number(row[i]) || 0), 0);
         outTotal[pi] += o;
-        const pen = (sales[s16Norm(p.name)] || {})[d] || 0;
+        const pen = (sales[canon(p.name)] || {})[d] || 0;
         if (!pen && !o) return;
         const sel = pen - o;
-        out.push({ day: d, label: String(d).padStart(2, '0') + '-' + S16_BLN[mo - 1] + '-' + String(y).slice(2), name: p.name, pen: pen, out: o, sel: sel, det: (det[s16Norm(p.name)] || {})[d] || [],
+        out.push({ day: d, label: String(d).padStart(2, '0') + '-' + S16_BLN[mo - 1] + '-' + String(y).slice(2), name: p.name, pen: pen, out: o, sel: sel, det: (det[canon(p.name)] || {})[d] || [],
           ket: sel === 0 ? 'Cocok' : (sel > 0 ? 'Output gudang kurang ' + s16Nf(sel) : 'Output gudang lebih ' + s16Nf(-sel)) });
       });
     }
-    const unmatched = prods.filter((p, pi) => outTotal[pi] > 0 && !salesNames.has(s16Norm(p.name))).map(p => p.name);
+    const unmatched = prods.filter((p, pi) => outTotal[pi] > 0 && !salesNames.has(canon(p.name))).map(p => p.name);
     return { prods: prods, rows: out, unmatched: unmatched };
   }
 
