@@ -437,6 +437,18 @@ body.dark .s16ok{color:#86efac}
 .s16table{min-width:760px}
 .s16table td.sel{text-align:right;font-weight:700;color:#15803d}
 .s16table tr.bad td{background:var(--fk-minus-bg)}
+.s16table tr.clk{cursor:pointer}
+.s16table tr.clk:hover td{background:var(--hover-bg2)}
+#s16Overlay .gmodal-box{max-width:720px;width:100%;max-height:88vh;display:flex;flex-direction:column;padding:18px 20px 16px}
+#s16Overlay .s16mbody{overflow:auto;flex:1;min-height:0;margin:8px 0 4px}
+#s16Overlay table{width:100%;border-collapse:collapse;font-size:12px;min-width:0}
+#s16Overlay th{background:var(--th-bg);color:#fff;padding:6px 8px;text-align:left;position:sticky;top:0}
+#s16Overlay td{padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+#s16Overlay td.num,#s16Overlay th.num{text-align:right}
+#s16Overlay tfoot td{background:var(--tfoot-bg);font-weight:700}
+#s16Overlay .s16chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:12px}
+#s16Overlay .s16chips span{padding:3px 9px;border-radius:999px;background:var(--chip-bg);color:var(--chip-text);font-weight:700}
+#s16Overlay .s16chips span.red{background:var(--red-bg);color:var(--red-text)}
 .s16table tr.bad td.sel{color:#b91c1c}
 body.dark .s16table td.sel{color:#86efac}
 body.dark .s16table tr.bad td.sel{color:#fca5a5}
@@ -629,6 +641,15 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
       <button type="button" class="gmodal-ghost" onclick="closeFkBatalModal()">Tutup</button>
       <button type="button" class="fk-batal-btn" id="fkBatalBtn" onclick="confirmFkBatal()">Transaksi Batal</button>
     </div>
+  </div>
+</div>
+
+<div class="gmodal-overlay" id="s16Overlay" onclick="if(event.target===this) s16CloseDetail()">
+  <div class="gmodal-box">
+    <h3 id="s16mTitle">Detail Penjualan</h3>
+    <div class="gmodal-sub" id="s16mSub"></div>
+    <div class="s16mbody" id="s16mBody"></div>
+    <div class="gmodal-actions"><button type="button" class="gmodal-ghost" onclick="s16CloseDetail()">Tutup</button></div>
   </div>
 </div>
 
@@ -1820,7 +1841,7 @@ self.onmessage = function(e){
 
   /* Hitung baris perbandingan. salesRows = transaksi 1 bulan, m = data stok bulan itu */
   function s16Compute(salesRows, m, groupKey, month){
-    const prods = s16StockProducts(groupKey, m), sales = {}, salesNames = new Set();
+    const prods = s16StockProducts(groupKey, m), sales = {}, det = {}, salesNames = new Set();
     salesRows.forEach(r => {
       const nm = s16Norm(r.produk != null ? r.produk : r.Produk); if (!nm) return;
       let ts = r._ts;
@@ -1828,6 +1849,7 @@ self.onmessage = function(e){
       const dk = dayKeyOfTs(ts); if (!dk || dk.slice(0, 7) !== month) return;
       const day = +dk.slice(8, 10), q = N(r.jumlah != null ? r.jumlah : r.Jumlah);
       salesNames.add(nm);
+      const dd = (det[nm] = det[nm] || {}); (dd[day] = dd[day] || []).push(r);
       (sales[nm] = sales[nm] || {})[day] = ((sales[nm] || {})[day] || 0) + q;
     });
     const parts = month.split('-').map(Number), y = parts[0], mo = parts[1];
@@ -1840,7 +1862,7 @@ self.onmessage = function(e){
         const pen = (sales[s16Norm(p.name)] || {})[d] || 0;
         if (!pen && !o) return;
         const sel = pen - o;
-        out.push({ day: d, label: String(d).padStart(2, '0') + '-' + S16_BLN[mo - 1] + '-' + String(y).slice(2), name: p.name, pen: pen, out: o, sel: sel,
+        out.push({ day: d, label: String(d).padStart(2, '0') + '-' + S16_BLN[mo - 1] + '-' + String(y).slice(2), name: p.name, pen: pen, out: o, sel: sel, det: (det[s16Norm(p.name)] || {})[d] || [],
           ket: sel === 0 ? 'Cocok' : (sel > 0 ? 'Output gudang kurang ' + s16Nf(sel) : 'Output gudang lebih ' + s16Nf(-sel)) });
       });
     }
@@ -1929,6 +1951,7 @@ self.onmessage = function(e){
   function s16RenderResult(){
     const res = document.getElementById('s16res'); if (!res) return;
     const g = S16_GROUPS[s16.group], v = s16View();
+    s16.shown = v.shown || [];
     if (!s16.stock || !s16.stock.data){
       res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Belum ada data stok <b>' + g.page + '</b>' + (s16.stock && s16.stock.err ? ' (cloud: ' + s16Esc(s16.stock.err) + ')' : '') + '. Buka halaman <b>' + g.page + '</b> lalu isi / upload kolom MSK &amp; KLR terlebih dulu.</div>';
       return;
@@ -1944,8 +1967,8 @@ self.onmessage = function(e){
     else head = '<div class="s16ok">✅ Semua cocok — tidak ada selisih pada bulan ini.</div>';
     let body = '';
     if (!v.shown.length) body = '<tr><td colspan="6" style="text-align:center;padding:28px;color:#64748b">Tidak ada baris untuk filter saat ini.</td></tr>';
-    else v.shown.forEach(r => {
-      body += '<tr' + (r.sel !== 0 ? ' class="bad"' : '') + '><td>' + s16Esc(r.label) + '</td><td>' + s16Esc(r.name) + '</td><td class="num">' + s16Nf(r.pen) + '</td><td class="num">' + s16Nf(r.out) + '</td><td class="sel">' + (r.sel > 0 ? '+' : '') + s16Nf(r.sel) + '</td><td>' + (r.sel === 0 ? '✅ ' : '⚠️ ') + s16Esc(r.ket) + '</td></tr>';
+    else v.shown.forEach((r, i) => {
+      body += '<tr class="clk' + (r.sel !== 0 ? ' bad' : '') + '" onclick="s16Detail(' + i + ')" title="Klik untuk melihat detail penjualan"><td>' + s16Esc(r.label) + '</td><td>' + s16Esc(r.name) + '</td><td class="num">' + s16Nf(r.pen) + '</td><td class="num">' + s16Nf(r.out) + '</td><td class="sel">' + (r.sel > 0 ? '+' : '') + s16Nf(r.sel) + '</td><td>' + (r.sel === 0 ? '✅ ' : '⚠️ ') + s16Esc(r.ket) + '</td></tr>';
     });
     const table = '<div class="tablebox"><table class="s16table"><thead><tr><th>TANGGAL</th><th>PRODUK</th><th>PENJUALAN</th><th>OUTPUT GUDANG</th><th>SELISIH</th><th>KET</th></tr></thead><tbody>' + body + '</tbody></table></div>';
     let note = '<div class="s16note">Output Gudang = kolom <b>KLR</b> di halaman ' + g.page + ' (sumber: ' + s16Esc(s16.stock.from) + '). Penjualan = qty transaksi, tanpa faktur batal. Selisih = Penjualan − Output Gudang. Hanya produk yang ada di halaman ' + g.page + ' yang dibandingkan.</div>';
@@ -1960,6 +1983,22 @@ self.onmessage = function(e){
     const t = ++s16Token;
     try { const list = await s16LoadSales(v); if (t !== s16Token) return; s16.sales = list; } catch(e){ s16.sales = []; }
     s16RenderBar(); s16RenderResult();
+  }
+  function s16CloseDetail(){ const ov = document.getElementById('s16Overlay'); if (ov) ov.classList.remove('show'); }
+  function s16Detail(i){
+    const r = (s16.shown || [])[i], ov = document.getElementById('s16Overlay'); if (!r || !ov) return;
+    const list = (r.det || []).slice().sort((a, b) => String(a.faktur != null ? a.faktur : a['No. Faktur']).localeCompare(String(b.faktur != null ? b.faktur : b['No. Faktur'])));
+    document.getElementById('s16mTitle').innerHTML = '🧾 Detail Penjualan — ' + s16Esc(r.name);
+    document.getElementById('s16mSub').innerHTML = s16Esc(r.label) + '<div class="s16chips" style="margin-top:6px"><span>Penjualan ' + s16Nf(r.pen) + '</span><span>Output Gudang ' + s16Nf(r.out) + '</span><span' + (r.sel !== 0 ? ' class="red"' : '') + '>Selisih ' + (r.sel > 0 ? '+' : '') + s16Nf(r.sel) + (r.sel !== 0 ? ' — ' + s16Esc(r.ket) : ' — Cocok') + '</span></div>';
+    let body = '', tot = 0;
+    list.forEach((x, n) => {
+      const q = N(x.jumlah != null ? x.jumlah : x.Jumlah); tot += q;
+      body += '<tr><td>' + (n + 1) + '</td><td>' + s16Esc(x.faktur != null ? x.faktur : x['No. Faktur']) + '</td><td>' + s16Esc(x.customer != null ? x.customer : x.Customer) + '</td><td>' + s16Esc(x.sales != null ? x.sales : x.Sales) + '</td><td>' + s16Esc(x.pembayaran != null ? x.pembayaran : x.Pembayaran) + '</td><td class="num">' + s16Nf(q) + (x.satuan ? ' <small>' + s16Esc(x.satuan) + '</small>' : '') + '</td></tr>';
+    });
+    document.getElementById('s16mBody').innerHTML = list.length
+      ? '<table><thead><tr><th>#</th><th>No. Faktur</th><th>Customer</th><th>Sales</th><th>Bayar</th><th class="num">Qty</th></tr></thead><tbody>' + body + '</tbody><tfoot><tr><td colspan="5">Total Penjualan</td><td class="num">' + s16Nf(tot) + '</td></tr></tfoot></table>'
+      : '<div style="padding:22px;text-align:center;color:#64748b;font-size:13px">Tidak ada transaksi penjualan produk ini pada tanggal tersebut (Output Gudang ' + s16Nf(r.out) + ').</div>';
+    ov.classList.add('show');
   }
   function s16Download(){
     const v = s16View();
@@ -2860,6 +2899,7 @@ self.onmessage = function(e){
   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape'){
       const ov = document.getElementById('fkBatalOverlay'); if (ov && ov.classList.contains('show')) closeFkBatalModal();
+      const sv = document.getElementById('s16Overlay'); if (sv && sv.classList.contains('show')) s16CloseDetail();
       const ab = document.getElementById('autoBatalOverlay'); if (ab && ab.classList.contains('show')) closeAutoBatalModal();
     }
   });
