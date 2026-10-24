@@ -550,7 +550,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
       <div class="toolbar-row">
         <div class="toolbar-left">
           <div class="tabs-wrap" id="tabsWrap">
-            <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Ringkasan</span><span class="chev">▼</span></button>
+            <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Data Tab</span><span class="chev">▼</span></button>
             <div class="tabs tabs-collapsible" id="tabsMenu">
               <button onclick="show('s6',this)">Faktur</button>
               <button class="active" onclick="show('s15',this)">Ringkasan</button>
@@ -1774,7 +1774,7 @@ self.onmessage = function(e){
     if (b) b.classList.add('active');
     const lbl = document.getElementById('tabsToggleLabel');
     const act = document.querySelector('.tabs button.active') || b;
-    if (lbl && act) lbl.textContent = '📑 ' + act.textContent.trim();
+    if (lbl) { lbl.textContent = '📑 Data Tab'; if (act) lbl.parentNode.title = 'Tab aktif: ' + act.textContent.trim(); }
     closeTabsMenu();
     const fmt = document.getElementById('fakturModeToggle');
     if (fmt) {
