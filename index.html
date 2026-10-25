@@ -13,8 +13,8 @@
 <link rel="icon" href="./icons/pwa-32.png?v=2" type="image/png" sizes="32x32">
 <link rel="icon" href="./icons/pwa-192.png?v=2" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="./icons/pwa-apple-180.png?v=2">
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <style>
@@ -794,6 +794,10 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
   } catch(e){ console.warn('Supabase init gagal', e); sbClient = null; }
 
   /* Penanda "ada perubahan lokal yang belum terkirim ke cloud" (tahan tutup browser) */
+  const SYNC_STAMP_KEY = 'penjualanCloudStamp_v1';   /* updated_at cloud terakhir yang SUDAH tersalin ke perangkat ini */
+  function getSyncStamp(){ try { return localStorage.getItem(SYNC_STAMP_KEY) || ''; } catch(e){ return ''; } }
+  function setSyncStamp(v){ try { if (v) localStorage.setItem(SYNC_STAMP_KEY, String(v)); else localStorage.removeItem(SYNC_STAMP_KEY); } catch(e){} }
+  const sameStamp = (a, b) => { if (!a || !b) return false; const x = new Date(a).getTime(), y = new Date(b).getTime(); return !isNaN(x) && x === y; };
   const DIRTY_KEY = 'penjualanPendingPush_v1';
   function isDirty(){ try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch(e){ return false; } }
   function setDirty(v){ try { if (v) localStorage.setItem(DIRTY_KEY, '1'); else localStorage.removeItem(DIRTY_KEY); } catch(e){} }
@@ -815,7 +819,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
     lastPushedAt = new Date(payload.updated_at).getTime();
     const result = await sbClient.from('app_sync').upsert(payload, { onConflict: 'id' });
     if (result.error) { console.error('pushToCloud gagal:', result.error); throw new Error(result.error.message || 'Cloud menolak data.'); }
-    setDirty(false);
+    setDirty(false); setSyncStamp(payload.updated_at);
     setCloudStatus('Upload berhasil ke cloud • ' + new Date().toLocaleTimeString('id-ID'));
     return result.data;
   }
@@ -834,17 +838,29 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
   async function pullFromCloud(opts){
     opts = opts || {};
     if (!sbClient || !useIDB) { await restoreFromDB(); return; }
+    /* opts.shown = data lokal sudah tampil di layar → tidak perlu render ulang bila data tidak berubah */
     if (isDirty()){
       let sent = false;
       try { await pushToCloud(); sent = !isDirty(); } catch(e){ console.warn('Kirim perubahan tertunda gagal', e); }
       if (!sent){
         setCloudStatus('Perubahan lokal belum terkirim — data cloud tidak menimpa. Coba lagi saat online.');
-        await restoreFromDB(); return;
+        if (!opts.shown) await restoreFromDB(); return;
       }
       if (!opts.silent) setStatus('Perubahan offline berhasil dikirim ke cloud.');
-      await restoreFromDB(); return;
+      if (!opts.shown) await restoreFromDB(); return;
     }
+    let changed = false;
     try {
+      /* Cek ringan dulu (hanya updated_at): bila cloud tidak berubah sejak sinkron terakhir, tidak perlu unduh ulang seluruh data */
+      let remoteStamp = '';
+      try {
+        const h = await sbClient.from('app_sync').select('updated_at').eq('id', SYNC_ROW_ID).maybeSingle();
+        if (!h.error && h.data && h.data.updated_at) remoteStamp = h.data.updated_at;
+      } catch(e){}
+      if (remoteStamp && sameStamp(remoteStamp, getSyncStamp()) && (await db.tx.count()) > 0){
+        setCloudStatus('Online • data sudah terbaru (' + new Date().toLocaleTimeString('id-ID') + ')');
+        return;      /* blok finally di bawah yang menggambar ulang bila perlu (hanya bila data lokal belum tampil) */
+      }
       const { data, error } = await sbClient.from('app_sync').select('data,updated_at').eq('id', SYNC_ROW_ID).maybeSingle();
       if (error) throw error;
       if (data && data.data){
@@ -854,13 +870,14 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
           await db.tx.clear(); if (snap.tx && snap.tx.length) await db.tx.bulkPut(snap.tx);
           await db.meta.clear(); if (snap.meta && snap.meta.length) await db.meta.bulkPut(snap.meta);
           if (snap.namaMap && typeof snap.namaMap === 'object') { try { localStorage.setItem('cekRupaNamaProdukMap_v1', JSON.stringify(snap.namaMap)); } catch(e){} }
+          setSyncStamp(data.updated_at); changed = true;
           setCloudStatus('Sinkron dari cloud • ' + new Date().toLocaleTimeString('id-ID'));
         } finally { isSyncingFromCloud = false; }
       } else {
         const localCount = await db.tx.count(); if (localCount) await pushToCloud();
       }
     } catch(e){ console.warn('pullFromCloud gagal', e); setCloudStatus('Gagal terhubung ke cloud (mode lokal)'); }
-    finally { await restoreFromDB(); if (!opts.silent) setStatus('Data tersinkron dari cloud.'); }
+    finally { if (changed || !opts.shown) await restoreFromDB(); if (!opts.silent) setStatus('Data tersinkron dari cloud.'); }
   }
   function subscribeRealtime(){
     if (!sbClient || realtimeReady) return;
@@ -3499,8 +3516,15 @@ self.onmessage = function(e){
   (async function init(){
     initTheme();
     await initDB();
-    if (sbClient){ await pullFromCloud({ silent: true }); subscribeRealtime(); }
-    else { await restoreFromDB(); }
+    /* Data lokal (IndexedDB) langsung ditampilkan; sinkron ke cloud berjalan di belakang layar dan hanya me-refresh bila ada yang berubah */
+    let hadLocal = false;
+    try { hadLocal = !!(useIDB && db && (await db.tx.count()) > 0); } catch(e){}
+    if (hadLocal) await restoreFromDB();
+    if (sbClient){
+      if (hadLocal){ setCloudStatus('Memeriksa data terbaru di cloud…'); pullFromCloud({ silent: true, shown: true }).catch(e => console.warn('pull latar gagal', e)).finally(() => subscribeRealtime()); }
+      else { await pullFromCloud({ silent: true }); subscribeRealtime(); }
+    }
+    else if (!hadLocal) { await restoreFromDB(); }
     try { await refreshAutoBatalBadgeOnly(); } catch(e){}
   })();
 
