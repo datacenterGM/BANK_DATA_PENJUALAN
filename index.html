@@ -884,6 +884,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
       db = new Dexie('rekapPenjualan_v1');
       db.version(1).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk', meta: '&key' });
       db.version(2).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk,kdCustomer,[bulan+sales],[bulan+pembayaran],[bulan+produk]', meta: '&key' });
+      db.version(3).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk,kdCustomer,faktur,jumlah,[bulan+sales],[bulan+pembayaran],[bulan+produk]', meta: '&key' });
       await db.open(); useIDB = true;
     } catch(e){ console.warn('IndexedDB unavailable; falling back to in-memory mode.', e); db = null; useIDB = false; }
   }
@@ -1141,7 +1142,7 @@ self.onmessage = function(e){
   async function onWorkerMsg(e){
     const m = e.data;
     if (m.type === 'start'){ _pendingChunks = []; setStatus('Memparsing Excel di worker... (0 / ' + m.total.toLocaleString('id-ID') + ' baris)'); }
-    else if (m.type === 'chunk'){ _pendingChunks = _pendingChunks.concat(m.chunk || []); setStatus('Memparsing Excel... (' + _pendingChunks.length.toLocaleString('id-ID') + ' baris)'); }
+    else if (m.type === 'chunk'){ const _ch = m.chunk || []; for (let i = 0; i < _ch.length; i++) _pendingChunks.push(_ch[i]); setStatus('Memparsing Excel... (' + _pendingChunks.length.toLocaleString('id-ID') + ' baris)'); }
     else if (m.type === 'error'){ _pendingChunks = []; _inFlightWorker = false; _pendingBuffer = null; setStatus('Gagal membaca Excel: ' + m.message); hideBusy(); }
     else if (m.type === 'done'){
       _pendingBuffer = null;
@@ -1158,13 +1159,8 @@ self.onmessage = function(e){
   }
   async function postParseDone(replacedDays, newCount){
     try { await populateFiltersDOM(); } catch(e){ console.warn('populateFiltersDOM gagal', e); }
-    let totalRows, sortData;
-    if (useIDB){ totalRows = await db.tx.count(); sortData = await fetchFiltered(); }
-    else { totalRows = rows.length; sortData = await fetchFiltered(); }
-    sortData.sort((a,b) => (b._ts || 0) - (a._ts || 0));
-    filteredRows = sortData;
-    try { const withBatal = await fetchFiltered({ includeBatal: true }); withBatal.sort((a,b) => (b._ts||0) - (a._ts||0)); filteredRowsInclBatal = withBatal; }
-    catch(e){ filteredRowsInclBatal = sortData.slice(); }
+    const totalRows = useIDB ? await db.tx.count() : rows.length;
+    { const both = await fetchFilteredBoth(); filteredRows = both.filtered; filteredRowsInclBatal = both.withBatal; }
     materialisedRows = filteredRows; invalidateBuildCache(); build(materialisedRows); updateSummary();
     document.getElementById('summary').style.display = 'block';
     document.getElementById('result').style.display   = 'block';
@@ -1258,6 +1254,14 @@ self.onmessage = function(e){
     });
     return await coll.toArray();
   }
+  /* Satu kali baca DB untuk dua daftar: "dengan batal" (dibaca dari DB) dan "tanpa batal" (disaring dari hasil yang sama).
+     Sebelumnya fetchFiltered() dipanggil dua kali = dua kali scan. Hasil identik karena fetchFiltered(includeBatal:false) juga hanya menyaring isExcludedRow. */
+  async function fetchFilteredBoth(){
+    const withBatal = await fetchFiltered({ includeBatal: true });
+    withBatal.sort((a,b) => (b._ts||0) - (a._ts||0));
+    const filtered = withBatal.filter(x => !isExcludedRow(x, false));
+    return { filtered, withBatal };
+  }
   function onProductQuickChange(){
     const q = document.getElementById('filterProductQuick'), p = document.getElementById('filterProduct');
     if (q && p) p.value = q.value;
@@ -1284,12 +1288,9 @@ self.onmessage = function(e){
     };
     if (useIDB) { try { await db.meta.put({key:'filters', value:filters}); } catch(e){} }
     showBusy('Memfilter…');
-    const filtr = await fetchFiltered();
+    const both = await fetchFilteredBoth();
     if (_myToken !== _applyFiltersToken) return;
-    filtr.sort((a,b) => (b._ts||0) - (a._ts||0));
-    filteredRows = filtr;
-    try { const withBatal = await fetchFiltered({ includeBatal: true }); withBatal.sort((a,b) => (b._ts||0) - (a._ts||0)); filteredRowsInclBatal = withBatal; }
-    catch(e){ filteredRowsInclBatal = filtr.slice(); }
+    filteredRows = both.filtered; filteredRowsInclBatal = both.withBatal;
     materialisedRows = filteredRows; buildCached(materialisedRows); viewCache = {};
     updateSummary(); updateFilterUi();
     const activeBtn = document.querySelector('.tabs button.active') || document.querySelector('.tabs button');
@@ -1408,9 +1409,7 @@ self.onmessage = function(e){
   }
   async function refreshAfterDataChange(){
     if (useIDB) await populateFiltersDOM();
-    filteredRows = await fetchFiltered(); filteredRows.sort((a,b) => (b._ts||0) - (a._ts||0));
-    try { const withBatal = await fetchFiltered({ includeBatal: true }); withBatal.sort((a,b) => (b._ts||0) - (a._ts||0)); filteredRowsInclBatal = withBatal; }
-    catch(e){ filteredRowsInclBatal = filteredRows.slice(); }
+    { const both = await fetchFilteredBoth(); filteredRows = both.filtered; filteredRowsInclBatal = both.withBatal; }
     materialisedRows = filteredRows; invalidateBuildCache(); build(materialisedRows); updateSummary();
     if (!useIDB){
       const dm = document.getElementById('deleteMonth'); if (dm) dm.innerHTML = '<option value="">Pilih bulan...</option>' + [...new Set(rows.map(x => monthKey(x.Tanggal || x.tanggal)).filter(Boolean))].sort().reverse().map(m => '<option value="'+m+'">'+monthLabel(m)+'</option>').join('');
@@ -2974,7 +2973,10 @@ self.onmessage = function(e){
     const key = String(nf || '').trim(); if (!key) return [];
     const same = x => String(x['No. Faktur'] ?? x.faktur ?? '').trim() === key;
     let src;
-    if (useIDB && db){ try { src = await db.tx.filter(same).toArray(); } catch(e){ console.warn('collectRowsForFaktur', e); src = null; } }
+    if (useIDB && db){
+      try { src = await db.tx.where('faktur').equals(key).toArray(); } catch(e){ src = null; }                 /* lewat index faktur (cepat) */
+      if (!src || !src.length){ try { src = await db.tx.filter(same).toArray(); } catch(e){ console.warn('collectRowsForFaktur', e); src = null; } }   /* cadangan: scan penuh */
+    }
     if (!src) src = (rows || []).filter(same);
     src.sort((a,b) => (b._ts||0) - (a._ts||0));
     return src.map(r => (r.Produk !== undefined || r['No. Faktur'] !== undefined) ? r : materialiseOne(r));
@@ -3224,6 +3226,7 @@ self.onmessage = function(e){
     return [...groups.values()].sort((a,b) => { if (a.ts !== b.ts) return (b.ts||0) - (a.ts||0); return String(a.faktur).localeCompare(String(b.faktur)); });
   }
   const FAKTUR_CARD_LIMIT = 300;
+  const FAKTUR_CARD_MAX = 2000;   /* batas keras saat "Muat semua" agar browser tidak membeku */
   let fakturCardShowAll = false;
   function setFakturCardShowAll(v){
     fakturCardShowAll = !!v;
@@ -3234,7 +3237,8 @@ self.onmessage = function(e){
     const all = buildFakturGroups();
     if (!all.length) return '<div style="text-align:center;padding:36px;color:#64748b">Belum ada data faktur.</div>';
     const truncated = !fakturCardShowAll && all.length > FAKTUR_CARD_LIMIT;
-    const list = truncated ? all.slice(0, FAKTUR_CARD_LIMIT) : all;
+    const capped = fakturCardShowAll && all.length > FAKTUR_CARD_MAX;
+    const list = truncated ? all.slice(0, FAKTUR_CARD_LIMIT) : (capped ? all.slice(0, FAKTUR_CARD_MAX) : all);
     const cards = list.map(g => {
       const bayarU = String(g.bayar || '').toUpperCase();
       const badgeCls = bayarU.includes('CASH') ? 'cash' : (bayarU.includes('TEMPO') ? 'tempo' : '');
@@ -3247,9 +3251,9 @@ self.onmessage = function(e){
       return '<div class="faktur-card' + (g.isBatal || g.hasLineBatal ? ' fk-batal' : '') + '"><div class="fc-head"><div class="' + fkCls + '"' + fkAttr + '>' + fkEsc + batalBadge + '</div><div class="fc-head-right"><div class="fc-tgl">' + fmtTgl(g.tgl) + '</div>' + (g.bayar ? '<span class="fc-badge ' + badgeCls + '">' + String(g.bayar).replace(/</g,'&lt;') + '</span>' : '') + '</div></div><div class="fc-meta">' + (g.sales ? '<span>Sales <b>' + String(g.sales).replace(/</g,'&lt;') + '</b></span>' : '') + (g.customer ? '<span>Cust <b title="' + String(g.customer).replace(/"/g,'&quot;') + '">' + String(g.customer).replace(/</g,'&lt;') + '</b></span>' : '') + '</div><ul class="fc-items">' + items + '</ul><div class="fc-nums"><div><div class="fc-num-label">Nominal</div><div class="fc-num-val">' + rp(g.nominal) + '</div></div><div style="text-align:right"><div class="fc-num-label">Profit</div><div class="fc-num-val profit">' + rp(g.profit) + '</div></div></div></div>';
     }).join('');
     const nBatal = all.filter(g => g.isBatal).length;
-    const summary = '<div style="font-size:12px;color:#475569;margin:0 0 10px;font-weight:600">' + (all.length - nBatal).toLocaleString('id-ID') + ' faktur' + (nBatal ? ' (+' + nBatal.toLocaleString('id-ID') + ' batal)' : '') + ' · Qty ' + (R.qty||0).toLocaleString('id-ID') + ' · Nominal ' + rp(R.sales) + ' · Profit ' + rp(R.profit) + (truncated ? ' · Menampilkan ' + list.length.toLocaleString('id-ID') + ' kartu pertama' : '') + '</div>';
+    const summary = '<div style="font-size:12px;color:#475569;margin:0 0 10px;font-weight:600">' + (all.length - nBatal).toLocaleString('id-ID') + ' faktur' + (nBatal ? ' (+' + nBatal.toLocaleString('id-ID') + ' batal)' : '') + ' · Qty ' + (R.qty||0).toLocaleString('id-ID') + ' · Nominal ' + rp(R.sales) + ' · Profit ' + rp(R.profit) + ((truncated || capped) ? ' · Menampilkan ' + list.length.toLocaleString('id-ID') + ' kartu pertama' + (capped ? ' (batas maksimum — persempit filter bulan/sales/cari, atau pakai mode Tabel)' : '') : '') + '</div>';
     const more = truncated
-      ? '<div style="text-align:center;padding:14px 0"><button type="button" onclick="setFakturCardShowAll(true)" style="padding:8px 16px;background:#1f4e78;color:#fff;border:0;border-radius:7px;font-weight:700;cursor:pointer">Muat semua ' + all.length.toLocaleString('id-ID') + ' faktur (⚠ bisa lambat)</button></div>'
+      ? '<div style="text-align:center;padding:14px 0"><button type="button" onclick="setFakturCardShowAll(true)" style="padding:8px 16px;background:#1f4e78;color:#fff;border:0;border-radius:7px;font-weight:700;cursor:pointer">' + (all.length > FAKTUR_CARD_MAX ? 'Muat ' + FAKTUR_CARD_MAX.toLocaleString('id-ID') + ' faktur teratas dari ' + all.length.toLocaleString('id-ID') : 'Muat semua ' + all.length.toLocaleString('id-ID') + ' faktur (⚠ bisa lambat)') + '</button></div>'
       : (fakturCardShowAll && all.length > FAKTUR_CARD_LIMIT ? '<div style="text-align:center;padding:14px 0"><button type="button" onclick="setFakturCardShowAll(false)" style="padding:8px 16px;background:#e2e8f0;color:#334155;border:0;border-radius:7px;font-weight:700;cursor:pointer">Batasi ke ' + FAKTUR_CARD_LIMIT + ' kartu</button></div>' : '');
     return summary + '<div class="faktur-cards">' + cards + '</div>' + more;
   }
