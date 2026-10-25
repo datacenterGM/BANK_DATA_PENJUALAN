@@ -271,6 +271,10 @@ body.dark .tabs-toggle:hover{background:#475569}
 body.dark .tabs.tabs-collapsible button{background:#0f172a;color:#cbd5e1}
 .tabs.tabs-collapsible button:hover{background:var(--hover-bg)}
 .tabs.tabs-collapsible button.active{background:var(--chip-active-bg);color:var(--chip-active-text)}
+.tabs-sep{margin:6px 4px 2px;padding-top:6px;border-top:1px solid var(--border);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b}
+.tabs.tabs-collapsible a.tab-link{display:block;width:100%;box-sizing:border-box;text-align:left;padding:8px 12px;background:#f1f5f9;color:var(--chip-text);font-size:12px;border-radius:6px;font-weight:600;text-decoration:none;line-height:1.2}
+body.dark .tabs.tabs-collapsible a.tab-link{background:#0f172a;color:#cbd5e1}
+.tabs.tabs-collapsible a.tab-link:hover{background:var(--hover-bg)}
 .toolbar-left .tabs-wrap{margin-bottom:0}
 .toolbar-left .tabs-toggle{padding:6px 12px;font-size:11.5px}
 .tabs-wrap .tabs.tabs-collapsible{z-index:120}
@@ -460,9 +464,6 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
     <div class="header-left"><div class="header-title">Data Penjualan</div></div>
     <button type="button" id="installBtn" style="display:none;padding:3px 8px;border:1px solid rgba(255,255,255,.5);border-radius:5px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.1">⬇ Instal Aplikasi</button>
     <div style="display:flex;align-items:center;gap:10px">
-      <a class="hdr-pull-btn" href="./Stok-Minyak.html" style="text-decoration:none;display:inline-block" title="Buka Stok Minyak">🛢️ <span>Minyak</span></a>
-      <a class="hdr-pull-btn" href="./Stok-Kecap.html" style="text-decoration:none;display:inline-block" title="Buka Stok Kecap &amp; Sambal">🧴 <span>Kecap</span></a>
-      <button type="button" class="hdr-pull-btn" id="hdrAnalisaBtn" onclick="openAnalisa()" title="Analisa: cek selisih Penjualan vs Output Gudang per tanggal">⚖️ <span>Analisa</span></button>
       <button type="button" class="hdr-pull-btn" id="hdrPullBtn" onclick="backupPullCloud()" title="Ambil Data Terbaru dari Cloud">⬇️ <span>Data Terbaru</span></button>
       <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
       <div class="dd" id="menuDd">
@@ -562,6 +563,9 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
               <button onclick="show('s13',this)">📊 Grafik Penjualan &amp; Profit</button>
               <button onclick="show('s16',this)">⚖️ Analisa</button>
               <button onclick="show('s17',this)">📦 Rekap Gudang &amp; Profit</button>
+              <div class="tabs-sep">Halaman Stok</div>
+              <a class="tab-link" href="./Stok-Minyak.html" title="Buka Stok Minyak">🛢️ Stok Minyak</a>
+              <a class="tab-link" href="./Stok-Kecap.html" title="Buka Stok Kecap &amp; Sambal">🧴 Stok Kecap &amp; Sambal</a>
             </div>
           </div>
           <div class="quick-search-wrap"><input type="search" id="quickSearch" placeholder="🔍 Cari produk / customer / no faktur..." title="Cari berdasarkan nama produk, customer, kode customer, atau nomor faktur" oninput="onQuickSearchInput()"></div>
