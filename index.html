@@ -3301,24 +3301,37 @@ self.onmessage = function(e){
     const base = (rekapPage.s6 || 0) * REKAP_PAGE_SIZE;
     const head = ['NO','TANGGAL','NO. FAKTUR','SALES','PRODUK','QTY','SATUAN','HARGA JUAL','DISC','TOTAL','NOMINAL FAKTUR','PROFIT PER FAKTUR','PEMBAYARAN','CUSTOMER'];
     let body = '';
-    const shownFaktur = new Set();
+    /* Kolom milik faktur (NO, TANGGAL, NO. FAKTUR, SALES, NOMINAL, PROFIT, PEMBAYARAN, CUSTOMER) digabung (rowspan) per faktur;
+       hanya kolom produk (PRODUK s/d TOTAL) yang tampil per baris. NO = nomor urut faktur. Bila satu faktur terpotong di batas halaman,
+       bagian lanjutannya menampilkan sel gabungan lagi untuk baris yang tersisa di halaman itu. */
+    let gno = 0; for (let j = 0; j < base && j < allRows.length; j++) if (allRows[j].isFirst) gno++;
     pageRows.forEach((row, i) => {
-      const x = row.x, no = base + i + 1, tgl = fmtTgl(x.Tanggal);
+      const x = row.x;
+      const startGroup = (i === 0) || pageRows[i - 1].faktur !== row.faktur;
+      if (row.isFirst) gno++;
       const produk = x.Produk || '', qty = N(x.Jumlah), satuan = x.Satuan || '', hj = rp(x['Harga Jual']), disc = rp(x.Discount), total = rp(x.Total);
-      const sales = x.Sales || row.sales || '', bayar = x.Pembayaran || row.bayar || '', cust = x.Customer || row.customer || '';
-      const showAgg = row.isFirst || !shownFaktur.has(row.faktur);
-      shownFaktur.add(row.faktur);
-      const nomCell = showAgg ? ('<td class="num" style="font-weight:700">' + rp(row.nominal) + '</td>') : '<td class="num"></td>';
-      const prCell  = showAgg ? ('<td class="num" style="font-weight:700">' + rp(row.profit) + '</td>') : '<td class="num"></td>';
-      const fkClickable = row.hasMinus || row.isBatal || row.hasLineBatal;
-      let fkCell = String(row.faktur || '');
-      if (fkClickable) {
-        const cls = 'fk-link' + ((row.hasMinus || row.hasLineBatal) && !row.isBatal ? ' has-minus' : '') + (row.isBatal ? ' batal' : '');
-        const badge = row.isBatal ? '<span class="fk-badge-batal">BATAL</span>' : (row.hasLineBatal ? '<span class="fk-badge-batal">ITEM BATAL</span>' : '');
-        fkCell = '<span class="' + cls + '" onclick="openFkBatalModal(\'' + String(row.faktur).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Klik untuk detail / transaksi batal">' + fkCell.replace(/</g,'&lt;') + '</span>' + badge;
-      } else fkCell = fkCell.replace(/</g,'&lt;');
-      const rowStyle = row.isBatal ? ' style="opacity:.7;background:#fef2f2"' : (row.lineBatal ? ' style="opacity:.65;background:#f1f5f9;text-decoration:line-through"' : (qty < 0 ? ' style="background:#fef2f2"' : ''));
-      body += '<tr' + rowStyle + '><td class="num">' + no + '</td><td>' + tgl + '</td><td>' + fkCell + '</td><td>' + sales + '</td><td title="' + String(produk).replace(/"/g,'&quot;') + '">' + produk + '</td><td class="num">' + qty + '</td><td>' + satuan + '</td><td class="num">' + hj + '</td><td class="num">' + disc + '</td><td class="num">' + total + '</td>' + nomCell + prCell + '<td>' + bayar + '</td><td title="' + String(cust).replace(/"/g,'&quot;') + '">' + cust + '</td></tr>';
+      const lineStyle = row.isBatal ? 'opacity:.7;background:#fef2f2;' : (row.lineBatal ? 'opacity:.65;background:#f1f5f9;text-decoration:line-through;' : (qty < 0 ? 'background:#fef2f2;' : ''));
+      const ls = lineStyle ? ' style="' + lineStyle + '"' : '';
+      let cells = '';
+      if (startGroup){
+        let span = 1; while (i + span < pageRows.length && pageRows[i + span].faktur === row.faktur) span++;
+        const rs = span > 1 ? ' rowspan="' + span + '"' : '';
+        const tgl = fmtTgl(x.Tanggal), sales = x.Sales || row.sales || '', bayar = x.Pembayaran || row.bayar || '', cust = x.Customer || row.customer || '';
+        const fkClickable = row.hasMinus || row.isBatal || row.hasLineBatal;
+        let fkCell = String(row.faktur || '');
+        if (fkClickable) {
+          const cls = 'fk-link' + ((row.hasMinus || row.hasLineBatal) && !row.isBatal ? ' has-minus' : '') + (row.isBatal ? ' batal' : '');
+          const badge = row.isBatal ? '<span class="fk-badge-batal">BATAL</span>' : (row.hasLineBatal ? '<span class="fk-badge-batal">ITEM BATAL</span>' : '');
+          fkCell = '<span class="' + cls + '" onclick="openFkBatalModal(\'' + String(row.faktur).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Klik untuk detail / transaksi batal">' + fkCell.replace(/</g,'&lt;') + '</span>' + badge;
+        } else fkCell = fkCell.replace(/</g,'&lt;');
+        const gs = ' style="vertical-align:top;' + (row.isBatal ? 'opacity:.7;background:#fef2f2;' : '') + '"';
+        cells += '<td class="num"' + rs + gs + '>' + gno + '</td><td' + rs + gs + '>' + tgl + '</td><td' + rs + gs + '>' + fkCell + '</td><td' + rs + gs + '>' + sales + '</td>';
+        cells += '<td title="' + String(produk).replace(/"/g,'&quot;') + '"' + ls + '>' + produk + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + satuan + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
+        cells += '<td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.nominal) + '</td><td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.profit) + '</td><td' + rs + gs + '>' + bayar + '</td><td title="' + String(cust).replace(/"/g,'&quot;') + '"' + rs + gs + '>' + cust + '</td>';
+      } else {
+        cells += '<td title="' + String(produk).replace(/"/g,'&quot;') + '"' + ls + '>' + produk + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + satuan + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
+      }
+      body += '<tr>' + cells + '</tr>';
     });
     const foot = '<tr><td class="num">TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + (R.qty || 0) + '</td><td></td><td></td><td></td><td class="num">' + rp(R.sales) + '</td><td class="num">' + rp(R.sales) + '</td><td class="num">' + rp(R.profit) + '</td><td></td><td></td></tr>';
     if (!totalLines) return '<div class="tablebox"><table><thead><tr>' + head.map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody><tr><td colspan="14" style="text-align:center;padding:28px;color:#64748b">Belum ada data.</td></tr></tbody></table></div>';
