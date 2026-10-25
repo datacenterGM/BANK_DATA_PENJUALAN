@@ -886,6 +886,8 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
       db.version(2).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk,kdCustomer,[bulan+sales],[bulan+pembayaran],[bulan+produk]', meta: '&key' });
       db.version(3).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk,kdCustomer,faktur,jumlah,[bulan+sales],[bulan+pembayaran],[bulan+produk]', meta: '&key' });
       await db.open(); useIDB = true;
+      /* Minta browser menjadikan penyimpanan ini "persisten" agar data IndexedDB tidak dibersihkan otomatis saat ruang menipis */
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => { if (!p) return navigator.storage.persist(); }).catch(() => {}); } catch(e){}
     } catch(e){ console.warn('IndexedDB unavailable; falling back to in-memory mode.', e); db = null; useIDB = false; }
   }
 
@@ -1755,6 +1757,7 @@ self.onmessage = function(e){
     finally { hideBusy(); }
   }
 
+  let _stashedProduct = '';   /* filter produk global yang disimpan saat masuk tab Ringkasan/Analisa/Rekap Gudang, dipulihkan saat kembali ke tab biasa */
   let _activeTab = 's15';   /* tab awal saat dibuka */
   const OWN_PRODUCT_TABS = ['s3','s14','s15','s16','s17'];
   const OWN_BAR_TABS = ['s14','s16','s17'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
@@ -1768,8 +1771,14 @@ self.onmessage = function(e){
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
         if (t === 's14') s14Cat = filters.product;
+        if (t !== 's3' && t !== 's14') _stashedProduct = filters.product;     /* s15/s16/s17 tidak punya Kategori global → simpan, jangan hilang diam-diam */
         const fp = document.getElementById('filterProduct'), fq = document.getElementById('filterProductQuick');
         if (fp) fp.value = ''; if (fq) fq.value = '';
+        setTimeout(applyFilters, 0);
+      } else if (!own && _stashedProduct && filters && !filters.product) {      /* kembali ke tab biasa → pulihkan pilihan produk tadi */
+        const fp = document.getElementById('filterProduct'), fq = document.getElementById('filterProductQuick');
+        if (fp) fp.value = _stashedProduct; if (fq) fq.value = _stashedProduct;
+        _stashedProduct = '';
         setTimeout(applyFilters, 0);
       }
       updateFilterUi();
@@ -3101,7 +3110,19 @@ self.onmessage = function(e){
 
   let _autoBatalCandidates = [];
   async function getAllTxRowsForAutoBatal(){
-    if (useIDB && db) { try { return await db.tx.toArray(); } catch(e){ return []; } }
+    if (useIDB && db) {
+      /* Jalur cepat (index): pasangan batal pasti punya baris qty negatif, jadi cukup ambil baris negatif
+         lalu seluruh baris dari faktur-faktur tersebut. Hasil deteksi sama dengan memindai semua baris. */
+      try {
+        const neg = await db.tx.where('jumlah').below(0).toArray();
+        if (!neg.length) return [];
+        const fk = [...new Set(neg.map(r => String(r.faktur ?? '').trim()).filter(Boolean))];
+        if (!fk.length) return [];
+        if (fk.length <= 400) return await db.tx.where('faktur').anyOf(fk).toArray();
+        /* terlalu banyak faktur bernilai negatif → satu kali baca penuh lebih efisien daripada ratusan lompatan index */
+      } catch(e){ console.warn('auto-batal: index tidak tersedia, pakai scan penuh', e); }
+      try { return await db.tx.toArray(); } catch(e){ return []; }
+    }
     return rows || [];
   }
   function computeAutoBatalCandidates(allRows){
@@ -3134,9 +3155,24 @@ self.onmessage = function(e){
     candidates.sort((a,b) => String(a.faktur).localeCompare(String(b.faktur)));
     return candidates;
   }
-  async function refreshAutoBatalBadgeOnly(){
+  /* Debounce: banyak perubahan beruntun (import, edit, batal...) hanya memicu SATU perhitungan badge, 800 ms setelah perubahan terakhir,
+     dan dijalankan saat browser senggang. Badge tetap selalu diperbarui (bukan hanya saat modal dibuka). */
+  let _autoBatalTimer = null, _autoBatalRunning = false, _autoBatalAgain = false;
+  async function _refreshAutoBatalBadgeNow(){
+    if (_autoBatalRunning){ _autoBatalAgain = true; return; }
+    _autoBatalRunning = true;
     try { const all = await getAllTxRowsForAutoBatal(); _autoBatalCandidates = computeAutoBatalCandidates(all); updateAutoBatalBadge(); }
     catch(e){ console.warn('refreshAutoBatalBadgeOnly gagal', e); }
+    finally { _autoBatalRunning = false; if (_autoBatalAgain){ _autoBatalAgain = false; refreshAutoBatalBadgeOnly(); } }
+  }
+  function refreshAutoBatalBadgeOnly(){
+    clearTimeout(_autoBatalTimer);
+    _autoBatalTimer = setTimeout(() => {
+      _autoBatalTimer = null;
+      if (window.requestIdleCallback) requestIdleCallback(() => { _refreshAutoBatalBadgeNow(); }, { timeout: 3000 });
+      else _refreshAutoBatalBadgeNow();
+    }, 800);
+    return Promise.resolve();
   }
   function updateAutoBatalBadge(){
     const el = document.getElementById('autoBatalBadge'); if (!el) return;
