@@ -60,6 +60,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .month-quick select{width:auto;min-width:138px;padding:5px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:11px;background:var(--input-bg);color:var(--input-text)}
 .month-quick .filter-btn{height:28px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:700;border-radius:6px;position:relative}
 .month-quick .filter-btn svg{width:13px;height:13px;flex:none}
+body.is-target #summary,body.is-target #filterBtn,body.is-target #filterPicker{display:none!important}
 body.hide-global-product .prod-global,body.hide-own-bar .month-global,body.hide-own-bar .sales-global{display:none!important}
 .filter-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:13px;color:var(--chip-text)}
 .filter-x{background:transparent;color:var(--muted);border:0;padding:2px 6px;font-size:13px;cursor:pointer;border-radius:5px}
@@ -150,7 +151,7 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 .s12bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:2px 0 10px;font-size:12.5px;color:var(--text)}
 /* ===== Tab Ringkasan ===== */
 .s15chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
-.s15top{margin:2px 0 12px}
+.s15top{margin:2px 0 12px;scroll-margin-top:10px}
 .s15chip{flex:1 1 84px;min-width:0;padding:7px 10px;border-radius:10px;background:var(--card);border:1px solid var(--input-border);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .s15chip small{display:flex;justify-content:space-between;gap:10px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
 .s15chip b{display:block;font-size:18px;color:#1f4e78;margin-top:2px}
@@ -185,6 +186,34 @@ body.dark .s15head h3{color:#93c5fd;border-left-color:#93c5fd}
 .s14bar label{white-space:nowrap}
 .s14bar select{padding:4px 6px}
 .s12bar select{padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg,#fff);color:var(--text)}
+
+
+/* ===== Sub-tab Ringkasan: Penjualan & Target Sales ===== */
+.s15sub{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;align-self:center}
+.s15subbtn{border:1px solid #1f4e78;background:var(--card);color:#1f4e78;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em;padding:7px 14px;cursor:pointer;text-transform:uppercase;white-space:nowrap}
+.s15subbtn:hover{background:#e8f0f8}
+.s15subbtn.active{background:#1f4e78;color:#fff}
+body.dark .s15subbtn{color:#93c5fd;border-color:#93c5fd}
+body.dark .s15subbtn:hover{background:#1e293b}
+body.dark .s15subbtn.active{background:#2f6da3;color:#fff;border-color:#2f6da3}
+.tsw{background:var(--card);border:1px solid var(--input-border);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.tsw-title{text-align:center;font-weight:700;font-size:14px;color:#1f4e78;letter-spacing:.04em;margin:0 0 10px}
+body.dark .tsw-title{color:#93c5fd}
+.tsw-meta{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:8px;color:var(--text)}
+.tsw-scroll{overflow:auto}
+.tsw-t{width:100%;border-collapse:collapse;font-size:12px;min-width:860px}
+.tsw-t th{background:#1f4e78;color:#fff;border:1px solid #0f2b44;padding:5px 8px;font-size:11px;text-align:center;white-space:nowrap}
+.tsw-t td{border:1px solid var(--input-border);padding:4px 8px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text)}
+.tsw-t td.l{text-align:left}.tsw-t td.c{text-align:center}
+.tsw-t tr.tot td{font-weight:700;background:var(--tfoot-bg)}
+.tsw-t td.ok{color:#15803d;font-weight:700}.tsw-t td.no{color:#b91c1c;font-weight:700}
+.tsw-note{margin:12px 0;font-size:12.5px;color:var(--text);display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tsw-note input{width:90px;padding:3px 6px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg,#fff);color:var(--text);text-align:right}
+.tsw-sub{font-weight:700;font-size:12.5px;margin:16px 0 4px;color:var(--text)}
+.tsw-sel{padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:13px;font-weight:700;background:var(--input-bg,#fff);color:var(--text)}
+.tsw-item{display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px;color:var(--text)}
+.tsw-item:hover{background:var(--tfoot-bg)}
+.tsw-empty{padding:18px;text-align:center;color:var(--muted);font-size:12.5px}
 
 /* ===== KPI ===== */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
@@ -554,7 +583,8 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
             <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Data Tab</span><span class="chev">▼</span></button>
             <div class="tabs tabs-collapsible" id="tabsMenu">
               <button onclick="show('s6',this)">Faktur</button>
-              <button class="active" onclick="show('s15',this)">Ringkasan</button>
+              <button class="active" onclick="s15OpenSub('ringkas',this)">Ringkasan</button>
+              <button onclick="s15OpenSub('target',this)">🎯 Penjualan &amp; Target Sales</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
               <button onclick="show('s9',this)">Data Harga</button>
@@ -1757,6 +1787,7 @@ self.onmessage = function(e){
     return null;
   }
   async function saveExcelTab(tab){
+    if (tab === 's15' && s15Sub === 'target'){ closeActionMenu(); return tswExportExcel(); }
     if (tab === 's13') tab = 's12';
     closeActionMenu();
     if (!R || !R.s1) return alert('Belum ada data untuk disimpan.');
@@ -1785,6 +1816,7 @@ self.onmessage = function(e){
       document.body.classList.toggle('hide-global-product', own);
       document.body.classList.toggle('hide-own-bar', OWN_BAR_TABS.indexOf(t) >= 0);
       document.body.classList.toggle('is-analisa', t === 's16' || t === 's17');
+      document.body.classList.toggle('is-target', t === 's15' && s15Sub === 'target');
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
         if (t === 's14') s14Cat = filters.product;
@@ -1826,9 +1858,9 @@ self.onmessage = function(e){
         const html = renderTab(tab);
         viewCache[tab] = { ver: ver, html: html };
         const p = document.getElementById('panel_' + tab);
-        if (p && p.style.display !== 'none') p.innerHTML = html;
+        if (p && p.style.display !== 'none') { p.innerHTML = html; if (tab === 's15' && s15Sub === 'target') tswPaint(); }
       });
-    } else if (panel && viewCache[t]) { panel.innerHTML = viewCache[t].html; }
+    } else if (panel && viewCache[t]) { panel.innerHTML = viewCache[t].html; if (t === 's15' && s15Sub === 'target') tswPaint(); }
   }
   let rekapPage = { s1:0, s3:0, s6:0, s9:0, s14:0 };
   const REKAP_PAGE_SIZE = 60;
@@ -2477,14 +2509,152 @@ self.onmessage = function(e){
     const fitLabel = 'TOTAL';
     const left = '<div class="s15card"><div class="s15head"><h3>PENJUALAN FITRI</h3><div class="ctl"><button type="button" class="s15mode" onclick="s15ToggleFitri()" title="Klik untuk beralih: Produk Andalan (5 terlaris) / Semua Produk">' + (s15FitriMode === 'andalan' ? 'Produk Andalan' : 'Semua Produk') + '</button></div></div><div id="s15FitriTbl">' + s15TableHtml(s15FitriList(D), D.cols, fitLabel) + '</div></div>';
     const right = '<div class="s15card"><div class="s15head"><h3>RUPA RUPA</h3><div class="ctl"><input type="search" id="s15Search" placeholder="Cari produk..." value="' + escHtml(s15Q) + '" oninput="s15Search(this.value)"><button type="button" class="s15mode" onclick="s15ToggleRupa()" title="Klik untuk beralih: Semua Produk / 10 Terlaris">' + (s15RupaMode === 'all' ? 'Semua Produk' : '10 Terlaris') + '</button></div></div><div id="s15RupaTbl">' + s15RupaTableHtml(D) + '</div></div>';
-    return '<div class="s15grid s15top">' + chips + '<div></div></div><div class="s15grid">' + left + right + '</div>';   /* kartu sales selebar kartu Fitri di bawahnya */
+    if (s15Sub === 'target') return '<div id="s15TargetBox"><div class="tsw-empty">Menyiapkan data…</div></div>';
+    return '<div class="s15grid s15top">' + chips + s15SubBarHtml() + '</div><div class="s15grid">' + left + right + '</div>';   /* kartu sales selebar kartu Fitri di bawahnya */
+  }
+  /* ===== Sub-tab: PENJUALAN & TARGET SALES (per sales, produk Fitri) ===== */
+  let s15Sub = 'ringkas';
+  let tswSales = 'RAJU', tswToken = 0;
+  let tswCfg = { RAJU: { q: 2200, b: 300 } };   /* target qty & bonus/karton per sales (disimpan di perangkat ini) */
+  try { const sv = JSON.parse(localStorage.getItem('tswCfg') || 'null'); if (sv && typeof sv === 'object') tswCfg = Object.assign(tswCfg, sv); } catch(e){}
+  function tswC(){ return tswCfg[tswSales] || (tswCfg[tswSales] = { q: 0, b: 300 }); }
+  function tswSave(){ try { localStorage.setItem('tswCfg', JSON.stringify(tswCfg)); } catch(e){} }
+  function tswSetSales(v){ tswSales = v || 'RAJU'; tswRupaSel = new Set(); tswPaint(); }
+  function s15SubBarHtml(){ return ''; }   /* tombol sub-tab dipindah ke menu Data Tab */
+  function s15OpenSub(v, btn){
+    s15Sub = v; viewCache['s15'] = null; show('s15', btn);
+    requestAnimationFrame(function(){ const el = document.querySelector('#panel_s15 .s15top'); if (el) el.scrollIntoView({ block: 'start', behavior: v === 'target' ? 'smooth' : 'auto' }); });
+  }
+  function s15SetSub(v){
+    s15Sub = v; s15Repaint();
+    /* sub tab Target Sales: langsung gulir ke deretan chip sales (header & kartu total di atas tidak memenuhi layar) */
+    requestAnimationFrame(function(){ const el = document.querySelector('#panel_s15 .s15top'); if (el) el.scrollIntoView({ block: 'start', behavior: v === 'target' ? 'smooth' : 'auto' }); });
+  }
+  async function tswData(){
+    const ALL = tswSales === 'SEMUA';
+    const raw = await fetchFiltered({ sales: ALL ? '' : tswSales });
+    const by = new Map(), byR = new Map();
+    raw.forEach(r => {
+      const x = (r.Produk !== undefined || r['No. Faktur'] !== undefined) ? r : materialiseOne(r);
+      const nm = String(x.Produk ?? '').trim();
+      if (!nm) return;
+      if (!ALL && normSales(x.Sales ?? r.sales) !== tswSales) return;
+      const M = isFitriProduct(nm) ? by : byR;
+      const j = N(x.Jumlah), t = N(x.Total), h = j * N(x['Harga Beli']);
+      let o = M.get(nm); if (!o) { o = { name: nm, q: 0, sat: '', hpp: 0, jual: 0 }; M.set(nm, o); }
+      o.q += j; o.hpp += h; o.jual += t;
+      const sat = String(x.Satuan ?? '').trim(); if (sat && !o.sat) o.sat = sat;
+    });
+    const fin = M => [...M.values()].filter(o => o.q || o.jual).sort((a, b) => natCmp(a.name, b.name));
+    _tswRupa = fin(byR);
+    const valid = new Set(_tswRupa.map(o => o.name)); tswRupaSel.forEach(n => { if (!valid.has(n)) tswRupaSel.delete(n); });
+    return fin(by);
+  }
+  let _tswRupa = [], tswRupaSel = new Set(), _tswRupaNames = [];
+  const TSW_HEADS = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT','TARGET QTY','TARGET NOMINAL','BONUS','KET'];
+  function tswRupaList(){ return tswRupaSel.size ? _tswRupa.filter(o => tswRupaSel.has(o.name)) : _tswRupa; }
+  function tswRupaTableHtml(){
+    const list = tswRupaList();
+    const head = '<thead><tr>' + TSW_HEADS.map(h => '<th>' + h + '</th>').join('') + '</tr></thead>';
+    if (!list.length) return '<div class="tsw-scroll"><table class="tsw-t">' + head + '</table></div><div class="tsw-empty">Tidak ada penjualan Rupa Rupa ' + tswSales + ' untuk filter saat ini.</div>';
+    const T = list.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
+    const body = list.map(o => '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td></td><td></td><td></td><td></td></tr>').join('');
+    const tot = '<tr class="tot"><td class="l">TOTAL' + (tswRupaSel.size ? ' (' + tswRupaSel.size + ' produk dipilih)' : '') + '</td><td>' + rn(T.q) + '</td><td></td><td>' + rn(T.h) + '</td><td>' + rn(T.v) + '</td><td>' + rn(T.v - T.h) + '</td><td></td><td></td><td></td><td></td></tr>';
+    return '<div class="tsw-scroll" style="max-height:60vh"><table class="tsw-t">' + head + '<tbody>' + body + tot + '</tbody></table></div>';
+  }
+  function tswRupaCountText(){ return tswRupaSel.size ? tswRupaSel.size + ' produk dipilih' : 'Semua produk'; }
+  function tswRupaPickerHtml(){
+    _tswRupaNames = _tswRupa.map(o => o.name);
+    const items = _tswRupaNames.map((n, i) => '<label class="tsw-item" data-n="' + escHtml(n.toLowerCase()) + '"><input type="checkbox" data-i="' + i + '"' + (tswRupaSel.has(n) ? ' checked' : '') + ' onchange="tswRupaToggle(this)"> ' + escHtml(n) + '</label>').join('');
+    return '<span id="tswPick" style="position:relative;display:inline-flex;align-items:center;gap:6px;font-weight:400">Filter produk : <button type="button" class="pager-btn" onclick="tswRupaTogglePicker(event)"><span id="tswRupaCount">' + tswRupaCountText() + '</span> ▼</button>'
+      + '<div id="tswDd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:320px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px">'
+      + '<input type="search" placeholder="Cari produk..." oninput="tswRupaSearch(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
+      + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="tswRupaSelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="tswRupaClear()">Kosongkan</button></div>'
+      + '<div id="tswList" style="max-height:260px;overflow:auto">' + items + '</div></div></span>';
+  }
+  function tswRupaChanged(){ const t = document.getElementById('tswRupaTbl'); if (t) t.innerHTML = tswRupaTableHtml(); const c = document.getElementById('tswRupaCount'); if (c) c.textContent = tswRupaCountText(); }
+  function tswRupaToggle(cb){ const n = _tswRupaNames[+cb.dataset.i]; if (n == null) return; if (cb.checked) tswRupaSel.add(n); else tswRupaSel.delete(n); tswRupaChanged(); }
+  function tswRupaSelectAll(){ document.querySelectorAll('#tswList .tsw-item').forEach(l => { if (l.style.display === 'none') return; const cb = l.querySelector('input'); cb.checked = true; const n = _tswRupaNames[+cb.dataset.i]; if (n != null) tswRupaSel.add(n); }); tswRupaChanged(); }
+  function tswRupaClear(){ tswRupaSel.clear(); document.querySelectorAll('#tswList input[type=checkbox]').forEach(cb => cb.checked = false); tswRupaChanged(); }
+  function tswRupaSearch(v){ const t = String(v || '').trim().toLowerCase(); document.querySelectorAll('#tswList .tsw-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; }); }
+  function tswRupaTogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('tswDd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
+  document.addEventListener('click', function(e){ const d = document.getElementById('tswDd'); if (d && d.style.display === 'block' && !e.target.closest('#tswPick')) d.style.display = 'none'; });
+  function tswHtml(list){
+    const T = list.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
+    const cfg = tswC(), profit = T.v - T.h, tq = N(cfg.q), ok = tq > 0 && T.q >= tq;
+    const bonus = ok ? Math.round(T.q * N(cfg.b)) : 0;
+    const body = list.map(o => '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td></td><td></td><td></td><td></td></tr>').join('');
+    const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(T.q) + '</td><td></td><td>' + rn(T.h) + '</td><td>' + rn(T.v) + '</td><td>' + rn(profit) + '</td><td>' + (tq ? rn(tq) : '') + '</td><td></td><td>' + rn(bonus) + '</td><td class="c ' + (ok ? 'ok' : 'no') + '">' + (tq ? (ok ? 'Tercapai' : 'Tidak Tercapai') : '') + '</td></tr>';
+    const head = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT','TARGET QTY','TARGET NOMINAL','BONUS','KET'].map(h => '<th>' + h + '</th>').join('');
+    const periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
+    const table = list.length ? '<div class="tsw-scroll"><table class="tsw-t"><thead><tr>' + head + '</tr></thead><tbody>' + body + tot + '</tbody></table></div>' : '<div class="tsw-empty">Tidak ada penjualan Fitri ' + tswSales + ' untuk filter saat ini.</div>';
+    const note = '<div class="tsw-note"><input type="text" inputmode="numeric" value="' + rn(cfg.q) + '" onchange="tswSet(\'q\',this.value)" title="Target qty (karton)"> Karton UP diberikan bonus presentase perkarton sebesar Rp <input type="text" inputmode="numeric" value="' + rn(cfg.b) + '" onchange="tswSet(\'b\',this.value)" title="Bonus per karton">,-/karton</div>';
+    const rupa = '<div class="tsw-sub" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">RUPA RUPA ' + tswRupaPickerHtml() + '</div><div id="tswRupaTbl">' + tswRupaTableHtml() + '</div>';
+    return '<div class="tsw"><div class="tsw-title">PENJUALAN &amp; TARGET SALES</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">' + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></span><span>' + escHtml(periode) + '</span></div>' + table + note + rupa + '</div>';
+  }
+  function tswSet(k, v){ const n = Number(String(v).replace(/[^\d]/g, '')) || 0; const c = tswC(); if (k === 'q') c.q = n; else c.b = n; tswSave(); tswPaint(false); }
+  async function tswExportExcel(){
+    if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
+    try {
+      showBusy('Membuat file Excel…');
+      if (!_tswList.length) _tswList = await tswData();
+      const list = _tswList, cfg = tswC();
+      const T = list.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
+      const tq = N(cfg.q), ok = tq > 0 && T.q >= tq, bonus = ok ? Math.round(T.q * N(cfg.b)) : 0;
+      const periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
+      const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
+      const ws = wb.addWorksheet('Penjualan & Target', { views: [{ showGridLines: false }] });
+      ws.columns = [34, 10, 10, 18, 20, 16, 14, 18, 14, 18].map(w => ({ width: w }));
+      const thin = { style: 'thin', color: { argb: 'FF7F8FA6' } }, bd = { top: thin, left: thin, bottom: thin, right: thin };
+      ws.mergeCells('A1:J1'); const t1 = ws.getCell('A1'); t1.value = 'PENJUALAN & TARGET SALES'; t1.font = { name: 'Arial', size: 14, bold: true }; t1.alignment = { horizontal: 'center' };
+      ws.getCell('A3').value = tswSales; ws.getCell('A3').font = { name: 'Arial', size: 11, bold: true };
+      ws.mergeCells('I3:J3'); const pc = ws.getCell('I3'); pc.value = periode; pc.font = { name: 'Arial', size: 11 }; pc.alignment = { horizontal: 'right' };
+      const heads = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT','TARGET QTY','TARGET NOMINAL','BONUS','KET'];
+      const headRow = (r) => { const row = ws.getRow(r); row.height = 22; heads.forEach((h, i) => { const c = row.getCell(i + 1); c.value = h; c.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = bd; }); };
+      headRow(5);
+      let r = 6;
+      list.forEach(o => {
+        const vals = [o.name, o.q, o.sat, o.hpp, o.jual, o.jual - o.hpp, null, null, null, null];
+        vals.forEach((v, i) => { const c = ws.getRow(r).getCell(i + 1); c.value = v; c.font = { name: 'Arial', size: 10 }; c.border = bd; if ([1,3,4,5].includes(i)) { c.numFmt = '#,##0'; c.alignment = { horizontal: 'right' }; } });
+        r++;
+      });
+      const tv = ['TOTAL', T.q, null, T.h, T.v, T.v - T.h, tq || null, null, bonus, tq ? (ok ? 'Tercapai' : 'Tidak Tercapai') : null];
+      tv.forEach((v, i) => { const c = ws.getRow(r).getCell(i + 1); c.value = v; c.font = { name: 'Arial', size: 10, bold: true, color: { argb: i === 9 ? (ok ? 'FF15803D' : 'FFB91C1C') : 'FF000000' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } }; c.border = bd; if ([1,3,4,5,6,8].includes(i)) { c.numFmt = '#,##0'; c.alignment = { horizontal: 'right' }; } if (i === 9) c.alignment = { horizontal: 'center' }; });
+      r += 2;
+      ws.mergeCells(r, 1, r, 10); const nt = ws.getCell(r, 1);
+      nt.value = rn(cfg.q) + ' Karton UP diberikan bonus presentase perkarton sebesar Rp ' + rn(cfg.b) + ',-/karton'; nt.font = { name: 'Arial', size: 10 };
+      r += 2;
+      ws.getCell(r, 1).value = 'RUPA RUPA'; ws.getCell(r, 1).font = { name: 'Arial', size: 11, bold: true };
+      r++; headRow(r);
+      const rl = tswRupaList(); r++;
+      rl.forEach(o => {
+        [o.name, o.q, o.sat, o.hpp, o.jual, o.jual - o.hpp, null, null, null, null].forEach((v, i) => { const c = ws.getRow(r).getCell(i + 1); c.value = v; c.font = { name: 'Arial', size: 10 }; c.border = bd; if ([1,3,4,5].includes(i)) { c.numFmt = '#,##0'; c.alignment = { horizontal: 'right' }; } });
+        r++;
+      });
+      if (rl.length){
+        const RT = rl.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
+        ['TOTAL', RT.q, null, RT.h, RT.v, RT.v - RT.h, null, null, null, null].forEach((v, i) => { const c = ws.getRow(r).getCell(i + 1); c.value = v; c.font = { name: 'Arial', size: 10, bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } }; c.border = bd; if ([1,3,4,5].includes(i)) { c.numFmt = '#,##0'; c.alignment = { horizontal: 'right' }; } });
+      } else r--;
+      ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:J' + r, printTitlesRow: '5:5' };
+      ws.headerFooter = { oddFooter: '&LDicetak &D&RHalaman &P / &N' };
+      await downloadWorkbook(wb, 'Penjualan_Target_Sales_' + tswSales + '_' + (filters.month ? periode.replace(/[^A-Za-z0-9]+/g, '_') : 'Semua_Bulan') + '.xlsx');
+    } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
+    finally { hideBusy(); }
+  }
+  let _tswList = [];
+  async function tswPaint(reload){
+    const box = document.getElementById('s15TargetBox'); if (!box) return;
+    const my = ++tswToken;
+    if (reload !== false) { try { _tswList = await tswData(); } catch(e){ console.warn('tswData gagal', e); _tswList = []; } }
+    if (my !== tswToken || s15Sub !== 'target') return;
+    const b2 = document.getElementById('s15TargetBox'); if (b2) b2.innerHTML = tswHtml(_tswList);
   }
   function s15RupaTableHtml(D){
     let list = s15RupaList(D);
     if (s15RupaMode !== 'all') list = list.slice(0, 10);
     return s15TableHtml(list, D.cols, s15RupaLabel());
   }
-  function s15Repaint(){ viewCache['s15'] = null; const p = document.getElementById('panel_s15'); if (p) p.innerHTML = renderS15(); }
+  function s15Repaint(){ viewCache['s15'] = null; const p = document.getElementById('panel_s15'); if (p) { p.innerHTML = renderS15(); if (s15Sub === 'target') tswPaint(); } }
   function s15ToggleFitri(){ s15FitriMode = s15FitriMode === 'andalan' ? 'all' : 'andalan'; s15Repaint(); }
   function s15ToggleRupa(){ s15RupaMode = s15RupaMode === 'all' ? 'top' : 'all'; s15Repaint(); }
   function s15Search(v){ s15Q = v || ''; viewCache['s15'] = null; const el = document.getElementById('s15RupaTbl'); if (el) el.innerHTML = s15RupaTableHtml(s15Data()); }
