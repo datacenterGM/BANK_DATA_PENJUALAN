@@ -2539,6 +2539,7 @@ self.onmessage = function(e){
       if (c.sam) c.items.push({ nama: 'Sambal Reffil 600ml ( Sambal cabe gunung Botol 600 ml )', kw: c.sam.kw || '', t: (c.sam.t || []).map(t => ({ q: N(t.q), b: N(t.b) })) });
       delete c.mie; delete c.sam; bonSave();
     }
+    c.items.forEach(it => { if (!it.t2 && /^mie$/i.test(String(it.nama).trim())){ it.t2 = 1; if (it.t.length < 2){ it.t.push({ q: 0, b: 0 }); bonSave(); } } });
     if (!c.rupa) c.rupa = { groups: [], tq: 0, b: 0 };
     if (!c.khusus) c.khusus = { groups: [], tq: 0, b: 0 };
     ['rupa','khusus'].forEach(k => { if (!Array.isArray(c[k].excl)) c[k].excl = []; });
@@ -2575,7 +2576,7 @@ self.onmessage = function(e){
     const fq = sum(fit), fitOk = N(cf.q) > 0 && fq >= N(cf.q), fitB = fitOk ? Math.round(fq * N(cf.b)) : 0;
     const items = c.items.map(it => {
       const q = sum(all.filter(o => bonHit(o.name, bonKw(it.kw))));
-      let ti = -1; it.t.forEach((t, k) => { if (N(t.q) > 0 && q >= N(t.q)) ti = k; });
+      let ti = -1; it.t.forEach((t, k) => { if (N(t.q) > 0 && q >= N(t.q) && (ti < 0 || N(t.q) > N(it.t[ti].q))) ti = k; });
       return { it, q, ti, B: ti >= 0 ? Math.round(q * N(it.t[ti].b)) : 0 };
     });
     const sec = k => {
@@ -2602,7 +2603,7 @@ self.onmessage = function(e){
       const n = x.it.t.length;
       const nameCell = '<td class="l" rowspan="' + n + '"><input type="text" value="' + escHtml(x.it.nama) + '" style="width:260px;font-weight:700;' + tx + '" onchange="bonItemSet(' + i + ',\'nama\',this.value)">'
         + '<br><input type="text" value="' + escHtml(x.it.kw) + '" placeholder="kata kunci produk, pisahkan koma" title="Kata kunci nama produk (pisahkan dengan koma; cukup sebagian nama)" style="width:260px;margin-top:3px;font-size:11px;' + tx + '" onchange="bonItemSet(' + i + ',\'kw\',this.value)">'
-        + '<br><span style="display:inline-flex;gap:4px;margin-top:3px"><button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelItem(' + i + ')">× hapus baris</button></span></td>';
+        + '<br><span style="display:inline-flex;gap:4px;margin-top:3px"><button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelItem(' + i + ')">× hapus baris</button><button type="button" style="' + mini + ';color:#15803d" onclick="bonAddTier(' + i + ')" title="Tambah baris target qty & bonus">+ target</button></span></td>';
       x.it.t.forEach((t, j) => {
         const delT = n > 1 ? ' <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelTier(' + i + ',' + j + ')" title="Hapus tingkat">×</button>' : '';
         body += '<tr>' + (j === 0 ? nameCell : '') + '<td>' + tin(i, j, 'q', t.q) + '</td><td>' + tin(i, j, 'b', t.b, true) + delT + '</td>'
