@@ -60,6 +60,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .month-quick select{width:auto;min-width:138px;padding:5px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:11px;background:var(--input-bg);color:var(--input-text)}
 .month-quick .filter-btn{height:28px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:700;border-radius:6px;position:relative}
 .month-quick .filter-btn svg{width:13px;height:13px;flex:none}
+body.no-kpi #summary{display:none!important}
 body.is-target #summary,body.is-target #filterBtn,body.is-target #filterPicker{display:none!important}
 body.hide-global-product .prod-global,body.hide-own-bar .month-global,body.hide-own-bar .sales-global{display:none!important}
 .filter-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:13px;color:var(--chip-text)}
@@ -1737,6 +1738,7 @@ self.onmessage = function(e){
       document.body.classList.toggle('hide-own-bar', OWN_BAR_TABS.indexOf(t) >= 0);
       document.body.classList.toggle('is-analisa', t === 's16' || t === 's17');
       document.body.classList.toggle('is-target', t === 's15' && (s15Sub === 'target' || s15Sub === 'bonus'));
+      document.body.classList.toggle('no-kpi', ['s10','s12','s13','s16','s17'].indexOf(t) >= 0);
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
         if (t === 's14') s14Cat = filters.product;
@@ -2622,7 +2624,7 @@ self.onmessage = function(e){
         rows += '<tr><td class="l" colspan="9" style="background:var(--tfoot-bg)"><span style="font-size:11px;opacity:.8">Produk di baris ini (ketik sebagian nama produk, pisahkan koma) :</span> <input type="text" value="' + escHtml(c[k].groups[gi]) + '" placeholder="mis. MARGARINE FORVITA, JELLYGAR" style="width:min(460px,70%);font-size:11px;' + tx + '" onchange="bonGroupSet(\'' + k + '\',' + gi + ',this.value)"> <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelGroup(\'' + k + '\',' + gi + ')">× hapus</button>' + (g.length ? '' : ' <span style="font-size:11px;opacity:.7">(belum ada produk cocok)</span>') + '</td></tr>';
       });
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
-      const tbl = '<div class="tsw-sub">' + judul + ' :</div><div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + head2 + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada baris produk. Klik "+ Tambah baris produk".</td></tr>') + tot + '</tbody></table></div>'
+      const tbl = '<div class="tsw-sub" style="margin-top:44px;padding-top:16px;border-top:2px dashed var(--input-border)">' + judul + ' :</div><div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + head2 + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada baris produk. Klik "+ Tambah baris produk".</td></tr>') + tot + '</tbody></table></div>'
         + '<div style="margin:6px 0"><button type="button" class="bon-nav" style="margin-left:0" onclick="bonAddGroup(\'' + k + '\')">+ Tambah baris produk</button></div>';
       const tn = '<div class="tsw-note"><b>TARGET NOMINAL =</b> Rp <input style="' + bi + '" type="text" inputmode="numeric" value="' + rn(c[k].tq) + '" onchange="bonSet(\'' + k + '.tq\',this.value)">'
         + ' &nbsp; <b>BONUS =</b> Rp <input style="' + bi + '" type="text" inputmode="numeric" value="' + (c[k].b ? rn(c[k].b) : '') + '" onchange="bonSet(\'' + k + '.b\',this.value)">'
@@ -2635,9 +2637,9 @@ self.onmessage = function(e){
     return '<div class="tsw"><div class="tsw-title">PERHITUNGAN BONUS</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">'
       + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('')
       + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'target\')">&larr; Penjualan &amp; Target Sales</button></span><span>' + escHtml(periode) + '</span></div>'
-      + '<div class="tsw-sub" style="margin-top:4px">TARGET QTY PENJUALAN :</div>' + t1
+      + '<div class="tsw-sub" style="margin-top:24px">TARGET QTY PENJUALAN :</div>' + t1
       + t2
-      + '<div class="tsw-note" style="font-size:14px"><b>TOTAL NILAI BONUS = Rp ' + rn(K.grand) + '</b></div></div>';
+      + '<div class="tsw-note" style="font-size:14px;margin-top:36px;padding-top:14px;border-top:2px solid var(--input-border)"><b>TOTAL NILAI BONUS = Rp ' + rn(K.grand) + '</b></div></div>';
   }
   async function bonExportExcel(){
     if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
