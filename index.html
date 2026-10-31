@@ -3798,13 +3798,15 @@ self.onmessage = function(e){
   }
   function toggleTheme(){ applyTheme(document.body.classList.contains('dark') ? 'light' : 'dark'); }
   function initTheme(){
-    let mode = 'dark';   /* default gelap saat pertama dibuka; pilihan terakhir pengguna tetap diingat */
+    let mode = 'light';   /* default terang saat pertama dibuka; pilihan terakhir pengguna tetap diingat */
     try { const saved = localStorage.getItem('rekap-theme'); if (saved === 'dark' || saved === 'light') mode = saved; } catch(e){}
     applyTheme(mode);
   }
 
   (async function init(){
     initTheme();
+    /* posisi awal: tab Penjualan & Target Sales (sub tab Target) */
+    try { _activeTab = 's15'; s15Sub = 'target'; document.body.classList.add('is-target'); } catch(e){}
     await initDB();
     /* Data lokal (IndexedDB) langsung ditampilkan; sinkron ke cloud berjalan di belakang layar dan hanya me-refresh bila ada yang berubah */
     let hadLocal = false;
