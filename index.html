@@ -2459,6 +2459,14 @@ self.onmessage = function(e){
   function tswRupaSearch(v){ const t = String(v || '').trim().toLowerCase(); document.querySelectorAll('#tswList .tsw-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; }); }
   function tswRupaTogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('tswDd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
   document.addEventListener('click', function(e){ const d = document.getElementById('tswDd'); if (d && d.style.display === 'block' && !e.target.closest('#tswPick')) d.style.display = 'none'; });
+  function tnNote(S, c, inputs){
+    const k = S.k, tq = N(c[k].tq), b = N(c[k].b), D = '.................';
+    const bi = 'width:110px;font-size:12px;text-align:right', gap = ' &nbsp;&nbsp;&nbsp;&nbsp; ';
+    const tqIn = inputs ? '<input style="' + bi + '" type="text" inputmode="numeric" value="' + (tq ? rn(tq) : '') + '" placeholder="............." onchange="bonSet(\'' + k + '.tq\',this.value)">' : (tq ? rn(tq) : '.............');
+    const bIn = inputs ? '<input style="' + bi + '" type="text" inputmode="numeric" value="' + (b ? rn(b) : '') + '" placeholder="..................." onchange="bonSet(\'' + k + '.b\',this.value)">' : (b ? rn(b) : D);
+    const mid = tq ? '<b style="color:' + (S.ok ? '#15803d' : '#dc2626') + '">' + (S.ok ? 'TARGET TERCAPAI' : 'TARGET TIDAK TERCAPAI') + '</b>' : '<b>TARGET QTY =</b> ........';
+    return '<div class="tsw-note"><b>TARGET NOMINAL =</b> Rp ' + tqIn + gap + mid + gap + '<b>BONUS =</b> Rp ' + bIn + (S.B ? ' &nbsp; <b>(diterima Rp ' + rn(S.B) + ')</b>' : '') + '</div>';
+  }
   function tswHtml(list){
     const K = bonCalc(), c = K.c, cf = K.cf;
     const periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
@@ -2492,7 +2500,7 @@ self.onmessage = function(e){
       if (!rows && !N(c[S.k].tq)) return '';
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[S.k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
       const tbl = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + headR + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada penjualan untuk produk di bagian ini.</td></tr>') + tot + '</tbody></table></div>';
-      const tn = '<div class="tsw-note"><b>TARGET NOMINAL =</b> Rp ' + rn(c[S.k].tq) + ' &nbsp; <b>BONUS =</b> Rp ' + rn(c[S.k].b) + (S.B ? ' &nbsp; <b>(diterima Rp ' + rn(S.B) + ')</b>' : '') + '</div>';
+      const tn = tnNote(S, c, false);
       return sub(judul + ' :') + tbl + tn;
     };
     const rupa = secR(K.secs[0], 'TARGET NOMINAL RUPA RUPA') + secR(K.secs[1], 'TARGET NOMINAL RUPA RUPA (Produk khusus)');
@@ -2571,7 +2579,7 @@ self.onmessage = function(e){
         });
         [['TOTAL', 1], [RT.q, 2], [null, 3], [null, 4], [null, 5], [RT.h, 6], [RT.v, 7], [RT.v - RT.h, 8]].forEach(([v, i]) => put(r, i, v == null ? null : (typeof v === 'number' ? Math.round(v) : v), { b: 1, fill: fillY, num: typeof v === 'number' }));
         put(r, 9, N(c[k].tq) ? (S.ok ? 'target' : 'tidak target') : null, { b: 1, c: 1, fill: fillY, col: kc(S.ok) }); r += 2;
-        const nt = ws.getCell(r, 1); nt.value = 'TARGET NOMINAL = Rp ' + rn(c[k].tq) + '     BONUS = Rp ' + rn(c[k].b) + (S.B ? '     (diterima Rp ' + rn(S.B) + ')' : ''); nt.font = F(true);
+        const nt = ws.getCell(r, 1); nt.value = 'TARGET NOMINAL = Rp ' + (N(c[k].tq) ? rn(c[k].tq) : '.............') + '     ' + (N(c[k].tq) ? (S.ok ? 'TARGET TERCAPAI' : 'TARGET TIDAK TERCAPAI') : 'TARGET QTY = ........') + '     BONUS = Rp ' + (N(c[k].b) ? rn(c[k].b) : '...................') + (S.B ? '     (diterima Rp ' + rn(S.B) + ')' : ''); nt.font = F(true);
         r += 1;
       });
       r += 1;
@@ -2741,9 +2749,7 @@ self.onmessage = function(e){
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
       const tbl = '<div class="tsw-sub" style="margin-top:44px;padding-top:16px;border-top:2px dashed var(--input-border)">' + judul + ' :</div><div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + head2 + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada baris produk. Klik "+ Tambah baris produk".</td></tr>') + tot + '</tbody></table></div>'
         + '<div style="margin:6px 0"><button type="button" class="bon-nav" style="margin-left:0" onclick="bonAddGroup(\'' + k + '\')">+ Tambah baris produk</button></div>';
-      const tn = '<div class="tsw-note"><b>TARGET NOMINAL =</b> Rp <input style="' + bi + '" type="text" inputmode="numeric" value="' + rn(c[k].tq) + '" onchange="bonSet(\'' + k + '.tq\',this.value)">'
-        + ' &nbsp; <b>BONUS =</b> Rp <input style="' + bi + '" type="text" inputmode="numeric" value="' + (c[k].b ? rn(c[k].b) : '') + '" onchange="bonSet(\'' + k + '.b\',this.value)">'
-        + (S.B ? ' &nbsp; <b>(diterima Rp ' + rn(S.B) + ')</b>' : '') + '</div>';
+      const tn = tnNote(S, c, true);
       const ex = c[k].excl.length ? '<div class="tsw-note" style="flex-wrap:wrap;gap:6px"><b>Produk dihapus dari tabel:</b> ' + c[k].excl.map((n, i) => '<span style="' + mini + '">' + escHtml(n) + ' <a href="javascript:void(0)" onclick="bonUnExcl(\'' + k + '\',' + i + ')" title="Kembalikan" style="color:#15803d;font-weight:700;text-decoration:none">↺</a></span>').join(' ') + '</div>' : '';
       return tbl + tn + ex;
     };
@@ -2801,9 +2807,9 @@ self.onmessage = function(e){
         });
         [['TOTAL', 1], [RT.q, 2], [null, 3], [null, 4], [null, 5], [RT.h, 6], [RT.v, 7], [RT.v - RT.h, 8]].forEach(([v, i]) => put(r, i, v == null ? null : (typeof v === 'number' ? Math.round(v) : v), { b: 1, fill: fillY, num: typeof v === 'number' }));
         put(r, 9, N(c[k].tq) ? (S.ok ? 'target' : 'tidak target') : null, { b: 1, c: 1, fill: fillY, col: kc(S.ok) }); r += 2;
-        const nt = ws.getCell(r, 1); nt.value = 'TARGET NOMINAL = Rp ' + rn(c[k].tq); nt.font = F(false);
-        if (N(c[k].tq)){ ws.mergeCells(r, 3, r, 4); const kt = ws.getCell(r, 3); kt.value = S.ok ? 'Target Tercapai' : 'Target Tidak Tercapai'; kt.font = F(true, S.ok ? 'FF15803D' : 'FFFF0000'); kt.alignment = { horizontal: 'center' }; }
-        ws.mergeCells(r, 6, r, 8); const bn = ws.getCell(r, 6); bn.value = 'BONUS = Rp' + (S.B ? ' ' + rn(S.B) : '…...................'); bn.font = F(false);
+        const nt = ws.getCell(r, 1); nt.value = 'TARGET NOMINAL =Rp' + (N(c[k].tq) ? ' ' + rn(c[k].tq) : '.............'); nt.font = F(false);
+        { ws.mergeCells(r, 3, r, 4); const kt = ws.getCell(r, 3); kt.value = N(c[k].tq) ? (S.ok ? 'TARGET TERCAPAI' : 'TARGET TIDAK TERCAPAI') : 'TARGET QTY = ........'; kt.font = N(c[k].tq) ? F(true, S.ok ? 'FF15803D' : 'FFFF0000') : F(false); kt.alignment = { horizontal: 'center' }; }
+        ws.mergeCells(r, 6, r, 8); const bn = ws.getCell(r, 6); bn.value = 'BONUS =Rp' + (S.B ? ' ' + rn(S.B) : ' ...................'); bn.font = F(false);
         r += 1;
       });
       r += 1;
