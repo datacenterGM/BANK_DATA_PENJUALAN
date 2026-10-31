@@ -2487,7 +2487,7 @@ self.onmessage = function(e){
         if (!g.length) return;
         if (!first) rows += '<tr><td class="sp" colspan="9"></td></tr>';
         first = false;
-        g.forEach(o => { rows += '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + (o.q ? rn(o.hpp / o.q) : '') + '</td><td>' + (o.q ? rn(o.jual / o.q) : '') + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td></td></tr>'; });
+        g.forEach(o => { rows += '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + (o.q ? rn(o.hpp / o.q) : '') + '</td><td>' + (o.q ? rn(o.jual / o.q) : '') + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td class="l">' + (/khusus/i.test(judul) ? 'belum ada ketentuan' : '') + '</td></tr>'; });
       });
       if (!rows && !N(c[S.k].tq)) return '';
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[S.k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
@@ -2566,7 +2566,7 @@ self.onmessage = function(e){
           any = true;
           g.forEach(o => {
             put(r, 1, o.name); put(r, 2, o.q, { num: 1 }); put(r, 3, o.sat); put(r, 4, o.q ? Math.round(o.hpp / o.q) : null, { num: 1 }); put(r, 5, o.q ? Math.round(o.jual / o.q) : null, { num: 1 });
-            put(r, 6, Math.round(o.hpp), { num: 1 }); put(r, 7, Math.round(o.jual), { num: 1 }); put(r, 8, Math.round(o.jual - o.hpp), { num: 1 }); put(r, 9, null); r++;
+            put(r, 6, Math.round(o.hpp), { num: 1 }); put(r, 7, Math.round(o.jual), { num: 1 }); put(r, 8, Math.round(o.jual - o.hpp), { num: 1 }); put(r, 9, /khusus/i.test(judul) ? 'belum ada ketentuan' : null); r++;
           });
         });
         [['TOTAL', 1], [RT.q, 2], [null, 3], [null, 4], [null, 5], [RT.h, 6], [RT.v, 7], [RT.v - RT.h, 8]].forEach(([v, i]) => put(r, i, v == null ? null : (typeof v === 'number' ? Math.round(v) : v), { b: 1, fill: fillY, num: typeof v === 'number' }));
@@ -2734,7 +2734,7 @@ self.onmessage = function(e){
         if (!first) rows += '<tr><td class="sp" colspan="9"></td></tr>';
         first = false;
         g.forEach(o => {
-          rows += '<tr><td class="l"><button type="button" title="Hapus produk ini dari tabel" style="' + mini + ';color:#b91c1c;margin-right:6px;padding:0 6px" onclick="bonExcl(\'' + k + '\',\'' + encodeURIComponent(o.name).replace(/'/g, '%27') + '\')">×</button>' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + (o.q ? rn(o.hpp / o.q) : '') + '</td><td>' + (o.q ? rn(o.jual / o.q) : '') + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td></td></tr>';
+          rows += '<tr><td class="l"><button type="button" title="Hapus produk ini dari tabel" style="' + mini + ';color:#b91c1c;margin-right:6px;padding:0 6px" onclick="bonExcl(\'' + k + '\',\'' + encodeURIComponent(o.name).replace(/'/g, '%27') + '\')">×</button>' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + (o.q ? rn(o.hpp / o.q) : '') + '</td><td>' + (o.q ? rn(o.jual / o.q) : '') + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td class="l">' + (/khusus/i.test(judul) ? 'belum ada ketentuan' : '') + '</td></tr>';
         });
         rows += '<tr><td class="l" colspan="9" style="background:var(--tfoot-bg)"><span style="font-size:11px;opacity:.8">Produk di baris ini (ketik sebagian nama produk, pisahkan koma) :</span> <input type="text" value="' + escHtml(c[k].groups[gi]) + '" placeholder="mis. MARGARINE FORVITA, JELLYGAR" style="width:min(460px,70%);font-size:11px;' + tx + '" onchange="bonGroupSet(\'' + k + '\',' + gi + ',this.value)"> <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelGroup(\'' + k + '\',' + gi + ')">× hapus</button>' + (g.length ? '' : ' <span style="font-size:11px;opacity:.7">(belum ada produk cocok)</span>') + '</td></tr>';
       });
@@ -2796,7 +2796,7 @@ self.onmessage = function(e){
           any = true;
           g.forEach(o => {
             put(r, 1, o.name); put(r, 2, o.q, { num: 1 }); put(r, 3, o.sat); put(r, 4, o.q ? Math.round(o.hpp / o.q) : null, { num: 1 }); put(r, 5, o.q ? Math.round(o.jual / o.q) : null, { num: 1 });
-            put(r, 6, Math.round(o.hpp), { num: 1 }); put(r, 7, Math.round(o.jual), { num: 1 }); put(r, 8, Math.round(o.jual - o.hpp), { num: 1 }); put(r, 9, null); r++;
+            put(r, 6, Math.round(o.hpp), { num: 1 }); put(r, 7, Math.round(o.jual), { num: 1 }); put(r, 8, Math.round(o.jual - o.hpp), { num: 1 }); put(r, 9, /khusus/i.test(judul) ? 'belum ada ketentuan' : null); r++;
           });
         });
         [['TOTAL', 1], [RT.q, 2], [null, 3], [null, 4], [null, 5], [RT.h, 6], [RT.v, 7], [RT.v - RT.h, 8]].forEach(([v, i]) => put(r, i, v == null ? null : (typeof v === 'number' ? Math.round(v) : v), { b: 1, fill: fillY, num: typeof v === 'number' }));
