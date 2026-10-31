@@ -1551,9 +1551,10 @@ self.onmessage = function(e){
     if (rq) rq.textContent = 'Qty ' + (R.rupaQty||0).toLocaleString('id-ID');
     if (rn) rn.textContent = rp(R.rupaSales || 0);
   }
-  function tbl(head, data, total){
+  function tbl(head, data, total, numCols){
+    const nc = numCols || [];
     return '<div class="tablebox"><table><thead><tr>' + head.map(x => '<th>'+x+'</th>').join('') + '</tr></thead><tbody>' +
-      data.map(r => '<tr>' + r.map(x => '<td class="' + (typeof x === 'number' ? 'num' : '') + '">' + x + '</td>').join('') + '</tr>').join('') +
+      data.map(r => '<tr>' + r.map((x, ci) => '<td class="' + ((typeof x === 'number' || nc.indexOf(ci) >= 0) ? 'num' : '') + '">' + x + '</td>').join('') + '</tr>').join('') +
       '</tbody><tfoot><tr>' + total.map(x => '<td class="num">' + x + '</td>').join('') + '</tr></tfoot></table></div>';
   }
   /* ===== EXPORT EXCEL RAPI & SIAP PRINT (ExcelJS) ===== */
@@ -1673,7 +1674,7 @@ self.onmessage = function(e){
       const full = !!(opts && opts.full), l1 = s1Sorted(full), T1 = s1Totals(l1);
       const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],x[n+5],x[n+6],x[n+7]); return row; });
       const info = exportInfoLine() + (full ? '' : '  |  Urutan : ' + s1SortLabel() + '  |  Kategori : ' + s1CatLabel() + '  |  Pilihan produk : ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
-      return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit] };
+      return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit] };
     }
     if (tab === 's3'){
       const full = !!(opts && opts.full), l3 = s3Sorted(full), T3 = s3Totals(l3);
@@ -2296,9 +2297,11 @@ self.onmessage = function(e){
   function s1TableHtml(){
     const SO2 = R.SO2 || SO, n = SO2.length;
     const list = s1Sorted(), T = s1Totals(list);
-    const h = ['PRODUK', ...SO2, 'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','BELI X QTY','JUAL X QTY','PROFIT'];
-    const d = sliceRekap('s1', list).map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],rp(x[n+5]),rp(x[n+6]),rp(x[n+7])); return row; });
-    return rekapPagerHtml('s1', list.length) + tbl(h, d, ['TOTAL', ...T.per, T.qty, '', '', '', rp(T.hpp), rp(T.sales), rp(T.profit)]);
+    const h = ['PRODUK', ...SO2, 'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT'];
+    const nr = v => Math.round(N(v)).toLocaleString('id-ID'), noRp = v => String(v == null ? '' : v).replace(/Rp\s?/g, '');
+    const d = sliceRekap('s1', list).map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],noRp(x[n+3]),noRp(x[n+4]),nr(x[n+5]),nr(x[n+6]),nr(x[n+7])); return row; });
+    const numCols = [n+3, n+4, n+5, n+6, n+7];
+    return rekapPagerHtml('s1', list.length) + tbl(h, d, ['TOTAL', ...T.per, T.qty, '', '', '', nr(T.hpp), nr(T.sales), nr(T.profit)], numCols);
   }
   function s1BarHtml(){
     const o = (v,l) => '<option value="' + v + '"' + (s1Sort === v ? ' selected' : '') + '>' + l + '</option>';
@@ -2457,17 +2460,55 @@ self.onmessage = function(e){
   function tswRupaTogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('tswDd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
   document.addEventListener('click', function(e){ const d = document.getElementById('tswDd'); if (d && d.style.display === 'block' && !e.target.closest('#tswPick')) d.style.display = 'none'; });
   function tswHtml(list){
+    const K = bonCalc(), c = K.c, cf = K.cf;
     const T = list.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
-    const cfg = tswC(), profit = T.v - T.h, tq = N(cfg.q), ok = tq > 0 && T.q >= tq;
-    const bonus = ok ? Math.round(T.q * N(cfg.b)) : 0;
-    const body = list.map(o => '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td></td><td></td><td></td><td></td></tr>').join('');
-    const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(T.q) + '</td><td></td><td>' + rn(T.h) + '</td><td>' + rn(T.v) + '</td><td>' + rn(profit) + '</td><td>' + (tq ? rn(tq) : '') + '</td><td></td><td>' + rn(bonus) + '</td><td class="c ' + (ok ? 'ok' : 'no') + '">' + (tq ? (ok ? 'Tercapai' : 'Tidak Tercapai') : '') + '</td></tr>';
-    const head = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT','TARGET QTY','TARGET NOMINAL','BONUS','KET'].map(h => '<th>' + h + '</th>').join('');
     const periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
-    const table = list.length ? '<div class="tsw-scroll"><table class="tsw-t"><thead><tr>' + head + '</tr></thead><tbody>' + body + tot + '</tbody></table></div>' : '<div class="tsw-empty">Tidak ada penjualan Fitri ' + tswSales + ' untuk filter saat ini.</div>';
-    const note = '<div class="tsw-note"><input type="text" inputmode="numeric" value="' + rn(cfg.q) + '" onchange="tswSet(\'q\',this.value)" title="Target qty (karton)"> Karton UP diberikan bonus presentase perkarton sebesar Rp <input type="text" inputmode="numeric" value="' + rn(cfg.b) + '" onchange="tswSet(\'b\',this.value)" title="Bonus per karton">,-/karton</div>';
-    const rupa = '<div class="tsw-sub" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">RUPA RUPA ' + tswRupaPickerHtml() + '</div><div id="tswRupaTbl">' + tswRupaTableHtml() + '</div>';
-    return '<div class="tsw"><div class="tsw-title">PENJUALAN &amp; TARGET SALES</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">' + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'bonus\')">🧮 Perhitungan Bonus</button></span><span>' + escHtml(periode) + '</span></div>' + table + note + rupa + '</div>';
+    const sub = txt => '<div class="tsw-sub" style="margin-top:28px">' + txt + '</div>';
+    const ket = ok => '<td class="c ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'target' : 'tidak target') + '</td>';
+    /* 1. Penjualan produk Fitri */
+    const headF = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT'].map(h => '<th>' + h + '</th>').join('');
+    const bodyF = list.map(o => '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td></tr>').join('');
+    const totF = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(T.q) + '</td><td></td><td>' + rn(T.h) + '</td><td>' + rn(T.v) + '</td><td>' + rn(T.v - T.h) + '</td></tr>';
+    const tblF = list.length
+      ? '<div class="tsw-scroll"><table class="tsw-t" style="min-width:620px"><thead><tr>' + headF + '</tr></thead><tbody>' + bodyF + totF + '</tbody></table></div>'
+      : '<div class="tsw-empty">Tidak ada penjualan Fitri ' + escHtml(tswSales) + ' untuk filter saat ini.</div>';
+    /* 2. Target qty & bonus (hasil dari Perhitungan Bonus, hanya tampil) */
+    const headT = ['PRODUK','TARGET QTY','BONUS TARGET Rp','QTY PENJUALAN','KET','NILAI BONUS'].map(h => '<th>' + h + '</th>').join('');
+    let bodyT = '<tr><td class="l">Minyak Fitri (All Item)</td><td>' + (N(cf.q) ? rn(cf.q) : '') + '</td><td>' + (N(cf.b) ? rn(cf.b) : '') + '</td><td>' + rn(K.fq) + '</td>' + ket(K.fitOk) + '<td>' + (K.fitB ? rn(K.fitB) : '') + '</td></tr>';
+    K.items.forEach(x => {
+      let tiers = x.it.t.map((t, k) => ({ t: t, k: k })).filter(o => N(o.t.q) > 0 || N(o.t.b) > 0);
+      if (!tiers.length) tiers = [{ t: x.it.t[0] || { q: 0, b: 0 }, k: 0 }];
+      const n = tiers.length;
+      tiers.forEach((o, j) => {
+        bodyT += '<tr>' + (j === 0 ? '<td class="l" rowspan="' + n + '">' + escHtml(x.it.nama) + '</td>' : '')
+          + '<td>' + (N(o.t.q) ? rn(o.t.q) : '') + '</td><td>' + (N(o.t.b) ? rn(o.t.b) : '') + '</td>'
+          + (j === 0 ? '<td rowspan="' + n + '">' + rn(x.q) + '</td><td class="c ' + (x.ti >= 0 ? 'ok' : 'no') + '" rowspan="' + n + '">' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target') + '</td><td rowspan="' + n + '">' + (x.B ? rn(x.B) : '') + '</td>' : '') + '</tr>';
+      });
+    });
+    const tblT = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:620px"><thead><tr>' + headT + '</tr></thead><tbody>' + bodyT + '</tbody></table></div>';
+    const note = N(cf.q) ? '<div class="tsw-note">' + rn(cf.q) + ' Karton UP diberikan bonus presentase perkarton sebesar Rp ' + rn(cf.b) + ',-/karton</div>' : '';
+    /* 3. Rupa Rupa (dikelompokkan sama seperti di Perhitungan Bonus) */
+    const headR = ['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET'].map(h => '<th>' + h + '</th>').join('');
+    const secR = (S, judul) => {
+      const RT = S.RT; let rows = '', first = true;
+      S.gl.forEach(g => {
+        if (!g.length) return;
+        if (!first) rows += '<tr><td class="sp" colspan="9"></td></tr>';
+        first = false;
+        g.forEach(o => { rows += '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + (o.q ? rn(o.hpp / o.q) : '') + '</td><td>' + (o.q ? rn(o.jual / o.q) : '') + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td></td></tr>'; });
+      });
+      if (!rows && !N(c[S.k].tq)) return '';
+      const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[S.k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
+      const tbl = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + headR + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada penjualan untuk produk di bagian ini.</td></tr>') + tot + '</tbody></table></div>';
+      const tn = '<div class="tsw-note"><b>TARGET NOMINAL =</b> Rp ' + rn(c[S.k].tq) + ' &nbsp; <b>BONUS =</b> Rp ' + rn(c[S.k].b) + (S.B ? ' &nbsp; <b>(diterima Rp ' + rn(S.B) + ')</b>' : '') + '</div>';
+      return sub(judul + ' :') + tbl + tn;
+    };
+    const rupa = secR(K.secs[0], 'TARGET NOMINAL RUPA RUPA') + secR(K.secs[1], 'TARGET NOMINAL RUPA RUPA (Produk khusus)');
+    const grand = '<div class="tsw-note" style="font-size:14px;margin-top:28px;padding-top:14px;border-top:2px solid var(--input-border)"><b>TOTAL NILAI BONUS = Rp ' + rn(K.grand) + '</b></div>';
+    return '<div class="tsw"><div class="tsw-title">PENJUALAN &amp; TARGET SALES</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">' + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'bonus\')">🧮 Perhitungan Bonus</button></span><span>' + escHtml(periode) + '</span></div>'
+      + sub('PENJUALAN PRODUK FITRI :') + tblF
+      + sub('TARGET QTY PENJUALAN :') + tblT + note
+      + rupa + grand + '</div>';
   }
   function tswSet(k, v){ const n = Number(String(v).replace(/[^\d]/g, '')) || 0; const c = tswC(); if (k === 'q') c.q = n; else c.b = n; tswSave(); tswPaint(false); }
   async function tswExportExcel(){
