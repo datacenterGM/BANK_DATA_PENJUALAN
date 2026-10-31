@@ -2496,17 +2496,23 @@ self.onmessage = function(e){
       return sub(judul + ' :') + tbl + tn;
     };
     const rupa = secR(K.secs[0], 'TARGET NOMINAL RUPA RUPA') + secR(K.secs[1], 'TARGET NOMINAL RUPA RUPA (Produk khusus)');
-    /* 4. Kategori target (keterangan gaji pokok) */
+    /* 4. Kategori target (keterangan gaji pokok) + kolom KET (otomatis dari hasil perhitungan, lebar untuk tulis manual) */
     const GP = [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]];
     const tqR = N(c.rupa.tq) || 20000000;
-    const katRows = GP.map(g => '<tr><td style="padding:2px 6px;width:24px;text-align:center">-</td><td style="padding:2px 6px;text-align:left">Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar</td><td style="padding:2px 6px;width:34px;text-align:right">Rp</td><td style="padding:2px 6px;width:100px;text-align:right">' + rn(g[1]) + '</td></tr>').join('');
-    const kat = '<div class="tsw-kat" style="margin-top:36px;padding-top:14px;border-top:2px solid var(--input-border);font-size:13px;color:var(--text)">'
-      + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:12px"><span>KATEGORI TARGET</span><span>KET</span></div>'
-      + '<div style="display:flex;gap:10px;margin-bottom:4px"><b style="width:34px">1.</b><div style="display:flex;flex-wrap:wrap;gap:6px 46px;font-weight:700"><span>TARGET QTY PENJUALAN</span><span>MINYAK</span><span>MIE</span><span>SAMBAL REFFIL 600 ML</span></div></div>'
-      + '<div style="margin-left:44px;overflow-x:auto"><table style="border-collapse:collapse;font-size:13px"><tbody>' + katRows + '</tbody></table></div>'
-      + '<div style="display:flex;gap:10px;margin:18px 0 4px"><b style="width:34px">2.</b><b>TARGET NOMINAL PENJUALAN RUPA RUPA</b></div>'
-      + '<div style="margin-left:44px;padding:2px 6px">- &nbsp;target Nominal penjualan Rp.' + rn(tqR) + '</div>'
-      + '<div style="display:flex;gap:10px;margin:18px 0 4px"><b style="width:34px">3.</b><b>TARGET PENJUALAN PRODUK KHUSUS</b></div></div>';
+    const cnt = Math.min(4, (K.fitOk ? 1 : 0) + K.items.reduce((t, x) => t + x.it.t.filter(tt => N(tt.q) > 0 && x.q >= N(tt.q)).length, 0));
+    const okTxt = (ok, on) => on ? '<span class="' + (ok ? 'ok' : 'no') + '" style="font-weight:700;color:' + (ok ? '#15803d' : '#b91c1c') + '">' + (ok ? 'Tercapai' : 'Tidak tercapai') + '</span>' : '';
+    const itemKet = '<span style="font-size:11px;font-weight:400">Minyak: ' + (K.fitOk ? 'target' : 'tidak target') + K.items.map(x => ' &nbsp;|&nbsp; ' + escHtml(String(x.it.nama).split('(')[0].trim()) + ': ' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target')).join('') + '</span>';
+    const kcell = (inner) => '<td class="l" style="min-width:260px;width:300px;height:26px">' + (inner || '') + '</td>';
+    const L = 'text-align:left';
+    const katRows = GP.map((g, i) => '<tr><td class="c" style="width:34px">-</td><td class="l">Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar</td><td class="c" style="width:44px">Rp</td><td style="width:110px">' + rn(g[1]) + '</td>' + kcell(i === cnt ? okTxt(true, true) : '') + '</tr>').join('');
+    const khusus = K.secs[1], khOn = N(c.khusus.tq) > 0;
+    const kat = '<div class="tsw-scroll" style="margin-top:36px"><table class="tsw-t" style="min-width:760px"><thead><tr><th colspan="4" style="text-align:left">KATEGORI TARGET</th><th>KET</th></tr></thead><tbody>'
+      + '<tr><td class="l" style="font-weight:700;width:34px">1.</td><td class="l" colspan="3" style="font-weight:700">TARGET QTY PENJUALAN &nbsp;&nbsp;&nbsp; MINYAK &nbsp;&nbsp;&nbsp; MIE &nbsp;&nbsp;&nbsp; SAMBAL REFFIL 600 ML</td>' + kcell(itemKet) + '</tr>'
+      + katRows
+      + '<tr><td class="l" style="font-weight:700">2.</td><td class="l" colspan="3" style="font-weight:700">TARGET NOMINAL PENJUALAN RUPA RUPA</td>' + kcell(okTxt(K.secs[0].ok, N(c.rupa.tq) > 0)) + '</tr>'
+      + '<tr><td class="c">-</td><td class="l" colspan="3">target Nominal penjualan Rp.' + rn(tqR) + '</td>' + kcell('') + '</tr>'
+      + '<tr><td class="l" style="font-weight:700">3.</td><td class="l" colspan="3" style="font-weight:700">TARGET PENJUALAN PRODUK KHUSUS</td>' + kcell(okTxt(khusus.ok, khOn)) + '</tr>'
+      + '</tbody></table></div>';
     const grand = '<div class="tsw-note" style="font-size:14px;margin-top:28px;padding-top:14px;border-top:2px solid var(--input-border)"><b>TOTAL NILAI BONUS = Rp ' + rn(K.grand) + '</b></div>';
     return '<div class="tsw"><div class="tsw-title">PENJUALAN &amp; TARGET SALES</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">' + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'bonus\')">🧮 Perhitungan Bonus</button></span><span>' + escHtml(periode) + '</span></div>'
       + sub('TARGET QTY PENJUALAN :') + tblT + note
@@ -2570,16 +2576,27 @@ self.onmessage = function(e){
       });
       r += 1;
       ws.getCell(r, 1).value = 'TOTAL NILAI BONUS = Rp ' + rn(K.grand); ws.getCell(r, 1).font = { name: 'Arial', size: 12, bold: true };
-      /* Kategori target (keterangan gaji pokok) */
-      const tx = (rr, cc, v, o) => { o = o || {}; const x = ws.getCell(rr, cc); x.value = v; x.font = F(o.b); if (o.r) x.alignment = { horizontal: 'right' }; return x; };
-      r += 3; tx(r, 1, 'KATEGORI TARGET', { b: 1 }); tx(r, 9, 'KET', { b: 1, r: 1 });
-      r += 2; tx(r, 1, '1.   TARGET QTY PENJUALAN', { b: 1 }); tx(r, 3, 'MINYAK', { b: 1 }); tx(r, 5, 'MIE', { b: 1 }); tx(r, 7, 'SAMBAL REFFIL 600 ML', { b: 1 });
-      [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]].forEach(g => {
-        r++; tx(r, 1, '      -   Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar'); tx(r, 4, 'Rp', { r: 1 }); const v = tx(r, 5, g[1], { r: 1 }); v.numFmt = '#,##0';
+      /* Kategori target (keterangan gaji pokok) + KET */
+      const GPX = [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]];
+      const cntX = Math.min(4, (K.fitOk ? 1 : 0) + K.items.reduce((t, x) => t + x.it.t.filter(tt => N(tt.q) > 0 && x.q >= N(tt.q)).length, 0));
+      const ketCell = (rr, txt, ok) => { ws.mergeCells(rr, 4, rr, 9); const x = ws.getCell(rr, 4); x.value = txt || null; x.font = F(true, ok ? 'FF15803D' : 'FFB91C1C'); x.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }; for (let cc = 4; cc <= 9; cc++) ws.getCell(rr, cc).border = bd; ws.getRow(rr).height = 20; };
+      const lab = (rr, txt, o) => { o = o || {}; ws.mergeCells(rr, 1, rr, o.span || 1); const x = ws.getCell(rr, 1); x.value = txt; x.font = F(o.b); x.alignment = { vertical: 'middle', wrapText: !!o.wrap }; for (let cc = 1; cc <= (o.span || 1); cc++) ws.getCell(rr, cc).border = bd; };
+      r += 3;
+      const hr = ws.getRow(r); hr.height = 22;
+      ws.mergeCells(r, 1, r, 3); ws.mergeCells(r, 4, r, 9);
+      [[1, 'KATEGORI TARGET'], [4, 'KET']].forEach(([cc, v]) => { const x = ws.getCell(r, cc); x.value = v; x.font = F(true, 'FFFFFFFF'); x.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }; x.alignment = { horizontal: cc === 1 ? 'left' : 'center', vertical: 'middle' }; });
+      for (let cc = 1; cc <= 9; cc++) ws.getCell(r, cc).border = bd;
+      r++; lab(r, '1.   TARGET QTY PENJUALAN      MINYAK      MIE      SAMBAL REFFIL 600 ML', { b: 1, span: 3 });
+      ketCell(r, 'Minyak: ' + (K.fitOk ? 'target' : 'tidak target') + K.items.map(x => '  |  ' + String(x.it.nama).split('(')[0].trim() + ': ' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target')).join(''), true);
+      GPX.forEach((g, i) => {
+        r++; lab(r, '   -   Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar');
+        const rpc = ws.getCell(r, 2); rpc.value = 'Rp'; rpc.font = F(false); rpc.alignment = { horizontal: 'right' }; rpc.border = bd;
+        const am = ws.getCell(r, 3); am.value = g[1]; am.numFmt = '#,##0'; am.font = F(false); am.alignment = { horizontal: 'right' }; am.border = bd;
+        ketCell(r, i === cntX ? 'Tercapai' : '', true);
       });
-      r += 2; tx(r, 1, '2.   TARGET NOMINAL PENJUALAN RUPA RUPA', { b: 1 });
-      r++; tx(r, 1, '      -   target Nominal penjualan Rp.' + rn(N(c.rupa.tq) || 20000000));
-      r += 2; tx(r, 1, '3.   TARGET PENJUALAN PRODUK KHUSUS', { b: 1 });
+      r++; lab(r, '2.   TARGET NOMINAL PENJUALAN RUPA RUPA', { b: 1, span: 3 }); ketCell(r, N(c.rupa.tq) > 0 ? (K.secs[0].ok ? 'Tercapai' : 'Tidak tercapai') : '', K.secs[0].ok);
+      r++; lab(r, '   -   target Nominal penjualan Rp.' + rn(N(c.rupa.tq) || 20000000), { span: 3 }); ketCell(r, '', true);
+      r++; lab(r, '3.   TARGET PENJUALAN PRODUK KHUSUS', { b: 1, span: 3 }); ketCell(r, N(c.khusus.tq) > 0 ? (K.secs[1].ok ? 'Tercapai' : 'Tidak tercapai') : '', K.secs[1].ok);
       ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
       ws.headerFooter = { oddFooter: '&LDicetak &D&RHalaman &P / &N' };
       await downloadWorkbook(wb, 'Penjualan_Target_Sales_' + tswSales + '_' + (filters.month ? periode.replace(/[^A-Za-z0-9]+/g, '_') : 'Semua_Bulan') + '.xlsx');
