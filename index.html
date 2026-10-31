@@ -984,7 +984,7 @@ self.onmessage = function(e){
   let _hbDiffResolver = null;
   function renderHbDiffModal(conflicts){
     document.getElementById('hbDiffRows').innerHTML = conflicts.map((c, i) =>
-      '<div class="hbdiff-row" data-idx="'+i+'"><div class="hbdiff-produk">'+ (c.produk||'') +'</div><div class="hbdiff-bulan">'+ monthLabel(c.bulan) +'</div><div class="hbdiff-price-old">'+ c.oldPrices.map(rp).join(', ') +'</div><div class="hbdiff-price-new">'+ c.newPrices.map(rp).join(', ') +'</div><div class="hbdiff-choice"><label class="active-html"><input type="radio" name="hbdc'+i+'" value="html" checked onchange="hbDiffRadioChange(this)"> Samakan HTML</label><label><input type="radio" name="hbdc'+i+'" value="excel" onchange="hbDiffRadioChange(this)"> Tetap Excel</label></div></div>'
+      '<div class="hbdiff-row" data-idx="'+i+'"><div class="hbdiff-produk">'+ escHtml(c.produk||'') +'</div><div class="hbdiff-bulan">'+ escHtml(monthLabel(c.bulan)) +'</div><div class="hbdiff-price-old">'+ c.oldPrices.map(rp).join(', ') +'</div><div class="hbdiff-price-new">'+ c.newPrices.map(rp).join(', ') +'</div><div class="hbdiff-choice"><label class="active-html"><input type="radio" name="hbdc'+i+'" value="html" checked onchange="hbDiffRadioChange(this)"> Samakan HTML</label><label><input type="radio" name="hbdc'+i+'" value="excel" onchange="hbDiffRadioChange(this)"> Tetap Excel</label></div></div>'
     ).join('');
   }
   function hbDiffRadioChange(input){
@@ -1192,12 +1192,16 @@ self.onmessage = function(e){
     const F = Object.assign({}, filters);          /* snapshot: perubahan filter di tengah query tidak ikut tercampur */
     if (Object.prototype.hasOwnProperty.call(opts, 'month')) F.month = opts.month;
     if (Object.prototype.hasOwnProperty.call(opts, 'sales')) F.sales = opts.sales;
+    /* opts.months = array YYYY-MM: batasi ke beberapa bulan (prioritas di atas F.month tunggal) */
+    const monthList = Array.isArray(opts.months) ? [...new Set(opts.months.filter(Boolean))] : null;
+    if (monthList && monthList.length === 1) F.month = monthList[0];
     const fromTs = dateStrToStartTs(F.dateFrom), toTs = dateStrToEndTs(F.dateTo);
     const kdQ = (F.kdCustomer || '').trim(), qLower = (F.q || '').trim().toLowerCase();
     const dropBatal = (list) => (includeBatal || (!batalFakturSet.size && !batalLineSet.size)) ? list : list.filter(x => !isExcludedRow(x, false));
     if (!useIDB){
       let out = rows;
-      if (F.month)   out = out.filter(x => x.bulan === F.month);
+      if (monthList && monthList.length > 1) { const ms = new Set(monthList); out = out.filter(x => ms.has(x.bulan)); }
+      else if (F.month) out = out.filter(x => x.bulan === F.month);
       if (F.sales)   out = out.filter(x => x.sales === F.sales);
       if (F.product === 'FITRI')      out = out.filter(x =>  isFitriProduct(x.produk));
       if (F.product === 'RUPA_RUPA')  out = out.filter(x => !isFitriProduct(x.produk));
@@ -1208,14 +1212,16 @@ self.onmessage = function(e){
       return dropBatal(out);
     }
     let coll;
-    if (F.month && F.sales) coll = db.tx.where('[bulan+sales]').equals([F.month, F.sales]);
+    const multiMonth = monthList && monthList.length > 1;
+    if (multiMonth) coll = db.tx.where('bulan').anyOf(monthList);
+    else if (F.month && F.sales) coll = db.tx.where('[bulan+sales]').equals([F.month, F.sales]);
     else if (F.month && F.payment) coll = db.tx.where('[bulan+pembayaran]').equals([F.month, F.payment]);
     else if (F.month) coll = db.tx.where('bulan').equals(F.month);
     else if (F.sales) coll = db.tx.where('sales').equals(F.sales);
     else if (F.payment) coll = db.tx.where('pembayaran').equals(F.payment);
     else coll = db.tx.toCollection();
-    const usedCompoundSales = !!(F.month && F.sales);
-    const usedCompoundPay = !!(F.month && F.payment) && !usedCompoundSales;
+    const usedCompoundSales = !multiMonth && !!(F.month && F.sales);
+    const usedCompoundPay = !multiMonth && !!(F.month && F.payment) && !usedCompoundSales;
     coll = coll.and(r => {
       if (F.sales && !usedCompoundSales && r.sales !== F.sales) return false;
       if (F.payment && !usedCompoundPay && r.pembayaran !== F.payment) return false;
@@ -1333,8 +1339,8 @@ self.onmessage = function(e){
   function syncFilterControls(months, sales, products){
     allProductsMeta = products.slice();
     const $ = id => document.getElementById(id);
-    $('filterMonth').innerHTML = '<option value="">Semua bulan</option>' + months.map(x => '<option value="' + x + '">' + monthLabel(x) + '</option>').join('');
-    $('filterSales').innerHTML = '<option value="">Semua sales</option>' + sales.map(x => '<option value="' + x + '">' + x + '</option>').join('');
+    $('filterMonth').innerHTML = '<option value="">Semua bulan</option>' + months.map(x => '<option value="' + escHtml(x) + '">' + escHtml(monthLabel(x)) + '</option>').join('');
+    $('filterSales').innerHTML = '<option value="">Semua sales</option>' + sales.map(x => '<option value="' + escHtml(x) + '">' + escHtml(x) + '</option>').join('');
     /* null = belum ditentukan → bulan terkini; '' = "Semua bulan" pilihan pengguna (dihormati); bulan yang sudah tidak ada → bulan terkini */
     if (filters.month == null || (filters.month !== '' && !months.includes(filters.month))) filters.month = pickLatestMonth(months);
     if (filters.sales && !sales.includes(filters.sales)) filters.sales = '';
@@ -1346,9 +1352,9 @@ self.onmessage = function(e){
     const df = $('filterDateSingle'), kd = $('filterKdCustomer'), qs = $('quickSearch');
     if (df) df.value = filters.dateFrom || filters.dateTo || '';
     if (kd) kd.value = filters.kdCustomer || ''; if (qs) qs.value = filters.q || '';
-    const dm = $('deleteMonth'); if (dm) dm.innerHTML = '<option value="">Pilih bulan...</option>' + months.map(x => '<option value="' + x + '">' + monthLabel(x) + '</option>').join('');
+    const dm = $('deleteMonth'); if (dm) dm.innerHTML = '<option value="">Pilih bulan...</option>' + months.map(x => '<option value="' + escHtml(x) + '">' + escHtml(monthLabel(x)) + '</option>').join('');
     const bp = $('bulkHargaProduct');
-    if (bp){ const sel = bp.value; bp.innerHTML = '<option value="">Pilih produk...</option>' + products.map(x => '<option value="' + x.replace(/"/g,'&quot;') + '">' + x + '</option>').join(''); bp.value = products.includes(sel) ? sel : ''; }
+    if (bp){ const sel = bp.value; bp.innerHTML = '<option value="">Pilih produk...</option>' + products.map(x => '<option value="' + escHtml(x) + '">' + escHtml(x) + '</option>').join(''); bp.value = products.includes(sel) ? sel : ''; }
     updateFilterUi();
   }
   function populateFiltersFromMeta(m){
@@ -1554,8 +1560,8 @@ self.onmessage = function(e){
   function tbl(head, data, total, numCols){
     const nc = numCols || [];
     return '<div class="tablebox"><table><thead><tr>' + head.map(x => '<th>'+x+'</th>').join('') + '</tr></thead><tbody>' +
-      data.map(r => '<tr>' + r.map((x, ci) => '<td class="' + ((typeof x === 'number' || nc.indexOf(ci) >= 0) ? 'num' : '') + '">' + x + '</td>').join('') + '</tr>').join('') +
-      '</tbody><tfoot><tr>' + total.map(x => '<td class="num">' + x + '</td>').join('') + '</tr></tfoot></table></div>';
+      data.map(r => '<tr>' + r.map((x, ci) => '<td class="' + ((typeof x === 'number' || nc.indexOf(ci) >= 0) ? 'num' : '') + '">' + escHtml(x) + '</td>').join('') + '</tr>').join('') +
+      '</tbody><tfoot><tr>' + total.map(x => '<td class="num">' + escHtml(x) + '</td>').join('') + '</tr></tfoot></table></div>';
   }
   /* ===== EXPORT EXCEL RAPI & SIAP PRINT (ExcelJS) ===== */
   const XL_FMT = { n:'#,##0', nt:'#,##0', rp:'"Rp" #,##0;[Red]-"Rp" #,##0', pct:'0.00"%"', d:'dd/mm/yyyy' };
@@ -2354,7 +2360,7 @@ self.onmessage = function(e){
     else pageRows.forEach(x => {
       const [produk, satuan, bmin, bmax, jmin, jmax, hbChange] = x;
       const ket = hbChange ? ((hbChange.dir === 'naik' ? 'Naik' : 'Turun') + ' sejak ' + fmtTgl(new Date(hbChange.ts))) : '';
-      body += '<tr><td>' + produk + '</td><td>' + (satuan || '') + '</td><td class="num">' + rp(bmin) + '</td><td class="num">' + rp(bmax) + '</td><td class="num">' + rp(jmin) + '</td><td class="num">' + rp(jmax) + '</td><td>' + ket + '</td></tr>';
+      body += '<tr><td>' + escHtml(produk) + '</td><td>' + escHtml(satuan || '') + '</td><td class="num">' + rp(bmin) + '</td><td class="num">' + rp(bmax) + '</td><td class="num">' + rp(jmin) + '</td><td class="num">' + rp(jmax) + '</td><td>' + escHtml(ket) + '</td></tr>';
     });
     const table = '<div class="tablebox"><table class="s9table"><thead><tr><th class="s9-h0" rowspan="2">Produk</th><th class="s9-h0" rowspan="2">Satuan</th><th class="s9-h1" colspan="2">Harga Beli</th><th class="s9-h1" colspan="2">Harga Jual</th><th class="s9-h0" rowspan="2">Ket</th></tr><tr><th class="s9-h2">Terendah</th><th class="s9-h2">Tertinggi</th><th class="s9-h2">Terendah</th><th class="s9-h2">Tertinggi</th></tr></thead><tbody>' + body + '</tbody></table></div>';
     return caption + rekapPagerHtml('s9', list.length) + table;
@@ -2537,7 +2543,7 @@ self.onmessage = function(e){
     if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
     try {
       showBusy('Membuat file Excel…');
-      if (!_tswList.length) { try { tswApplyData(await tswData()); } catch(e){} }
+      try { tswApplyData(await tswData()); } catch(e){ console.warn('reload untuk export gagal', e); }
       const list = _tswList, K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Penjualan & Target', { views: [{ showGridLines: false }] });
@@ -2773,7 +2779,7 @@ self.onmessage = function(e){
     if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
     try {
       showBusy('Membuat file Excel…');
-      if (!_tswList.length) { try { tswApplyData(await tswData()); } catch(e){} }
+      try { tswApplyData(await tswData()); } catch(e){ console.warn('reload untuk export gagal', e); }
       const K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Perhitungan Bonus', { views: [{ showGridLines: false }] });
@@ -2828,7 +2834,7 @@ self.onmessage = function(e){
   }
   async function tswPaint(reload){
     const box = document.getElementById('s15TargetBox'); if (!box) return;
-    const my = ++tswToken;
+    const my = (reload === false) ? tswToken : ++tswToken;   /* reload=false (bonSet dll) jangan batalkan load data yang sedang jalan */
     if (reload !== false) {
       try {
         const d = await tswData();
@@ -2963,7 +2969,26 @@ self.onmessage = function(e){
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
   let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, metric:'sales', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama', view:'total' };
-  function rekapBlnSig(){ const f = Object.assign({}, filters); f.month = ''; return dataVersion + '|' + JSON.stringify(f); }
+  async function getMetaMonthsAsc(){
+    let months = [];
+    try {
+      if (useIDB && db) months = ((await db.meta.get('months')) || {}).value || [];
+      else months = [...new Set((rows || []).map(r => r.bulan).filter(Boolean))];
+    } catch(e){ months = []; }
+    return [...new Set(months.filter(Boolean))].sort();   /* naik: untuk filter rentang from..to */
+  }
+  function rekapBlnEnsureRange(allMonths){
+    if (!allMonths.length) { rekapBln.from = ''; rekapBln.to = ''; return []; }
+    if (!allMonths.includes(rekapBln.from) || !allMonths.includes(rekapBln.to) || rekapBln.from > rekapBln.to){
+      rekapBln.to = allMonths[allMonths.length - 1];
+      rekapBln.from = allMonths[Math.max(0, allMonths.length - 4)];
+    }
+    return allMonths.filter(m => m >= rekapBln.from && m <= rekapBln.to);
+  }
+  function rekapBlnSig(rangeMonths){
+    const f = Object.assign({}, filters); f.month = '';
+    return dataVersion + '|' + JSON.stringify(f) + '|' + (rekapBln.from || '') + '|' + (rekapBln.to || '') + '|' + (rangeMonths || []).join(',');
+  }
   function rekapBlnMapRows(raw){
     const rowsM = [];
     raw.forEach(r => {
@@ -2974,24 +2999,27 @@ self.onmessage = function(e){
     return rowsM;
   }
   async function rekapBlnLoad(){
-    const sig = rekapBlnSig();
+    const allMonths = await getMetaMonthsAsc();
+    const rangeMonths = rekapBlnEnsureRange(allMonths);
+    const sig = rekapBlnSig(rangeMonths);
     if (rekapBln.data && rekapBln.sig === sig) return rekapBln.data;
-    const raw = await fetchFiltered({ month: '' });            // filter bulan global diabaikan di tab ini (tanpa mengubah state global)
+    /* Hanya baca baris dalam rentang from..to (bukan seluruh DB) — filter bulan global diabaikan */
+    const raw = rangeMonths.length ? await fetchFiltered({ month: '', months: rangeMonths }) : [];
     const rowsM = rekapBlnMapRows(raw);
-    const months = [...new Set(rowsM.map(r => r.mk))].sort();
-    rekapBln.data = { rows: rowsM, months }; rekapBln.sig = sig;
+    rekapBln.data = { rows: rowsM, months: allMonths }; rekapBln.sig = sig;
     return rekapBln.data;
   }
   /* Data untuk tampilan "Per Sales": semua sales sekaligus (filter Sales & Bulan global diabaikan) */
   let rekapBlnPS = { data: null, sig: '' };
   async function rekapBlnLoadPS(){
+    const allMonths = await getMetaMonthsAsc();
+    const rangeMonths = rekapBlnEnsureRange(allMonths);
     const f = Object.assign({}, filters); f.month = ''; f.sales = '';
-    const sig = dataVersion + '|' + JSON.stringify(f);
+    const sig = dataVersion + '|' + JSON.stringify(f) + '|' + (rekapBln.from || '') + '|' + (rekapBln.to || '') + '|' + rangeMonths.join(',');
     if (rekapBlnPS.data && rekapBlnPS.sig === sig) return rekapBlnPS.data;
-    const raw = await fetchFiltered({ month: '', sales: '' });
+    const raw = rangeMonths.length ? await fetchFiltered({ month: '', sales: '', months: rangeMonths }) : [];
     const rowsM = rekapBlnMapRows(raw);
-    const months = [...new Set(rowsM.map(r => r.mk))].sort();
-    rekapBlnPS.data = { rows: rowsM, months }; rekapBlnPS.sig = sig;
+    rekapBlnPS.data = { rows: rowsM, months: allMonths }; rekapBlnPS.sig = sig;
     return rekapBlnPS.data;
   }
   function rekapBlnPriceText(mn, mx, html){ if (mn === Infinity) return ''; return mn === mx ? rp(mn) : rp(mn) + (html ? ' -<br>' : ' - ') + rp(mx); }
