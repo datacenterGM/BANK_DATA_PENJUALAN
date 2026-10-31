@@ -422,7 +422,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
 <body>
 <header>
   <div class="wrap header-row">
-    <div class="header-left"><div class="header-title">Data Penjualan</div></div>
+    <div class="header-left"><div class="header-title">Data Penjualan</div><div id="cloudSyncStatus" style="font-size:10px;line-height:1.2;color:rgba(255,255,255,.85);margin-top:2px;white-space:nowrap"></div></div>
     <button type="button" id="installBtn" style="display:none;padding:3px 8px;border:1px solid rgba(255,255,255,.5);border-radius:5px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.1">⬇ Instal Aplikasi</button>
     <div style="display:flex;align-items:center;gap:10px">
       <button type="button" class="hdr-pull-btn" id="hdrPullBtn" onclick="backupPullCloud()" title="Ambil Data Terbaru dari Cloud">⬇️ <span>Data Terbaru</span></button>
@@ -846,9 +846,8 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
     }).subscribe((st) => { if (st === 'SUBSCRIBED') setCloudStatus('Online • sinkron otomatis aktif'); else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { realtimeReady = false; setCloudStatus('Realtime terputus — memuat ulang data saat aplikasi dibuka'); } });
   }
   function setCloudStatus(msg){
-    let el = document.getElementById('cloudSyncStatus');
-    if (!el){ el = document.createElement('div'); el.id = 'cloudSyncStatus'; el.style.cssText = 'position:fixed;right:8px;bottom:8px;font-size:11px;color:#fff;background:#1f4e78cc;padding:4px 9px;border-radius:6px;z-index:9999;pointer-events:none;'; document.body.appendChild(el); }
-    el.textContent = msg;
+    const el = document.getElementById('cloudSyncStatus');   /* status sekarang di header (tidak lagi melayang di pojok kanan bawah) */
+    if (el) el.textContent = msg;
   }
   const IDB_SUPPORTED = (() => { try { return typeof indexedDB !== 'undefined' && typeof Dexie !== 'undefined'; } catch(e){ return false; } })();
   let db = null, useIDB = false;
