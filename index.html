@@ -2579,26 +2579,56 @@ self.onmessage = function(e){
       /* Kategori target (keterangan gaji pokok) + KET */
       const GPX = [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]];
       const cntX = Math.min(4, (K.fitOk ? 1 : 0) + K.items.reduce((t, x) => t + x.it.t.filter(tt => N(tt.q) > 0 && x.q >= N(tt.q)).length, 0));
-      const ketCell = (rr, txt, ok) => { ws.mergeCells(rr, 4, rr, 9); const x = ws.getCell(rr, 4); x.value = txt || null; x.font = F(true, ok ? 'FF15803D' : 'FFB91C1C'); x.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }; for (let cc = 4; cc <= 9; cc++) ws.getCell(rr, cc).border = bd; ws.getRow(rr).height = 20; };
-      const lab = (rr, txt, o) => { o = o || {}; ws.mergeCells(rr, 1, rr, o.span || 1); const x = ws.getCell(rr, 1); x.value = txt; x.font = F(o.b); x.alignment = { vertical: 'middle', wrapText: !!o.wrap }; for (let cc = 1; cc <= (o.span || 1); cc++) ws.getCell(rr, cc).border = bd; };
-      r += 3;
-      const hr = ws.getRow(r); hr.height = 22;
-      ws.mergeCells(r, 1, r, 3); ws.mergeCells(r, 4, r, 9);
-      [[1, 'KATEGORI TARGET'], [4, 'KET']].forEach(([cc, v]) => { const x = ws.getCell(r, cc); x.value = v; x.font = F(true, 'FFFFFFFF'); x.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }; x.alignment = { horizontal: cc === 1 ? 'left' : 'center', vertical: 'middle' }; });
-      for (let cc = 1; cc <= 9; cc++) ws.getCell(r, cc).border = bd;
-      r++; lab(r, '1.   TARGET QTY PENJUALAN      MINYAK      MIE      SAMBAL REFFIL 600 ML', { b: 1, span: 3 });
-      ketCell(r, 'Minyak: ' + (K.fitOk ? 'target' : 'tidak target') + K.items.map(x => '  |  ' + String(x.it.nama).split('(')[0].trim() + ': ' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target')).join(''), true);
-      GPX.forEach((g, i) => {
-        r++; lab(r, '   -   Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar');
-        const rpc = ws.getCell(r, 2); rpc.value = 'Rp'; rpc.font = F(false); rpc.alignment = { horizontal: 'right' }; rpc.border = bd;
-        const am = ws.getCell(r, 3); am.value = g[1]; am.numFmt = '#,##0'; am.font = F(false); am.alignment = { horizontal: 'right' }; am.border = bd;
-        ketCell(r, i === cntX ? 'Tercapai' : '', true);
-      });
-      r++; lab(r, '2.   TARGET NOMINAL PENJUALAN RUPA RUPA', { b: 1, span: 3 }); ketCell(r, N(c.rupa.tq) > 0 ? (K.secs[0].ok ? 'Tercapai' : 'Tidak tercapai') : '', K.secs[0].ok);
-      r++; lab(r, '   -   target Nominal penjualan Rp.' + rn(N(c.rupa.tq) || 20000000), { span: 3 }); ketCell(r, '', true);
-      r++; lab(r, '3.   TARGET PENJUALAN PRODUK KHUSUS', { b: 1, span: 3 }); ketCell(r, N(c.khusus.tq) > 0 ? (K.secs[1].ok ? 'Tercapai' : 'Tidak tercapai') : '', K.secs[1].ok);
+      /* Sheet utama berakhir di sini — KATEGORI TARGET dipindah ke sheet lain agar lebar kolom mandiri */
       ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
       ws.headerFooter = { oddFooter: '&LDicetak &D&RHalaman &P / &N' };
+
+      /* === Sheet terpisah: Kategori Target (lebar kolom tidak mempengaruhi tabel atas) === */
+      const wsKat = wb.addWorksheet('Kategori Target', { views: [{ showGridLines: false }] });
+      wsKat.columns = [8, 62, 8, 14, 48].map(w => ({ width: w }));
+      const thinK = { style: 'thin', color: { argb: 'FF7F8FA6' } }, bdK = { top: thinK, left: thinK, bottom: thinK, right: thinK };
+      const FK = (b, col) => ({ name: 'Arial', size: 10, bold: !!b, color: { argb: col || 'FF000000' } });
+      wsKat.mergeCells('A1:E1');
+      const tKat = wsKat.getCell('A1'); tKat.value = 'KATEGORI TARGET — ' + tswSales; tKat.font = { name: 'Arial', size: 13, bold: true }; tKat.alignment = { horizontal: 'center' };
+      wsKat.getCell('A2').value = periode; wsKat.getCell('A2').font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF64748B' } };
+      let rk = 4;
+      wsKat.getRow(rk).height = 22;
+      wsKat.mergeCells(rk, 1, rk, 4);
+      [[1, 'KATEGORI TARGET'], [5, 'KET']].forEach(([cc, v]) => {
+        const x = wsKat.getCell(rk, cc); x.value = v; x.font = FK(true, 'FFFFFFFF');
+        x.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
+        x.alignment = { horizontal: cc === 1 ? 'left' : 'center', vertical: 'middle' }; x.border = bdK;
+      });
+      for (let cc = 2; cc <= 4; cc++) wsKat.getCell(rk, cc).border = bdK;
+      const ketK = (rr, txt, ok) => {
+        const x = wsKat.getCell(rr, 5); x.value = txt || null;
+        x.font = FK(true, ok ? 'FF15803D' : 'FFB91C1C');
+        x.alignment = { horizontal: 'left', vertical: 'middle', indent: 1, wrapText: true };
+        x.border = bdK; wsKat.getRow(rr).height = 20;
+      };
+      const labK = (rr, txt, o) => {
+        o = o || {}; const span = o.span || 1;
+        if (span > 1) wsKat.mergeCells(rr, 1, rr, span);
+        const x = wsKat.getCell(rr, 1); x.value = txt; x.font = FK(o.b);
+        x.alignment = { vertical: 'middle', wrapText: !!o.wrap };
+        for (let cc = 1; cc <= span; cc++) wsKat.getCell(rr, cc).border = bdK;
+      };
+      rk++; labK(rk, '1.   TARGET QTY PENJUALAN      MINYAK      MIE      SAMBAL REFFIL 600 ML', { b: 1, span: 4 });
+      ketK(rk, 'Minyak: ' + (K.fitOk ? 'target' : 'tidak target') + K.items.map(x => '  |  ' + String(x.it.nama).split('(')[0].trim() + ': ' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target')).join(''), true);
+      GPX.forEach((g, i) => {
+        rk++; labK(rk, '   -   Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar', { span: 2 });
+        const rpc = wsKat.getCell(rk, 3); rpc.value = 'Rp'; rpc.font = FK(false); rpc.alignment = { horizontal: 'right' }; rpc.border = bdK;
+        const am = wsKat.getCell(rk, 4); am.value = g[1]; am.numFmt = '#,##0'; am.font = FK(false); am.alignment = { horizontal: 'right' }; am.border = bdK;
+        ketK(rk, i === cntX ? 'Tercapai' : '', true);
+      });
+      rk++; labK(rk, '2.   TARGET NOMINAL PENJUALAN RUPA RUPA', { b: 1, span: 4 });
+      ketK(rk, N(c.rupa.tq) > 0 ? (K.secs[0].ok ? 'Tercapai' : 'Tidak tercapai') : '', K.secs[0].ok);
+      rk++; labK(rk, '   -   target Nominal penjualan Rp.' + rn(N(c.rupa.tq) || 20000000), { span: 4 });
+      ketK(rk, '', true);
+      rk++; labK(rk, '3.   TARGET PENJUALAN PRODUK KHUSUS', { b: 1, span: 4 });
+      ketK(rk, N(c.khusus.tq) > 0 ? (K.secs[1].ok ? 'Tercapai' : 'Tidak tercapai') : '', K.secs[1].ok);
+      wsKat.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:E' + rk };
+      wsKat.headerFooter = { oddFooter: '&LDicetak &D&RHalaman &P / &N' };
       await downloadWorkbook(wb, 'Penjualan_Target_Sales_' + tswSales + '_' + (filters.month ? periode.replace(/[^A-Za-z0-9]+/g, '_') : 'Semua_Bulan') + '.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
