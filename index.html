@@ -1270,7 +1270,7 @@ self.onmessage = function(e){
     materialisedRows = filteredRows; buildCached(materialisedRows); viewCache = {};
     updateSummary(); updateFilterUi();
     const activeBtn = document.querySelector('.tabs button.active') || document.querySelector('.tabs button');
-    let tabId = 's6';
+    let tabId = _activeTab || 's6';
     if (activeBtn) { const oc = activeBtn.getAttribute('onclick') || ''; const m = oc.match(/show\('([^']+)'/); if (m) tabId = m[1]; }
     show(tabId, activeBtn);
     const parts = [filters.month ? monthLabel(filters.month) : '', formatFilterDateLabel(filters.dateFrom, filters.dateTo), filters.sales || '', filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : '', filters.payment || '', filters.kdCustomer ? ('Kd: ' + filters.kdCustomer) : '', filters.q ? ('Cari: ' + filters.q) : ''].filter(Boolean);
@@ -2603,7 +2603,7 @@ self.onmessage = function(e){
       const n = x.it.t.length;
       const nameCell = '<td class="l" rowspan="' + n + '"><input type="text" value="' + escHtml(x.it.nama) + '" style="width:260px;font-weight:700;' + tx + '" onchange="bonItemSet(' + i + ',\'nama\',this.value)">'
         + '<br><input type="text" value="' + escHtml(x.it.kw) + '" placeholder="kata kunci produk, pisahkan koma" title="Kata kunci nama produk (pisahkan dengan koma; cukup sebagian nama)" style="width:260px;margin-top:3px;font-size:11px;' + tx + '" onchange="bonItemSet(' + i + ',\'kw\',this.value)">'
-        + '<br><span style="display:inline-flex;gap:4px;margin-top:3px"><button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelItem(' + i + ')">× hapus baris</button><button type="button" style="' + mini + ';color:#15803d" onclick="bonAddTier(' + i + ')" title="Tambah baris target qty & bonus">+ target</button></span></td>';
+        + '</td>';
       x.it.t.forEach((t, j) => {
         const delT = n > 1 ? ' <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelTier(' + i + ',' + j + ')" title="Hapus tingkat">×</button>' : '';
         body += '<tr>' + (j === 0 ? nameCell : '') + '<td>' + tin(i, j, 'q', t.q) + '</td><td>' + tin(i, j, 'b', t.b, true) + delT + '</td>'
