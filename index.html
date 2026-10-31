@@ -2426,9 +2426,13 @@ self.onmessage = function(e){
       const sat = String(x.Satuan ?? '').trim(); if (sat && !o.sat) o.sat = sat;
     });
     const fin = M => [...M.values()].filter(o => o.q || o.jual).sort((a, b) => natCmp(a.name, b.name));
-    _tswRupa = fin(byR);
+    return { fitri: fin(by), rupa: fin(byR) };
+  }
+  function tswApplyData(d){
+    _tswList = (d && d.fitri) || [];
+    _tswRupa = (d && d.rupa) || [];
     const valid = new Set(_tswRupa.map(o => o.name)); tswRupaSel.forEach(n => { if (!valid.has(n)) tswRupaSel.delete(n); });
-    return fin(by);
+    return _tswList;
   }
   let _tswRupa = [], tswRupaSel = new Set(), _tswRupaNames = [];
   const TSW_HEADS = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT','TARGET QTY','TARGET NOMINAL','BONUS','KET'];
@@ -2533,7 +2537,7 @@ self.onmessage = function(e){
     if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
     try {
       showBusy('Membuat file Excel…');
-      if (!_tswList.length) { try { _tswList = await tswData(); } catch(e){} }
+      if (!_tswList.length) { try { tswApplyData(await tswData()); } catch(e){} }
       const list = _tswList, K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Penjualan & Target', { views: [{ showGridLines: false }] });
@@ -2769,7 +2773,7 @@ self.onmessage = function(e){
     if (typeof ExcelJS === 'undefined') return alert('Library Excel belum termuat (perlu internet). Muat ulang halaman lalu coba lagi.');
     try {
       showBusy('Membuat file Excel…');
-      if (!_tswList.length) { try { _tswList = await tswData(); } catch(e){} }
+      if (!_tswList.length) { try { tswApplyData(await tswData()); } catch(e){} }
       const K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Perhitungan Bonus', { views: [{ showGridLines: false }] });
@@ -2825,7 +2829,13 @@ self.onmessage = function(e){
   async function tswPaint(reload){
     const box = document.getElementById('s15TargetBox'); if (!box) return;
     const my = ++tswToken;
-    if (reload !== false) { try { _tswList = await tswData(); } catch(e){ console.warn('tswData gagal', e); _tswList = []; } }
+    if (reload !== false) {
+      try {
+        const d = await tswData();
+        if (my !== tswToken) return;   /* request usang: jangan timpa _tswList/_tswRupa */
+        tswApplyData(d);
+      } catch(e){ console.warn('tswData gagal', e); if (my === tswToken) { _tswList = []; _tswRupa = []; } }
+    }
     if (my !== tswToken || !(s15Sub === 'target' || s15Sub === 'bonus')) return;
     const b2 = document.getElementById('s15TargetBox'); if (b2) b2.innerHTML = (s15Sub === 'bonus' ? bonHtml() : tswHtml(_tswList));
   }
@@ -3630,7 +3640,7 @@ self.onmessage = function(e){
     if (cnt) cnt.textContent = _autoBatalCandidates.length + ' pasangan ditemukan';
     wrap.innerHTML = '<div class="nama-fix-row nama-fix-head" style="grid-template-columns:28px 1.1fr 1.3fr 100px 130px"><div></div><div>No. Faktur</div><div>Produk</div><div>Qty (+/−)</div><div>Total (+/−)</div></div>' +
       _autoBatalCandidates.map((c) => {
-        const keysAttr = c.lineKeys.map(k => String(k).replace(/"/g,'&quot;')).join('||');
+        const keysAttr = escHtml(JSON.stringify(c.lineKeys.map(k => String(k))));
         return '<div class="nama-fix-row auto-batal-row" style="grid-template-columns:28px 1.1fr 1.3fr 100px 130px"><div><input type="checkbox" class="auto-batal-cb" data-keys="' + keysAttr + '" checked></div><div>' + escHtml(c.faktur) + '<br><span style="font-size:10.5px;color:#64748b">' + fmtTgl(c.tgl) + '</span></div><div>' + escHtml(c.produk) + '</div><div class="num">' + c.qtyPos + ' / ' + c.qtyNeg + '</div><div class="num">' + rp(c.totalPos) + ' / ' + rp(c.totalNeg) + '</div></div>';
       }).join('');
   }
@@ -3640,7 +3650,8 @@ self.onmessage = function(e){
     if (!boxes.length) return alert('Centang minimal satu pasangan transaksi yang ingin ditandai BATAL.');
     let n = 0;
     boxes.forEach(cb => {
-      const keys = (cb.getAttribute('data-keys')||'').split('||').filter(Boolean);
+      let keys = [];
+      try { const parsed = JSON.parse(cb.getAttribute('data-keys') || '[]'); if (Array.isArray(parsed)) keys = parsed.map(k => String(k)); } catch(e){ /* fallback legacy || */ keys = (cb.getAttribute('data-keys')||'').split('||').filter(Boolean); }
       keys.forEach(k => { if (!batalLineSet.has(k)) { batalLineSet.add(k); n++; } });
     });
     if (!n) { closeAutoBatalModal(); return; }
@@ -3710,14 +3721,14 @@ self.onmessage = function(e){
         if (fkClickable) {
           const cls = 'fk-link' + ((row.hasMinus || row.hasLineBatal) && !row.isBatal ? ' has-minus' : '') + (row.isBatal ? ' batal' : '');
           const badge = row.isBatal ? '<span class="fk-badge-batal">BATAL</span>' : (row.hasLineBatal ? '<span class="fk-badge-batal">ITEM BATAL</span>' : '');
-          fkCell = '<span class="' + cls + '" onclick="openFkBatalModal(\'' + String(row.faktur).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Klik untuk detail / transaksi batal">' + fkCell.replace(/</g,'&lt;') + '</span>' + badge;
-        } else fkCell = fkCell.replace(/</g,'&lt;');
+          fkCell = '<span class="' + cls + '" data-faktur="' + escHtml(row.faktur) + '" onclick="openFkBatalModal(this.getAttribute(\'data-faktur\'))" title="Klik untuk detail / transaksi batal">' + escHtml(row.faktur) + '</span>' + badge;
+        } else fkCell = escHtml(row.faktur);
         const gs = ' style="vertical-align:top;' + (row.isBatal ? 'opacity:.7;background:#fef2f2;' : '') + '"';
-        cells += '<td class="num"' + rs + gs + '>' + gno + '</td><td' + rs + gs + '>' + tgl + '</td><td' + rs + gs + '>' + fkCell + '</td><td' + rs + gs + '>' + sales + '</td>';
-        cells += '<td title="' + String(produk).replace(/"/g,'&quot;') + '"' + ls + '>' + produk + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + satuan + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
-        cells += '<td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.nominal) + '</td><td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.profit) + '</td><td' + rs + gs + '>' + bayar + '</td><td title="' + String(cust).replace(/"/g,'&quot;') + '"' + rs + gs + '>' + cust + '</td>';
+        cells += '<td class="num"' + rs + gs + '>' + gno + '</td><td' + rs + gs + '>' + tgl + '</td><td' + rs + gs + '>' + fkCell + '</td><td' + rs + gs + '>' + escHtml(sales) + '</td>';
+        cells += '<td title="' + escHtml(produk) + '"' + ls + '>' + escHtml(produk) + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + escHtml(satuan) + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
+        cells += '<td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.nominal) + '</td><td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.profit) + '</td><td' + rs + gs + '>' + escHtml(bayar) + '</td><td title="' + escHtml(cust) + '"' + rs + gs + '>' + escHtml(cust) + '</td>';
       } else {
-        cells += '<td title="' + String(produk).replace(/"/g,'&quot;') + '"' + ls + '>' + produk + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + satuan + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
+        cells += '<td title="' + escHtml(produk) + '"' + ls + '>' + escHtml(produk) + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + escHtml(satuan) + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
       }
       body += '<tr>' + cells + '</tr>';
     });
