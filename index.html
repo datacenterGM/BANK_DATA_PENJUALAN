@@ -129,9 +129,9 @@ body.dark tbody tr:hover{background:var(--hover-bg2)}
 body.dark .tsw-title{color:#93c5fd}
 .tsw-meta{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:8px;color:var(--text)}
 .tsw-scroll{overflow:auto}
-.tsw-t{width:100%;border-collapse:collapse;font-size:12px;min-width:860px}
-.tsw-t th{background:#1f4e78;color:#fff;border:1px solid #0f2b44;padding:5px 8px;font-size:11px;text-align:center;white-space:nowrap}
-.tsw-t td{border:1px solid var(--input-border);padding:4px 8px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text)}
+.tsw-t{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
+.tsw-t th{background:#1f4e78;color:#fff;border:1px solid #0f2b44;padding:5px 5px;font-size:11px;text-align:center;white-space:nowrap}
+.tsw-t td{border:1px solid var(--input-border);padding:4px 5px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text)}
 .tsw-t td.l{text-align:left}.tsw-t td.c{text-align:center}
 .tsw-t tr.tot td{font-weight:700;background:var(--tfoot-bg)}
 .tsw-t td.ok{color:#15803d;font-weight:700}.tsw-t td.no{color:#b91c1c;font-weight:700}
@@ -1657,7 +1657,7 @@ self.onmessage = function(e){
       }
     }
     if (sp.rows.length && !sp.head2) ws.autoFilter = { from:{row:HR,column:1}, to:{row:HR + sp.rows.length,column:nc} };
-    ws.pageSetup = { paperSize:9, orientation: nc > 7 ? 'landscape' : 'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0, horizontalCentered:true, margins:{ left:0.4, right:0.4, top:0.6, bottom:0.65, header:0.3, footer:0.3 }, printTitlesRow: (sp.head2 ? (HR-1) : HR) + ':' + HR };
+    ws.pageSetup = { paperSize:9, orientation: (nc > 7 && !sp.portrait) ? 'landscape' : 'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0, horizontalCentered:true, margins:{ left:0.4, right:0.4, top:0.6, bottom:0.65, header:0.3, footer:0.3 }, printTitlesRow: (sp.head2 ? (HR-1) : HR) + ':' + HR };
     ws.headerFooter = { oddFooter: '&L&8Rekap Penjualan&C&8Halaman &P dari &N&R&8&D' };
     return ws;
   }
@@ -1692,7 +1692,7 @@ self.onmessage = function(e){
       const xl = rows.map(r => [r[0], r[1] === '' ? '' : N(r[1]), r[2], s14PriceXl(r[3]), s14PriceXl(r[4]), r[5], r[6], r[7], r[8]]);
       const tag = (filters.sales || 'Semua_Sales').replace(/[^A-Za-z0-9]+/g, '_') + '_' + (filters.month ? monthLabel(filters.month) : 'Semua_Bulan').replace(/[^A-Za-z0-9]+/g, '_');
       return { name:'Rekap per Sales', title:'Rekap Penjualan per Sales', rightTitle: s14SalesLabel(), titleColor:'FF000000', noPrint:true, info: s14ExcelInfo(), fileName:'Rekap_Penjualan_per_Sales_' + tag + '.xlsx',
-        head:['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET'], types:['t','n','c','nt','nt','n','n','n','t'], rows: xl,
+        portrait:true, head:['PRODUK','QTY','SATUAN','H BELI','H JUAL','HPP','NOM PENJUALAN','PROFIT','KET'], types:['t','n','c','nt','nt','n','n','n','t'], rows: xl,
         total: rows.length ? ['TOTAL',T.q,'','','',T.h,T.v,T.p,''] : null };
     }
     if (tab === 's12') return rekapBlnExcelSpec();
@@ -2490,7 +2490,7 @@ self.onmessage = function(e){
     const qBonTot = N(K.fitB) + K.items.reduce((a, x) => a + N(x.B), 0);
     const note = '<div class="tsw-note"><b>' + (qOkN ? 'TARGET QTY TERCAPAI ' + qOkN + ' ITEM' : 'TIDAK ADA ITEM YG TARGET') + '</b>' + (qOkN ? ' &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>BONUS Rp. ' + rn(qBonTot) + '</b>' : '') + '</div>';
     /* 3. Rupa Rupa (dikelompokkan sama seperti di Perhitungan Bonus) */
-    const headR = ['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET'].map(h => '<th>' + h + '</th>').join('');
+    const headR = ['PRODUK','QTY','SATUAN','H BELI','H JUAL','HPP','NOM PENJUALAN','PROFIT','KET'].map(h => '<th>' + h + '</th>').join('');
     const secR = (S, judul) => {
       const RT = S.RT; let rows = '', first = true;
       S.gl.forEach(g => {
@@ -2501,7 +2501,7 @@ self.onmessage = function(e){
       });
       if (!rows && !N(c[S.k].tq)) return '';
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[S.k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
-      const tbl = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + headR + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada penjualan untuk produk di bagian ini.</td></tr>') + tot + '</tbody></table></div>';
+      const tbl = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:640px"><thead><tr>' + headR + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada penjualan untuk produk di bagian ini.</td></tr>') + tot + '</tbody></table></div>';
       const tn = tnNote(S, c, false);
       return sub(judul + ' :') + tbl + tn;
     };
@@ -2537,7 +2537,7 @@ self.onmessage = function(e){
       const list = _tswList, K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Penjualan & Target', { views: [{ showGridLines: false }] });
-      ws.columns = [46, 12, 16, 16, 16, 16, 20, 16, 16].map(w => ({ width: w }));
+      ws.columns = [32, 10, 10, 11, 11, 14, 15, 12, 20].map(w => ({ width: w }));
       const thin = { style: 'thin', color: { argb: 'FF7F8FA6' } }, bd = { top: thin, left: thin, bottom: thin, right: thin };
       const F = (b, col) => ({ name: 'Arial', size: 10, bold: !!b, color: { argb: col || 'FF000000' } });
       const fillY = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } };
@@ -2569,7 +2569,7 @@ self.onmessage = function(e){
         const k = S.k, RT = S.RT, hasRows = S.gl.some(g => g.length);
         if (!hasRows && !N(c[k].tq)) return;
         r += 1; sub(r, judul);
-        r++; head(r, ['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET']); r++;
+        r++; head(r, ['PRODUK','QTY','SATUAN','H BELI','H JUAL','HPP','NOM PENJUALAN','PROFIT','KET']); r++;
         let any = false;
         S.gl.forEach(g => {
           if (!g.length) return;
@@ -2591,7 +2591,7 @@ self.onmessage = function(e){
       const GPX = [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]];
       const cntX = Math.min(4, (K.fitOk ? 1 : 0) + K.items.reduce((t, x) => t + x.it.t.filter(tt => N(tt.q) > 0 && x.q >= N(tt.q)).length, 0));
       /* Sheet utama berakhir di sini — KATEGORI TARGET dipindah ke sheet lain agar lebar kolom mandiri */
-      ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
+      ws.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
       ws.headerFooter = { oddFooter: '&LDicetak &D&RHalaman &P / &N' };
 
       /* === Sheet terpisah: Kategori Target (lebar kolom tidak mempengaruhi tabel atas) === */
@@ -2738,7 +2738,7 @@ self.onmessage = function(e){
     const t1 = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:720px"><thead><tr>' + head1 + '</tr></thead><tbody>' + body + '</tbody></table></div>'
       + '<div style="margin:6px 0"><button type="button" class="bon-nav" style="margin-left:0" onclick="bonAddItem()">+ Tambah baris produk</button></div>';
     const bi = 'width:120px;padding:3px 6px;border:1px solid var(--input-border);border-radius:6px;text-align:right;background:var(--input-bg,#fff);color:var(--text)';
-    const head2 = ['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET'].map(h => '<th>' + h + '</th>').join('');
+    const head2 = ['PRODUK','QTY','SATUAN','H BELI','H JUAL','HPP','NOM PENJUALAN','PROFIT','KET'].map(h => '<th>' + h + '</th>').join('');
     const secHtml = (S, judul) => {
       const k = S.k, RT = S.RT; let rows = '', first = true;
       S.gl.forEach((g, gi) => {
@@ -2750,7 +2750,7 @@ self.onmessage = function(e){
         rows += '<tr><td class="l" colspan="9" style="background:var(--tfoot-bg)"><span style="font-size:11px;opacity:.8">Produk di baris ini (ketik sebagian nama produk, pisahkan koma) :</span> <input type="text" value="' + escHtml(c[k].groups[gi]) + '" placeholder="mis. MARGARINE FORVITA, JELLYGAR" style="width:min(460px,70%);font-size:11px;' + tx + '" onchange="bonGroupSet(\'' + k + '\',' + gi + ',this.value)"> <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelGroup(\'' + k + '\',' + gi + ')">× hapus</button>' + (g.length ? '' : ' <span style="font-size:11px;opacity:.7">(belum ada produk cocok)</span>') + '</td></tr>';
       });
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
-      const tbl = '<div class="tsw-sub" style="margin-top:44px;padding-top:16px;border-top:2px dashed var(--input-border)">' + judul + ' :</div><div class="tsw-scroll"><table class="tsw-t" style="min-width:780px"><thead><tr>' + head2 + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada baris produk. Klik "+ Tambah baris produk".</td></tr>') + tot + '</tbody></table></div>'
+      const tbl = '<div class="tsw-sub" style="margin-top:44px;padding-top:16px;border-top:2px dashed var(--input-border)">' + judul + ' :</div><div class="tsw-scroll"><table class="tsw-t" style="min-width:640px"><thead><tr>' + head2 + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada baris produk. Klik "+ Tambah baris produk".</td></tr>') + tot + '</tbody></table></div>'
         + '<div style="margin:6px 0"><button type="button" class="bon-nav" style="margin-left:0" onclick="bonAddGroup(\'' + k + '\')">+ Tambah baris produk</button></div>';
       const tn = tnNote(S, c, true);
       const ex = c[k].excl.length ? '<div class="tsw-note" style="flex-wrap:wrap;gap:6px"><b>Produk dihapus dari tabel:</b> ' + c[k].excl.map((n, i) => '<span style="' + mini + '">' + escHtml(n) + ' <a href="javascript:void(0)" onclick="bonUnExcl(\'' + k + '\',' + i + ')" title="Kembalikan" style="color:#15803d;font-weight:700;text-decoration:none">↺</a></span>').join(' ') + '</div>' : '';
@@ -2773,7 +2773,7 @@ self.onmessage = function(e){
       const K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Perhitungan Bonus', { views: [{ showGridLines: false }] });
-      ws.columns = [46, 12, 16, 16, 16, 16, 20, 16, 16].map(w => ({ width: w }));
+      ws.columns = [32, 10, 10, 11, 11, 14, 15, 12, 20].map(w => ({ width: w }));
       const thin = { style: 'thin', color: { argb: 'FF7F8FA6' } }, bd = { top: thin, left: thin, bottom: thin, right: thin };
       const F = (b, col) => ({ name: 'Arial', size: 10, bold: !!b, color: { argb: col || 'FF000000' } });
       const fillY = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } };
@@ -2797,7 +2797,7 @@ self.onmessage = function(e){
       [['TARGET NOMINAL RUPA RUPA :', K.secs[0]], ['TARGET NOMINAL RUPA RUPA (Produk khusus) :', K.secs[1]]].forEach(([judul, S]) => {
         const k = S.k, RT = S.RT;
         r += 1; ws.getCell(r, 1).value = judul; ws.getCell(r, 1).font = { name: 'Arial', size: 11, bold: true };
-        r++; head(r, ['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET']); r++;
+        r++; head(r, ['PRODUK','QTY','SATUAN','H BELI','H JUAL','HPP','NOM PENJUALAN','PROFIT','KET']); r++;
         let any = false;
         S.gl.forEach(g => {
           if (!g.length) return;
@@ -2817,7 +2817,7 @@ self.onmessage = function(e){
       });
       r += 1;
       ws.getCell(r, 1).value = 'TOTAL NILAI BONUS = Rp ' + rn(K.grand); ws.getCell(r, 1).font = { name: 'Arial', size: 12, bold: true };
-      ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
+      ws.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
       await downloadWorkbook(wb, 'Perhitungan_Bonus_' + tswSales + '_' + (filters.month ? periode.replace(/[^A-Za-z0-9]+/g, '_') : 'Semua_Bulan') + '.xlsx');
     } catch(e){ console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
     finally { hideBusy(); }
@@ -2888,7 +2888,7 @@ self.onmessage = function(e){
       const has = r[5] !== '';
       body += '<tr><td>' + escHtml(r[0]) + '</td><td class="num">' + (has ? N(r[1]).toLocaleString('id-ID') : '') + '</td><td>' + escHtml(r[2]) + '</td><td class="num">' + s14PriceText(r[3]) + '</td><td class="num">' + s14PriceText(r[4]) + '</td><td class="num">' + (has ? rn(r[5]) : '') + '</td><td class="num">' + (has ? rn(r[6]) : '') + '</td><td class="num">' + (has ? rn(r[7]) : '') + '</td><td>' + escHtml(r[8]) + '</td></tr>';
     });
-    const th = ['PRODUK', 'QTY', 'SATUAN', 'HARGA BELI', 'HARGA JUAL', 'HPP', 'NOMINAL PENJUALAN', 'PROFIT', 'KET'].map(h => '<th class="s10-h0">' + h + '</th>').join('');
+    const th = ['PRODUK', 'QTY', 'SATUAN', 'H BELI', 'H JUAL', 'HPP', 'NOM PENJUALAN', 'PROFIT', 'KET'].map(h => '<th class="s10-h0">' + h + '</th>').join('');
     const foot = rows.length ? '<tr><td>TOTAL</td><td class="num">' + N(T.q).toLocaleString('id-ID') + '</td><td></td><td></td><td></td><td class="num">' + rn(T.h) + '</td><td class="num">' + rn(T.v) + '</td><td class="num">' + rn(T.p) + '</td><td></td></tr>' : '';
     const caption = '<div style="display:flex;flex-wrap:wrap;gap:6px 24px;margin:0 0 8px;font-size:12.5px"><span><b>' + escHtml(s14SalesLabel()) + '</b></span><span style="color:var(--muted)">' + escHtml(s14PeriodLabel()) + '</span></div>';
     return caption + rekapPagerHtml('s14', rows.length) + '<div class="tablebox"><table class="s10table"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
