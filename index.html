@@ -2461,17 +2461,9 @@ self.onmessage = function(e){
   document.addEventListener('click', function(e){ const d = document.getElementById('tswDd'); if (d && d.style.display === 'block' && !e.target.closest('#tswPick')) d.style.display = 'none'; });
   function tswHtml(list){
     const K = bonCalc(), c = K.c, cf = K.cf;
-    const T = list.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
     const periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
     const sub = txt => '<div class="tsw-sub" style="margin-top:28px">' + txt + '</div>';
     const ket = ok => '<td class="c ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'target' : 'tidak target') + '</td>';
-    /* 1. Penjualan produk Fitri */
-    const headF = ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT'].map(h => '<th>' + h + '</th>').join('');
-    const bodyF = list.map(o => '<tr><td class="l">' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td></tr>').join('');
-    const totF = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(T.q) + '</td><td></td><td>' + rn(T.h) + '</td><td>' + rn(T.v) + '</td><td>' + rn(T.v - T.h) + '</td></tr>';
-    const tblF = list.length
-      ? '<div class="tsw-scroll"><table class="tsw-t" style="min-width:620px"><thead><tr>' + headF + '</tr></thead><tbody>' + bodyF + totF + '</tbody></table></div>'
-      : '<div class="tsw-empty">Tidak ada penjualan Fitri ' + escHtml(tswSales) + ' untuk filter saat ini.</div>';
     /* 2. Target qty & bonus (hasil dari Perhitungan Bonus, hanya tampil) */
     const headT = ['PRODUK','TARGET QTY','BONUS TARGET Rp','QTY PENJUALAN','KET','NILAI BONUS'].map(h => '<th>' + h + '</th>').join('');
     let bodyT = '<tr><td class="l">Minyak Fitri (All Item)</td><td>' + (N(cf.q) ? rn(cf.q) : '') + '</td><td>' + (N(cf.b) ? rn(cf.b) : '') + '</td><td>' + rn(K.fq) + '</td>' + ket(K.fitOk) + '<td>' + (K.fitB ? rn(K.fitB) : '') + '</td></tr>';
@@ -2504,11 +2496,21 @@ self.onmessage = function(e){
       return sub(judul + ' :') + tbl + tn;
     };
     const rupa = secR(K.secs[0], 'TARGET NOMINAL RUPA RUPA') + secR(K.secs[1], 'TARGET NOMINAL RUPA RUPA (Produk khusus)');
+    /* 4. Kategori target (keterangan gaji pokok) */
+    const GP = [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]];
+    const tqR = N(c.rupa.tq) || 20000000;
+    const katRows = GP.map(g => '<tr><td style="padding:2px 6px;width:24px;text-align:center">-</td><td style="padding:2px 6px;text-align:left">Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar</td><td style="padding:2px 6px;width:34px;text-align:right">Rp</td><td style="padding:2px 6px;width:100px;text-align:right">' + rn(g[1]) + '</td></tr>').join('');
+    const kat = '<div class="tsw-kat" style="margin-top:36px;padding-top:14px;border-top:2px solid var(--input-border);font-size:13px;color:var(--text)">'
+      + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:12px"><span>KATEGORI TARGET</span><span>KET</span></div>'
+      + '<div style="display:flex;gap:10px;margin-bottom:4px"><b style="width:34px">1.</b><div style="display:flex;flex-wrap:wrap;gap:6px 46px;font-weight:700"><span>TARGET QTY PENJUALAN</span><span>MINYAK</span><span>MIE</span><span>SAMBAL REFFIL 600 ML</span></div></div>'
+      + '<div style="margin-left:44px;overflow-x:auto"><table style="border-collapse:collapse;font-size:13px"><tbody>' + katRows + '</tbody></table></div>'
+      + '<div style="display:flex;gap:10px;margin:18px 0 4px"><b style="width:34px">2.</b><b>TARGET NOMINAL PENJUALAN RUPA RUPA</b></div>'
+      + '<div style="margin-left:44px;padding:2px 6px">- &nbsp;target Nominal penjualan Rp.' + rn(tqR) + '</div>'
+      + '<div style="display:flex;gap:10px;margin:18px 0 4px"><b style="width:34px">3.</b><b>TARGET PENJUALAN PRODUK KHUSUS</b></div></div>';
     const grand = '<div class="tsw-note" style="font-size:14px;margin-top:28px;padding-top:14px;border-top:2px solid var(--input-border)"><b>TOTAL NILAI BONUS = Rp ' + rn(K.grand) + '</b></div>';
     return '<div class="tsw"><div class="tsw-title">PENJUALAN &amp; TARGET SALES</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">' + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'bonus\')">🧮 Perhitungan Bonus</button></span><span>' + escHtml(periode) + '</span></div>'
-      + sub('PENJUALAN PRODUK FITRI :') + tblF
       + sub('TARGET QTY PENJUALAN :') + tblT + note
-      + rupa + grand + '</div>';
+      + rupa + grand + kat + '</div>';
   }
   function tswSet(k, v){ const n = Number(String(v).replace(/[^\d]/g, '')) || 0; const c = tswC(); if (k === 'q') c.q = n; else c.b = n; tswSave(); tswPaint(false); }
   async function tswExportExcel(){
@@ -2517,7 +2519,6 @@ self.onmessage = function(e){
       showBusy('Membuat file Excel…');
       if (!_tswList.length) { try { _tswList = await tswData(); } catch(e){} }
       const list = _tswList, K = bonCalc(), c = K.c, cf = K.cf, periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
-      const T = list.reduce((t, o) => { t.q += o.q; t.h += o.hpp; t.v += o.jual; return t; }, { q: 0, h: 0, v: 0 });
       const wb = new ExcelJS.Workbook(); wb.creator = 'Rekap Penjualan'; wb.created = new Date();
       const ws = wb.addWorksheet('Penjualan & Target', { views: [{ showGridLines: false }] });
       ws.columns = [46, 12, 16, 16, 16, 16, 20, 16, 16].map(w => ({ width: w }));
@@ -2531,13 +2532,7 @@ self.onmessage = function(e){
       const put = (r, i, v, o) => { o = o || {}; const x = ws.getRow(r).getCell(i); x.value = v; x.font = F(o.b, o.col); x.border = bd; if (o.fill) x.fill = o.fill; if (o.num) { x.numFmt = '#,##0'; x.alignment = { horizontal: 'right', vertical: 'middle' }; } if (o.c) x.alignment = { horizontal: 'center', vertical: 'middle' }; if (o.wrap) x.alignment = { vertical: 'middle', wrapText: true }; return x; };
       const kc = ok => ok ? 'FF15803D' : 'FFB91C1C';
       const sub = (r, txt) => { ws.getCell(r, 1).value = txt; ws.getCell(r, 1).font = { name: 'Arial', size: 11, bold: true }; };
-      /* 1. Penjualan produk Fitri */
-      let r = 5; sub(r, 'PENJUALAN PRODUK FITRI :');
-      r++; head(r, ['PRODUK','QTY','SATUAN','HPP','NOMINAL PENJUALAN','PROFIT']); r++;
-      list.forEach(o => { put(r, 1, o.name); put(r, 2, o.q, { num: 1 }); put(r, 3, o.sat); put(r, 4, Math.round(o.hpp), { num: 1 }); put(r, 5, Math.round(o.jual), { num: 1 }); put(r, 6, Math.round(o.jual - o.hpp), { num: 1 }); r++; });
-      [['TOTAL', 1], [T.q, 2], [null, 3], [T.h, 4], [T.v, 5], [T.v - T.h, 6]].forEach(([v, i]) => put(r, i, v == null ? null : (typeof v === 'number' ? Math.round(v) : v), { b: 1, fill: fillY, num: typeof v === 'number' }));
-      r += 2;
-      /* 2. Target qty & bonus */
+      let r = 5;
       sub(r, 'TARGET QTY PENJUALAN :');
       r++; head(r, ['PRODUK','TARGET QTY','BONUS TARGET Rp','QTY PENJUALAN','KET','NILAI BONUS']); r++;
       put(r, 1, 'Minyak Fitri (All Item)'); put(r, 2, N(cf.q) || null, { num: 1 }); put(r, 3, N(cf.b) || null, { num: 1 }); put(r, 4, K.fq, { num: 1 });
@@ -2575,6 +2570,16 @@ self.onmessage = function(e){
       });
       r += 1;
       ws.getCell(r, 1).value = 'TOTAL NILAI BONUS = Rp ' + rn(K.grand); ws.getCell(r, 1).font = { name: 'Arial', size: 12, bold: true };
+      /* Kategori target (keterangan gaji pokok) */
+      const tx = (rr, cc, v, o) => { o = o || {}; const x = ws.getCell(rr, cc); x.value = v; x.font = F(o.b); if (o.r) x.alignment = { horizontal: 'right' }; return x; };
+      r += 3; tx(r, 1, 'KATEGORI TARGET', { b: 1 }); tx(r, 9, 'KET', { b: 1, r: 1 });
+      r += 2; tx(r, 1, '1.   TARGET QTY PENJUALAN', { b: 1 }); tx(r, 3, 'MINYAK', { b: 1 }); tx(r, 5, 'MIE', { b: 1 }); tx(r, 7, 'SAMBAL REFFIL 600 ML', { b: 1 });
+      [['tidak capai target', 780000], ['capai satu (1) target', 1040000], ['capai dua (2) target', 1352000], ['capai tiga (3) target', 1554000], ['capai empat (4) target', 1709000]].forEach(g => {
+        r++; tx(r, 1, '      -   Setiap penjualan ' + g[0] + ' diberikan gaji pokok sebesar'); tx(r, 4, 'Rp', { r: 1 }); const v = tx(r, 5, g[1], { r: 1 }); v.numFmt = '#,##0';
+      });
+      r += 2; tx(r, 1, '2.   TARGET NOMINAL PENJUALAN RUPA RUPA', { b: 1 });
+      r++; tx(r, 1, '      -   target Nominal penjualan Rp.' + rn(N(c.rupa.tq) || 20000000));
+      r += 2; tx(r, 1, '3.   TARGET PENJUALAN PRODUK KHUSUS', { b: 1 });
       ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }, printArea: 'A1:I' + r };
       ws.headerFooter = { oddFooter: '&LDicetak &D&RHalaman &P / &N' };
       await downloadWorkbook(wb, 'Penjualan_Target_Sales_' + tswSales + '_' + (filters.month ? periode.replace(/[^A-Za-z0-9]+/g, '_') : 'Semua_Bulan') + '.xlsx');
