@@ -2474,7 +2474,7 @@ self.onmessage = function(e){
     const ket = ok => '<td class="c ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'target' : 'tidak target') + '</td>';
     /* 2. Target qty & bonus (hasil dari Perhitungan Bonus, hanya tampil) */
     const headT = ['PRODUK','TARGET QTY','BONUS TARGET Rp','QTY PENJUALAN','KET','NILAI BONUS'].map(h => '<th>' + h + '</th>').join('');
-    let bodyT = '<tr><td class="l">Minyak Fitri (All Item)</td><td>' + (N(cf.q) ? rn(cf.q) : '') + '</td><td>' + (N(cf.b) ? rn(cf.b) : '') + '</td><td>' + rn(K.fq) + '</td>' + ket(K.fitOk) + '<td>' + (K.fitB ? rn(K.fitB) : '') + '</td></tr>';
+    let bodyT = '<tr><td class="l">Minyak Fitri (All Item)</td><td>' + (N(cf.q) ? rn(cf.q) : '') + '</td><td>' + (N(cf.b) ? rn(cf.b) : '') + '</td><td>' + rn(K.fq) + '</td>' + ket(K.fitOk) + '<td class="nb">' + (K.fitB ? rn(K.fitB) : '') + '</td></tr>';
     K.items.forEach(x => {
       let tiers = x.it.t.map((t, k) => ({ t: t, k: k })).filter(o => N(o.t.q) > 0 || N(o.t.b) > 0);
       if (!tiers.length) tiers = [{ t: x.it.t[0] || { q: 0, b: 0 }, k: 0 }];
@@ -2482,11 +2482,13 @@ self.onmessage = function(e){
       tiers.forEach((o, j) => {
         bodyT += '<tr>' + (j === 0 ? '<td class="l" rowspan="' + n + '">' + escHtml(x.it.nama) + '</td>' : '')
           + '<td>' + (N(o.t.q) ? rn(o.t.q) : '') + '</td><td>' + (N(o.t.b) ? rn(o.t.b) : '') + '</td>'
-          + (j === 0 ? '<td rowspan="' + n + '">' + rn(x.q) + '</td><td class="c ' + (x.ti >= 0 ? 'ok' : 'no') + '" rowspan="' + n + '">' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target') + '</td><td rowspan="' + n + '">' + (x.B ? rn(x.B) : '') + '</td>' : '') + '</tr>';
+          + (j === 0 ? '<td rowspan="' + n + '">' + rn(x.q) + '</td><td class="c ' + (x.ti >= 0 ? 'ok' : 'no') + '" rowspan="' + n + '">' + (x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target') + '</td><td class="nb" rowspan="' + n + '">' + (x.B ? rn(x.B) : '') + '</td>' : '') + '</tr>';
       });
     });
-    const tblT = '<div class="tsw-scroll"><table class="tsw-t" style="min-width:620px"><thead><tr>' + headT + '</tr></thead><tbody>' + bodyT + '</tbody></table></div>';
-    const note = N(cf.q) ? '<div class="tsw-note">' + rn(cf.q) + ' Karton UP diberikan bonus presentase perkarton sebesar Rp ' + rn(cf.b) + ',-/karton</div>' : '';
+    const tblT = '<style>.tsw-t.qc td:not(.l){text-align:center}.tsw-t.qc td.nb{font-weight:700}</style><div class="tsw-scroll"><table class="tsw-t qc" style="min-width:620px"><thead><tr>' + headT + '</tr></thead><tbody>' + bodyT + '</tbody></table></div>';
+    const qOkN = (K.fitOk ? 1 : 0) + K.items.filter(x => x.ti >= 0).length;
+    const qBonTot = N(K.fitB) + K.items.reduce((a, x) => a + N(x.B), 0);
+    const note = '<div class="tsw-note"><b>' + (qOkN ? 'TARGET QTY TERCAPAI ' + qOkN + ' ITEM' : 'TIDAK ADA ITEM YG TARGET') + '</b>' + (qOkN ? ' &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>BONUS Rp. ' + rn(qBonTot) + '</b>' : '') + '</div>';
     /* 3. Rupa Rupa (dikelompokkan sama seperti di Perhitungan Bonus) */
     const headR = ['PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','KET'].map(h => '<th>' + h + '</th>').join('');
     const secR = (S, judul) => {
@@ -2560,7 +2562,8 @@ self.onmessage = function(e){
         put(r0, 5, x.ti >= 0 ? 'target ' + rn(x.it.t[x.ti].q) : 'tidak target', { b: 1, c: 1, col: kc(x.ti >= 0) }); put(r0, 6, x.B || null, { num: 1 });
         if (n > 1) ['A','D','E','F'].forEach(L => ws.mergeCells(L + r0 + ':' + L + (r0 + n - 1)));
       });
-      if (N(cf.q)){ r++; ws.mergeCells(r, 1, r, 6); ws.getCell(r, 1).value = rn(cf.q) + ' Karton UP diberikan bonus presentase perkarton sebesar Rp ' + rn(cf.b) + ',-/karton'; ws.getCell(r, 1).font = F(false); r++; }
+      { const qOk = (K.fitOk ? 1 : 0) + K.items.filter(x => x.ti >= 0).length, qB = N(K.fitB) + K.items.reduce((a, x) => a + N(x.B), 0);
+        r++; ws.mergeCells(r, 1, r, 6); ws.getCell(r, 1).value = qOk ? 'TARGET QTY TERCAPAI ' + qOk + ' ITEM          BONUS Rp. ' + rn(qB) : 'TIDAK ADA ITEM YG TARGET'; ws.getCell(r, 1).font = F(true); r++; }
       /* 3. Rupa Rupa */
       [['TARGET NOMINAL RUPA RUPA :', K.secs[0]], ['TARGET NOMINAL RUPA RUPA (Produk khusus) :', K.secs[1]]].forEach(([judul, S]) => {
         const k = S.k, RT = S.RT, hasRows = S.gl.some(g => g.length);
