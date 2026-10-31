@@ -521,7 +521,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
               <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
-              <button onclick="show('s13',this)">📊 Grafik Penjualan &amp; Profit</button>
+              <button onclick="show('s13',this)">📊 Grafik</button>
               <button onclick="show('s17',this)">📦 Rekap Gudang &amp; Profit</button>
               <button onclick="show('s16',this)">⚖️ Analisa</button>
               <div class="tabs-sep">Halaman Stok</div>
@@ -3092,7 +3092,7 @@ self.onmessage = function(e){
       g += '<text x="' + (L + i * gw + gw / 2) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="10.5" fill="currentColor">' + escHtml(lb) + '</text>';
     });
     const legend = series.length > 1 ? '<div style="display:flex;gap:14px;justify-content:center;font-size:11.5px;margin-top:2px">' + series.map(x => '<span><i style="display:inline-block;width:10px;height:10px;background:' + x.color + ';margin-right:5px;border-radius:2px"></i>' + escHtml(x.name) + '</span>').join('') + '</div>' : '';
-    return '<div style="flex:1 1 360px;min-width:300px;border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:8px;color:var(--text)"><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img">' + g + '</svg>' + legend + '</div>';
+    return '<div style="flex:1 1 360px;min-width:300px;max-width:620px;border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:8px;color:var(--text)"><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img">' + g + '</svg>' + legend + '</div>';
   }
   function rekapBlnChartCards(c, multiYear){
     const labels = c.sel.map(m => rekapBlnLabel(m, multiYear)), metric = rekapBln.metric;
@@ -3101,10 +3101,8 @@ self.onmessage = function(e){
       if (!c.list.some(o => isFitriProduct(o.p) === isF)) return '';
       const t = grp(isF);
       return metric === 'sales'
-        ? rekapBlnSvg(nm + ' - Penjualan (Cash vs Tempo) & Profit', labels, [{ name: 'Penjualan Cash', color: '#2f6fb0', vals: t.map(x => x.sc) }, { name: 'Penjualan Tempo', color: '#e48a2b', vals: t.map(x => x.st) }, { name: 'Profit', color: col, vals: t.map(x => x.p) }], true)
-        : metric === 'qty'
-        ? rekapBlnSvg(nm + ' - Total Qty', labels, [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }], false)
-        : rekapBlnSvg(nm + ' - Profit', labels, [{ name: 'Profit', color: col, vals: t.map(x => x.p) }], true);
+        ? rekapBlnSvg(nm + ' - Penjualan (Cash vs Tempo)', labels, [{ name: 'Penjualan Cash', color: '#2f6fb0', vals: t.map(x => x.sc) }, { name: 'Penjualan Tempo', color: '#e48a2b', vals: t.map(x => x.st) }], true)
+        : rekapBlnSvg(nm + ' - Total Qty', labels, [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }], false);
     };
     const cards = mk(true, 'Produk Fitri', '#3b9a5a') + mk(false, 'Produk Rupa Rupa', '#8e5bb5');
     return cards ? '<div style="display:flex;flex-wrap:wrap;gap:12px">' + cards + '</div>' : '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data pada rentang bulan / pilihan produk ini.</div>';
@@ -3135,21 +3133,86 @@ self.onmessage = function(e){
     const has = g => c.names.some(n => c.by.get(n)[g].some(x => x.q || x.sc || x.st || x.p));
     const mk = (g, nm) => {
       if (!has(g)) return '';
-      if (metric === 'sales') return rekapBlnSvg(nm + ' - Penjualan per Sales', labels, ser(g, x => x.sc + x.st), true) + rekapBlnSvg(nm + ' - Profit per Sales', labels, ser(g, x => x.p), true);
       if (metric === 'qty') return rekapBlnSvg(nm + ' - Total Qty per Sales', labels, ser(g, x => x.q), false);
-      return rekapBlnSvg(nm + ' - Profit per Sales', labels, ser(g, x => x.p), true);
+      return rekapBlnSvg(nm + ' - Penjualan per Sales', labels, ser(g, x => x.sc + x.st), true);
     };
     const cards = mk('F', 'Produk Fitri') + mk('R', 'Produk Rupa Rupa');
     // tabel ringkas total per sales untuk rentang bulan terpilih
     const tot = c.names.map(n => { const o = c.by.get(n), t = { n, sc: 0, st: 0, p: 0, q: 0 }; ['F', 'R'].forEach(g => o[g].forEach(x => { t.sc += x.sc; t.st += x.st; t.p += x.p; t.q += x.q; })); return t; });
     const G = tot.reduce((a, t) => ({ sc: a.sc + t.sc, st: a.st + t.st, p: a.p + t.p, q: a.q + t.q }), { sc: 0, st: 0, p: 0, q: 0 });
-    const row = (n, t, b) => '<tr' + (b ? ' style="font-weight:700"' : '') + '><td>' + escHtml(n) + '</td><td class="num">' + rp(t.sc) + '</td><td class="num">' + rp(t.st) + '</td><td class="num">' + rp(t.sc + t.st) + '</td><td class="num">' + rp(t.p) + '</td><td class="num">' + t.q.toLocaleString('id-ID') + '</td></tr>';
+    const row = (n, t, b) => '<tr' + (b ? ' style="font-weight:700"' : '') + '><td>' + escHtml(n) + '</td><td class="num">' + rp(t.sc) + '</td><td class="num">' + rp(t.st) + '</td><td class="num">' + rp(t.sc + t.st) + '</td><td class="num">' + t.q.toLocaleString('id-ID') + '</td></tr>';
     const table = '<div style="margin-top:14px;font-weight:700;font-size:13px;color:#1f4e78">Total per Sales (' + escHtml(rekapBlnLabel(c.sel[0], multiYear)) + (c.sel.length > 1 ? ' - ' + escHtml(rekapBlnLabel(c.sel[c.sel.length - 1], multiYear)) : '') + ')</div>'
-      + '<div class="tablebox"><table class="s10table"><thead><tr><th>SALES</th><th class="num">CASH</th><th class="num">TEMPO</th><th class="num">TOTAL PENJUALAN</th><th class="num">PROFIT</th><th class="num">QTY</th></tr></thead><tbody>'
+      + '<div class="tablebox"><table class="s10table"><thead><tr><th>SALES</th><th class="num">CASH</th><th class="num">TEMPO</th><th class="num">TOTAL PENJUALAN</th><th class="num">QTY</th></tr></thead><tbody>'
       + tot.map(t => row(t.n, t, false)).join('') + '</tbody><tfoot>' + row('TOTAL', G, true) + '</tfoot></table></div>';
     return (cards ? '<div style="display:flex;flex-wrap:wrap;gap:12px">' + cards + '</div>' : '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data pada rentang bulan / pilihan produk ini.</div>') + table;
   }
-  function grafikView(v){ rekapBln.view = (v === 'persales') ? 'persales' : 'total'; renderGrafikBulanan(); }
+
+  /* ===== Tampilan "Produk per Sales": penjualan produk terpilih, tiap sales satu seri, per bulan ===== */
+  let grafikPS = { prods: new Set(), names: [], split: false };
+  const GRAFIK_COLORS = ['#2f6fb0', '#e48a2b', '#3b9a5a', '#8e5bb5', '#64748b', '#c0504d', '#0e9aa7'];
+  function grafikPCount(){ return grafikPS.prods.size ? grafikPS.prods.size + ' produk dipilih' : 'Semua produk'; }
+  function grafikPItemsHtml(){
+    const d = rekapBlnPS.data, set = new Set();
+    if (d) d.rows.forEach(r => { if (!rekapBln.cat || ((rekapBln.cat === 'FITRI') === isFitriProduct(r.produk))) set.add(r.produk); });
+    grafikPS.names = [...set].sort(natCmp);
+    return grafikPS.names.map((n, i) => '<label class="rb-item" data-n="' + escHtml(n.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (grafikPS.prods.has(n) ? ' checked' : '') + ' onchange="grafikPToggle(this)"><span>' + escHtml(n) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
+  }
+  function grafikPRefresh(){
+    const b = document.getElementById('gBody'), d = rekapBlnPS.data; if (b && d) b.innerHTML = grafikProdukBody(d, rekapBln.multiYear);
+    const c = document.getElementById('gpCount'); if (c) c.textContent = grafikPCount();
+  }
+  function grafikPToggle(cb){ const n = grafikPS.names[+cb.dataset.i]; if (n == null) return; if (cb.checked) grafikPS.prods.add(n); else grafikPS.prods.delete(n); grafikPRefresh(); }
+  function grafikPAll(){
+    document.querySelectorAll('#gpList .rb-item').forEach(l => { if (l.style.display === 'none') return; const cb = l.querySelector('input'); cb.checked = true; const n = grafikPS.names[+cb.dataset.i]; if (n != null) grafikPS.prods.add(n); });
+    grafikPRefresh();
+  }
+  function grafikPClear(){ grafikPS.prods.clear(); document.querySelectorAll('#gpList input[type=checkbox]').forEach(cb => cb.checked = false); grafikPRefresh(); }
+  function grafikPSearch(v){ const t = String(v || '').trim().toLowerCase(); document.querySelectorAll('#gpList .rb-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; }); }
+  function grafikPTogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('gpDd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
+  function grafikPSplit(v){ grafikPS.split = (v === '1'); grafikPRefresh(); }
+  document.addEventListener('click', function(e){ const d = document.getElementById('gpDd'); if (d && d.style.display === 'block' && !e.target.closest('#gpPick')) d.style.display = 'none'; });
+  function grafikProdukBody(dps, multiYear){
+    const from = rekapBln.from, to = rekapBln.to, metric = rekapBln.metric === 'qty' ? 'qty' : 'sales';
+    const sel = dps.months.filter(m => m >= from && m <= to), idx = new Map(sel.map((m, i) => [m, i]));
+    const labels = sel.map(m => rekapBlnLabel(m, multiYear));
+    const pick = p => (!rekapBln.cat || ((rekapBln.cat === 'FITRI') === isFitriProduct(p))) && (!grafikPS.prods.size || grafikPS.prods.has(p));
+    const byP = new Map();
+    dps.rows.forEach(r => {
+      const i = idx.get(r.mk); if (i === undefined || !pick(r.produk)) return;
+      if (!(r.pay.includes('TEMPO') || r.pay.includes('CASH'))) return;
+      const nm = r.sales || '(TANPA SALES)';
+      let ps = byP.get(r.produk); if (!ps){ ps = new Map(); byP.set(r.produk, ps); }
+      let a = ps.get(nm); if (!a){ a = sel.map(() => ({ q: 0, v: 0 })); ps.set(nm, a); }
+      a[i].q += r.j; a[i].v += r.t;
+    });
+    const empty = '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data penjualan untuk produk / rentang bulan ini.</div>';
+    if (!byP.size){ if (rekapBln.spec) rekapBln.spec.sets = []; return empty; }
+    const prodNames = [...byP.keys()].sort(natCmp);
+    const merge = ps => { const out = new Map(); ps.forEach(m => m.forEach((arr, nm) => { let a = out.get(nm); if (!a){ a = sel.map(() => ({ q: 0, v: 0 })); out.set(nm, a); } arr.forEach((x, i) => { a[i].q += x.q; a[i].v += x.v; }); })); return out; };
+    const comb = grafikPS.prods.size === 0 ? 'Semua produk' : (prodNames.length <= 3 ? prodNames.join(' + ') : prodNames.length + ' produk terpilih');
+    const groups = (grafikPS.split && prodNames.length > 1)
+      ? prodNames.map(p => ({ title: p, map: byP.get(p) }))
+      : [{ title: comb, map: merge([...byP.values()]) }];
+    const val = x => metric === 'qty' ? x.q : x.v, money = metric !== 'qty';
+    const fmt = v => money ? rp(v) : v.toLocaleString('id-ID');
+    const sets = [], tables = [];
+    groups.forEach(g => {
+      const names = [...g.map.keys()].sort((a, b) => { const ia = SO.indexOf(a), ib = SO.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || natCmp(a, b); });
+      const series = names.map((n, k) => ({ name: n, color: GRAFIK_COLORS[k % GRAFIK_COLORS.length], vals: g.map.get(n).map(val) }));
+      sets.push({ title: g.title + (metric === 'qty' ? ' - Qty per Sales' : ' - Penjualan per Sales'), labels, money, series });
+      const colTot = sel.map((_, i) => names.reduce((a, n) => a + val(g.map.get(n)[i]), 0));
+      const rowsH = names.map(n => { const arr = g.map.get(n).map(val); return '<tr><td>' + escHtml(n) + '</td>' + arr.map(v => '<td class="num">' + (v ? fmt(v) : '') + '</td>').join('') + '<td class="num" style="font-weight:700">' + fmt(arr.reduce((a, b) => a + b, 0)) + '</td></tr>'; }).join('');
+      tables.push('<div style="margin-top:14px;font-weight:700;font-size:13px;color:#1f4e78">' + escHtml(g.title) + ' - ' + (metric === 'qty' ? 'Qty' : 'Penjualan') + ' per Sales per Bulan</div>'
+        + '<div class="tablebox"><table class="s10table"><thead><tr><th>SALES</th>' + labels.map(l => '<th class="num">' + escHtml(l) + '</th>').join('') + '<th class="num">TOTAL</th></tr></thead><tbody>' + rowsH + '</tbody><tfoot><tr style="font-weight:700"><td>TOTAL</td>' + colTot.map(v => '<td class="num">' + fmt(v) + '</td>').join('') + '<td class="num">' + fmt(colTot.reduce((a, b) => a + b, 0)) + '</td></tr></tfoot></table></div>');
+    });
+    if (rekapBln.spec){
+      rekapBln.spec.sets = sets;
+      rekapBln.spec.info = 'Periode : ' + monthLabel(from) + ' s/d ' + monthLabel(to) + '  |  Produk : ' + comb + '  |  Tampilan : Produk per Sales  |  Kategori : ' + rekapBlnCatLabel();
+    }
+    return '<div style="display:flex;flex-wrap:wrap;gap:12px">' + sets.map(ch => rekapBlnSvg(ch.title, ch.labels, ch.series, ch.money)).join('') + '</div>' + tables.join('');
+  }
+  const grafikNeedPS = () => rekapBln.view === 'persales' || rekapBln.view === 'produk';
+  function grafikView(v){ rekapBln.view = (v === 'persales' || v === 'produk') ? v : 'total'; renderGrafikBulanan(); }
 
   /* ===== TAB: GRAFIK PENJUALAN & PROFIT (tab sendiri; memakai data & filter yang sama dengan tab Rekap) ===== */
   let grafikToken = 0;
@@ -3160,7 +3223,7 @@ self.onmessage = function(e){
     rekapBln.from = a; rekapBln.to = b; rekapPage.s12 = 0; renderGrafikBulanan();
   }
   function grafikQuick(n){
-    const d = (rekapBln.view === 'persales' && rekapBlnPS.data) || rekapBln.data; if (!d || !d.months.length) return;
+    const d = (grafikNeedPS() && rekapBlnPS.data) || rekapBln.data; if (!d || !d.months.length) return;
     const ms = d.months; rekapBln.to = ms[ms.length-1]; rekapBln.from = ms[Math.max(0, ms.length - n)];
     rekapPage.s12 = 0; renderGrafikBulanan();
   }
@@ -3168,8 +3231,9 @@ self.onmessage = function(e){
   async function renderGrafikBulanan(){
     const panel = document.getElementById('panel_s13'); if (!panel) return;
     const tok = ++grafikToken;
-    if (!rekapBln.data || (rekapBln.view === 'persales' && !rekapBlnPS.data)) panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Menyiapkan grafik…</div>';
-    let d, dps = null; try { d = await rekapBlnLoad(); if (rekapBln.view === 'persales') dps = await rekapBlnLoadPS(); } catch(e){ console.error(e); panel.innerHTML = '<div style="padding:28px;color:#b91c1c">Gagal memuat data: ' + escHtml(e.message || e) + '</div>'; return; }
+    if (rekapBln.metric !== 'qty') rekapBln.metric = 'sales';
+    if (!rekapBln.data || (grafikNeedPS() && !rekapBlnPS.data)) panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Menyiapkan grafik…</div>';
+    let d, dps = null; try { d = await rekapBlnLoad(); if (grafikNeedPS()) dps = await rekapBlnLoadPS(); } catch(e){ console.error(e); panel.innerHTML = '<div style="padding:28px;color:#b91c1c">Gagal memuat data: ' + escHtml(e.message || e) + '</div>'; return; }
     if (tok !== grafikToken || _activeTab !== 's13') return;
     const ms = dps ? dps.months : d.months;
     if (!ms.length){ rekapBln.spec = null; panel.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b">Tidak ada data transaksi.</div>'; return; }
@@ -3183,19 +3247,27 @@ self.onmessage = function(e){
     const sl = fs ? Array.from(fs.options).map(o => o.value).filter(Boolean) : SO;
     const salesOpts = '<option value="">Semua sales</option>' + sl.map(v => '<option value="' + escHtml(v) + '"' + (filters.sales === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
     const catOpts = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (rekapBln.cat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
-    const metricOpts = '<option value="sales"' + (rekapBln.metric === 'sales' ? ' selected' : '') + '>Penjualan Cash vs Tempo + Profit</option><option value="profit"' + (rekapBln.metric === 'profit' ? ' selected' : '') + '>Profit saja</option><option value="qty"' + (rekapBln.metric === 'qty' ? ' selected' : '') + '>Total Qty (Cash vs Tempo)</option>';
-    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Grafik Penjualan &amp; Profit</span>'
+    const metricOpts = '<option value="sales"' + (rekapBln.metric === 'sales' ? ' selected' : '') + '>Penjualan (Rp)</option><option value="qty"' + (rekapBln.metric === 'qty' ? ' selected' : '') + '>Total Qty</option>';
+    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Grafik</span>'
       + '<label>Dari bulan : <select id="gFrom" onchange="grafikChange()">' + opt(rekapBln.from) + '</select></label>'
       + '<label>Sampai bulan : <select id="gTo" onchange="grafikChange()">' + opt(rekapBln.to) + '</select></label>'
       + '<span style="display:inline-flex;gap:4px"><button type="button" class="pager-btn" onclick="grafikQuick(3)">3 bulan terakhir</button><button type="button" class="pager-btn" onclick="grafikQuick(6)">6 bulan terakhir</button><button type="button" class="pager-btn" onclick="grafikQuick(99)">Semua</button></span>'
       + '<label>Grafik : <select onchange="grafikMetric(this.value)">' + metricOpts + '</select></label>'
-      + '<label>Tampilan : <select onchange="grafikView(this.value)"><option value="total"' + (dps ? '' : ' selected') + '>Gabungan</option><option value="persales"' + (dps ? ' selected' : '') + '>Per Sales (bandingkan)</option></select></label>'
+      + '<label>Tampilan : <select onchange="grafikView(this.value)"><option value="total"' + (rekapBln.view === 'total' ? ' selected' : '') + '>Gabungan</option><option value="persales"' + (rekapBln.view === 'persales' ? ' selected' : '') + '>Per Sales (bandingkan)</option><option value="produk"' + (rekapBln.view === 'produk' ? ' selected' : '') + '>Produk per Sales</option></select></label>'
       + '<label>Sales : <select onchange="onSalesTabChange(this.value)"' + (dps ? ' disabled title="Pada tampilan Per Sales semua sales ditampilkan"' : '') + '>' + salesOpts + '</select></label>'
       + '<label>Kategori : <select onchange="grafikSetCat(this.value)">' + catOpts + '</select></label>'
-      + '<span style="color:var(--muted);font-size:11.5px">Pilihan produk mengikuti tab Rekap Penjualan &amp; Profit (' + escHtml(rekapBlnCountText()) + '). Filter bulan global tidak dipakai di tab ini.</span></div>';
+      + (rekapBln.view === 'produk'
+        ? '<span id="gpPick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="grafikPTogglePicker(event)"><span id="gpCount">' + grafikPCount() + '</span> ▼</button>'
+          + '<div id="gpDd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px">'
+          + '<input type="search" placeholder="Cari produk..." oninput="grafikPSearch(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
+          + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="grafikPAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="grafikPClear()">Kosongkan</button></div>'
+          + '<div id="gpList" style="max-height:260px;overflow:auto">' + grafikPItemsHtml() + '</div></div></span>'
+          + '<label>Grafik : <select onchange="grafikPSplit(this.value)"><option value="0"' + (grafikPS.split ? '' : ' selected') + '>Gabung produk terpilih</option><option value="1"' + (grafikPS.split ? ' selected' : '') + '>Pisah per produk</option></select></label>'
+          + '<span style="color:var(--muted);font-size:11.5px">Kosong = semua produk. Semua sales ditampilkan.</span></div>'
+        : '<span style="color:var(--muted);font-size:11.5px">Pilihan produk mengikuti tab Rekap Penjualan &amp; Profit (' + escHtml(rekapBlnCountText()) + '). Filter bulan global tidak dipakai di tab ini.</span></div>');
     const c = rekapBlnCompute(d, rekapBln.from, rekapBln.to);
     rekapBln.spec = { c, multiYear, from: rekapBln.from, to: rekapBln.to };   // supaya Simpan Excel (lembar Grafik) tetap konsisten
-    panel.innerHTML = bar + '<div id="gBody">' + (dps ? rekapBlnPSCards(rekapBlnPSCompute(dps, rekapBln.from, rekapBln.to), multiYear) : rekapBlnChartCards(c, multiYear)) + '</div>';
+    panel.innerHTML = bar + '<div id="gBody">' + (dps ? (rekapBln.view === 'produk' ? grafikProdukBody(dps, multiYear) : rekapBlnPSCards(rekapBlnPSCompute(dps, rekapBln.from, rekapBln.to), multiYear)) : rekapBlnChartCards(c, multiYear)) + '</div>';
   }
   async function renderRekapBulanan(){
     const panel = document.getElementById('panel_s12'); if (!panel) return;
@@ -3268,7 +3340,7 @@ self.onmessage = function(e){
     [[true, 'Produk Fitri', '#3b9a5a'], [false, 'Produk Rupa Rupa', '#8e5bb5']].forEach(([isF, nm, col]) => {
       if (!c.list.some(o => isFitriProduct(o.p) === isF)) return;
       const t = grp(isF);
-      out.push({ title: nm + ' - Penjualan (Cash vs Tempo) & Profit', labels, money: true, series: [{ name: 'Penjualan Cash', color: '#2f6fb0', vals: t.map(x => x.sc) }, { name: 'Penjualan Tempo', color: '#e48a2b', vals: t.map(x => x.st) }, { name: 'Profit', color: col, vals: t.map(x => x.p) }] });
+      out.push({ title: nm + ' - Penjualan (Cash vs Tempo)', labels, money: true, series: [{ name: 'Penjualan Cash', color: '#2f6fb0', vals: t.map(x => x.sc) }, { name: 'Penjualan Tempo', color: '#e48a2b', vals: t.map(x => x.st) }] });
       out.push({ title: nm + ' - Total Qty', labels, money: false, series: [{ name: 'Cash', color: '#2f6fb0', vals: t.map(x => x.qc) }, { name: 'Tempo', color: '#e48a2b', vals: t.map(x => x.qt) }] });
     });
     return out;
@@ -3304,10 +3376,10 @@ self.onmessage = function(e){
   }
   function addRekapBlnChartSheet(wb){
     const sp = rekapBln.spec; if (!sp) return;
-    const sets = rekapBlnChartSets(sp.c, sp.multiYear);
+    const sets = sp.sets || rekapBlnChartSets(sp.c, sp.multiYear);
     const ws = wb.addWorksheet('Grafik', { views: [{ showGridLines: false }] });
-    ws.mergeCells('A1:R1'); const t1 = ws.getCell('A1'); t1.value = 'Grafik Rekap Penjualan & Profit'; t1.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1F4E78' } };
-    ws.mergeCells('A2:R2'); const t2 = ws.getCell('A2'); t2.value = 'Periode : ' + monthLabel(sp.from) + ' s/d ' + monthLabel(sp.to) + '  |  Produk : ' + produkFilterLabel() + '  |  Sales : ' + (filters.sales || 'Semua sales') + rekapBlnInfoExtra(); t2.font = { name: 'Arial', size: 9, color: { argb: 'FF475569' } };
+    ws.mergeCells('A1:R1'); const t1 = ws.getCell('A1'); t1.value = 'Grafik Penjualan'; t1.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1F4E78' } };
+    ws.mergeCells('A2:R2'); const t2 = ws.getCell('A2'); t2.value = sp.info || ('Periode : ' + monthLabel(sp.from) + ' s/d ' + monthLabel(sp.to) + '  |  Produk : ' + produkFilterLabel() + '  |  Sales : ' + (filters.sales || 'Semua sales') + rekapBlnInfoExtra()); t2.font = { name: 'Arial', size: 9, color: { argb: 'FF475569' } };
     ws.getRow(1).height = 24;
     const CW = 560, CH = 280, GAP = 16;
     sets.forEach((ch, i) => {
