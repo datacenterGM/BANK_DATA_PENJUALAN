@@ -3160,7 +3160,7 @@ self.onmessage = function(e){
   }
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
-  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, metric:'sales', cat:'', sel:new Set(), names:[], multiYear:false, sort:'nama', view:'total' };
+  let rekapBln = { from:'', to:'', data:null, sig:'', token:0, spec:null, metric:'sales', cat:'', sub:'', sel:new Set(), names:[], multiYear:false, sort:'nama', view:'total' };
   async function getMetaMonthsAsc(){
     let months = [];
     try {
@@ -3215,8 +3215,13 @@ self.onmessage = function(e){
     return rekapBlnPS.data;
   }
   function rekapBlnPriceText(mn, mx, html){ if (mn === Infinity) return ''; return mn === mx ? rp(mn) : rp(mn) + (html ? ' -<br>' : ' - ') + rp(mx); }
-  function rekapBlnPass(p){
+  function rekapBlnCatOk(p){
     if (rekapBln.cat && ((rekapBln.cat === 'FITRI') !== isFitriProduct(p))) return false;
+    if (rekapBln.sub && rupaSubCat(p) !== rekapBln.sub) return false;
+    return true;
+  }
+  function rekapBlnPass(p){
+    if (!rekapBlnCatOk(p)) return false;
     return !rekapBln.sel.size || rekapBln.sel.has(p);
   }
   function rekapBlnSortLabel(){
@@ -3229,10 +3234,10 @@ self.onmessage = function(e){
   function rekapBlnSetSort(v){ rekapBln.sort = v || 'nama'; rekapBlnChanged(); }
   function rekapBlnCatLabel(){ return rekapBln.cat === 'FITRI' ? 'Fitri' : rekapBln.cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
   function rekapBlnCountText(){ return rekapBln.sel.size ? rekapBln.sel.size + ' produk dipilih' : 'Semua produk'; }
-  function rekapBlnInfoExtra(){ return '  |  Urutan : ' + rekapBlnSortLabel() + '  |  Kategori : ' + rekapBlnCatLabel() + '  |  Pilihan produk : ' + (rekapBln.sel.size ? rekapBln.sel.size + ' produk' : 'Semua'); }
+  function rekapBlnInfoExtra(){ return '  |  Urutan : ' + rekapBlnSortLabel() + '  |  Kategori : ' + rekapBlnCatLabel() + (rekapBln.sub ? '  |  Sub Kategori : ' + rupaSubLabel(rekapBln.sub) : '') + '  |  Pilihan produk : ' + (rekapBln.sel.size ? rekapBln.sel.size + ' produk' : 'Semua'); }
   function rekapBlnItemsHtml(){
     const d = rekapBln.data; const set = new Set();
-    if (d) d.rows.forEach(r => { if (!rekapBln.cat || ((rekapBln.cat === 'FITRI') === isFitriProduct(r.produk))) set.add(r.produk); });
+    if (d) d.rows.forEach(r => { if (rekapBlnCatOk(r.produk)) set.add(r.produk); });
     rekapBln.names = [...set].sort(natCmp);
     return rekapBln.names.map((n, i) => '<label class="rb-item" data-n="' + escHtml(n.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (rekapBln.sel.has(n) ? ' checked' : '') + ' onchange="rekapBlnToggle(this)"><span>' + escHtml(n) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
   }
@@ -3252,7 +3257,8 @@ self.onmessage = function(e){
     document.querySelectorAll('#rbList .rb-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; });
   }
   function rekapBlnTogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('rbDd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
-  function rekapBlnSetCat(v){ rekapBln.cat = v || ''; rekapPage.s12 = 0; renderRekapBulanan(); }
+  function rekapBlnSetCat(v){ rekapBln.cat = v || ''; if (rekapBln.cat !== 'RUPA_RUPA') rekapBln.sub = ''; rekapBln.sel = new Set(); rekapPage.s12 = 0; renderRekapBulanan(); }
+  function rekapBlnSetSub(v){ rekapBln.sub = v || ''; if (rekapBln.sub) rekapBln.cat = 'RUPA_RUPA'; rekapBln.sel = new Set(); rekapPage.s12 = 0; renderRekapBulanan(); }
   document.addEventListener('click', function(e){ const d = document.getElementById('rbDd'); if (d && d.style.display === 'block' && !e.target.closest('#rbPick')) d.style.display = 'none'; });
   function rekapBlnCompute(d, from, to){
     const sel = d.months.filter(m => m >= from && m <= to);
@@ -3383,7 +3389,7 @@ self.onmessage = function(e){
   function grafikPCount(){ return grafikPS.prods.size ? grafikPS.prods.size + ' produk dipilih' : 'Semua produk'; }
   function grafikPItemsHtml(){
     const d = rekapBlnPS.data, set = new Set();
-    if (d) d.rows.forEach(r => { if (!rekapBln.cat || ((rekapBln.cat === 'FITRI') === isFitriProduct(r.produk))) set.add(r.produk); });
+    if (d) d.rows.forEach(r => { if (rekapBlnCatOk(r.produk)) set.add(r.produk); });
     grafikPS.names = [...set].sort(natCmp);
     return grafikPS.names.map((n, i) => '<label class="rb-item" data-n="' + escHtml(n.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (grafikPS.prods.has(n) ? ' checked' : '') + ' onchange="grafikPToggle(this)"><span>' + escHtml(n) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
   }
@@ -3405,7 +3411,7 @@ self.onmessage = function(e){
     const from = rekapBln.from, to = rekapBln.to, metric = rekapBln.metric === 'qty' ? 'qty' : 'sales';
     const sel = dps.months.filter(m => m >= from && m <= to), idx = new Map(sel.map((m, i) => [m, i]));
     const labels = sel.map(m => rekapBlnLabel(m, multiYear));
-    const pick = p => (!rekapBln.cat || ((rekapBln.cat === 'FITRI') === isFitriProduct(p))) && (!grafikPS.prods.size || grafikPS.prods.has(p));
+    const pick = p => rekapBlnCatOk(p) && (!grafikPS.prods.size || grafikPS.prods.has(p));
     const byP = new Map();
     dps.rows.forEach(r => {
       const i = idx.get(r.mk); if (i === undefined || !pick(r.produk)) return;
@@ -3457,7 +3463,7 @@ self.onmessage = function(e){
     const ms = d.months; rekapBln.to = ms[ms.length-1]; rekapBln.from = ms[Math.max(0, ms.length - n)];
     rekapPage.s12 = 0; renderGrafikBulanan();
   }
-  function grafikSetCat(v){ rekapBln.cat = v || ''; rekapPage.s12 = 0; renderGrafikBulanan(); }
+  function grafikSetCat(v){ rekapBln.cat = v || ''; if (rekapBln.cat !== 'RUPA_RUPA') rekapBln.sub = ''; rekapPage.s12 = 0; renderGrafikBulanan(); }
   async function renderGrafikBulanan(){
     const panel = document.getElementById('panel_s13'); if (!panel) return;
     const tok = ++grafikToken;
@@ -3527,6 +3533,7 @@ self.onmessage = function(e){
             + ms.filter(m => m >= rekapBln.from && m <= rekapBln.to).map(m => so('m:' + m, 'Profit ' + escHtml(monthLabel(m)) + ' terbesar')).join('');
         })() + '</select></label>'
       + '<label>Kategori : <select onchange="rekapBlnSetCat(this.value)">' + [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (rekapBln.cat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>'
+      + (rekapBln.cat === 'RUPA_RUPA' || rekapBln.sub ? '<label>Sub Kategori : <select onchange="rekapBlnSetSub(this.value)">' + RUPA_SUB_OPTS.map(o => '<option value="' + o.v + '"' + (rekapBln.sub === o.v ? ' selected' : '') + '>' + o.l + '</option>').join('') + '</select></label>' : '')
       + '<span id="rbPick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="rekapBlnTogglePicker(event)"><span id="rbCount">' + rekapBlnCountText() + '</span> ▼</button>'
       + '<div id="rbDd" style="display:none;position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;max-width:90vw;background:var(--menu-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--menu-shadow);padding:8px">'
       + '<input type="search" placeholder="Cari produk..." oninput="rekapBlnSearch(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
