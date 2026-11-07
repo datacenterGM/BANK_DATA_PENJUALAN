@@ -1334,6 +1334,25 @@ self.onmessage = function(e){
     return months.includes(cur) ? cur : months.slice().sort().pop();   /* bulan berjalan; kalau belum ada datanya, bulan terbaru yang ada */
   }
   function isFitriProduct(p){ return U(p).includes('FITRI'); }
+  /* Sub kategori Rupa Rupa (berdasarkan daftar produk) */
+  const RUPA_SUB_OPTS = [
+    { v: '', l: 'Semua sub' },
+    { v: 'UPS', l: 'UPS' },
+    { v: 'AGAR', l: 'Agar Agar' },
+    { v: 'SARI_SEDAP', l: 'Sari Sedap' },
+    { v: 'SABUN_NS', l: 'Sabun, NS' },
+    { v: 'LAIN', l: 'Lainnya' }
+  ];
+  function rupaSubCat(p){
+    if (isFitriProduct(p)) return '';
+    const u = U(p);
+    if (u.includes('BIHUN') || u.includes('MIE IKAT') || u.includes('SOUN') || u.includes('BAKSO GAJAH')) return 'UPS';
+    if (u.includes('AGAR') || u.includes('JELLYGAR') || u.includes('JELLY')) return 'AGAR';
+    if (u.includes('SHZ') || /\bNS\b/.test(u) || u.includes('ZEN REFF') || u.includes('SANDALWOOD')) return 'SABUN_NS';
+    if (u.includes('SAMBAL') || u.includes('KECAP') || u.includes('BOTOL 600')) return 'SARI_SEDAP';
+    return 'LAIN';
+  }
+  function rupaSubLabel(v){ return (RUPA_SUB_OPTS.find(o => o.v === v) || {}).l || 'Semua sub'; }
 
   let allProductsMeta = [];
   function syncFilterControls(months, sales, products){
@@ -1684,7 +1703,7 @@ self.onmessage = function(e){
       const full = !!(opts && opts.full), l1 = s1Sorted(full), T1 = s1Totals(l1);
       const stripRp = v => String(v == null ? '' : v).replace(/Rp\s*/g, '');
       const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],stripRp(x[n+3]),stripRp(x[n+4]),x[n+5],x[n+6],x[n+7],x[n+8]); return row; });
-      const info = exportInfoLine() + (full ? '' : '  |  Urutan : ' + s1SortLabel() + '  |  Kategori : ' + s1CatLabel() + '  |  Pilihan produk : ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
+      const info = exportInfoLine() + (full ? '' : '  |  Urutan : ' + s1SortLabel() + '  |  Kategori : ' + s1CatLabel() + (s1Sub ? '  |  Sub : ' + rupaSubLabel(s1Sub) : '') + '  |  Pilihan produk : ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
       /* Angka tanpa "Rp" (sama seperti layar); Margin % = Profit / Nominal × 100 */
       return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','MARGIN %'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','n','n','n','pct'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit,T1.margin] };
     }
@@ -2290,12 +2309,19 @@ self.onmessage = function(e){
     return '<div class="s3sortbar s3bar-left"><label>Kategori : <select onchange="s3SetCat(this.value)">' + cat + '</select></label>' + picker + '<label>Urutkan : <select onchange="s3SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Penyumbang profit terbesar') + o('asc','Penyumbang profit terkecil') + '</select></label></div>';
   }
 
-  /* ===== Tab Produk: Urutkan + Kategori + pilih Produk ===== */
-  let s1Cat = '', s1Sel = new Set(), s1Sort = 'nama', s1PickNames = [];
+  /* ===== Tab Produk: Urutkan + Kategori + Sub Kategori (Rupa Rupa) + pilih Produk ===== */
+  let s1Cat = '', s1Sub = '', s1Sel = new Set(), s1Sort = 'nama', s1PickNames = [];
   function s1CatLabel(){ return s1Cat === 'FITRI' ? 'Fitri' : s1Cat === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Semua'; }
   function s1SortLabel(){ return ({desc:'Profit terbesar', asc:'Profit terkecil', qty:'Total qty terbesar'})[s1Sort] || 'Nama produk (A–Z)'; }
   function s1CountText(){ return s1Sel.size ? s1Sel.size + ' produk dipilih' : 'Semua produk'; }
-  function s1CatList(){ return (R.s1 || []).filter(x => !s1Cat || ((s1Cat === 'FITRI') === isFitriProduct(x[0]))); }
+  function s1CatList(){
+    return (R.s1 || []).filter(x => {
+      if (s1Cat === 'FITRI' && !isFitriProduct(x[0])) return false;
+      if (s1Cat === 'RUPA_RUPA' && isFitriProduct(x[0])) return false;
+      if (s1Sub && rupaSubCat(x[0]) !== s1Sub) return false;
+      return true;
+    });
+  }
   function s1Sorted(full){
     const n = (R.SO2 || SO).length;
     let a = full ? (R.s1 || []).slice() : s1CatList();
@@ -2324,6 +2350,9 @@ self.onmessage = function(e){
   function s1BarHtml(){
     const o = (v,l) => '<option value="' + v + '"' + (s1Sort === v ? ' selected' : '') + '>' + l + '</option>';
     const cat = [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(x => '<option value="' + x[0] + '"' + (s1Cat === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('');
+    const showSub = s1Cat === 'RUPA_RUPA' || !!s1Sub;
+    const sub = RUPA_SUB_OPTS.map(x => '<option value="' + x.v + '"' + (s1Sub === x.v ? ' selected' : '') + '>' + x.l + '</option>').join('');
+    const subHtml = showSub ? '<label>Sub Kategori : <select onchange="s1SetSub(this.value)">' + sub + '</select></label>' : '';
     s1PickNames = s1CatList().map(x => x[0]);
     const items = s1PickNames.map((nm, i) => '<label class="s1-item" data-n="' + escHtml(nm.toLowerCase()) + '" style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;border-radius:4px"><input type="checkbox" data-i="' + i + '"' + (s1Sel.has(nm) ? ' checked' : '') + ' onchange="s1Toggle(this)"><span>' + escHtml(nm) + '</span></label>').join('') || '<div style="padding:8px;color:var(--muted);font-size:12px">Tidak ada produk.</div>';
     const picker = '<span id="s1Pick" style="position:relative;display:inline-flex;align-items:center;gap:6px">Produk : <button type="button" class="pager-btn" onclick="s1TogglePicker(event)"><span id="s1Count">' + s1CountText() + '</span> ▼</button>'
@@ -2331,7 +2360,7 @@ self.onmessage = function(e){
       + '<input type="search" placeholder="Cari produk..." oninput="s1Search(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:4px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)">'
       + '<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="pager-btn" onclick="s1SelectAll()">Pilih semua</button><button type="button" class="pager-btn" onclick="s1Clear()">Kosongkan</button></div>'
       + '<div id="s1List" style="max-height:260px;overflow:auto">' + items + '</div></div></span>';
-    return '<div class="s3sortbar" style="justify-content:flex-start"><label>Urutkan : <select onchange="s1SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Profit terbesar') + o('asc','Profit terkecil') + o('qty','Total qty terbesar') + '</select></label><label>Kategori : <select onchange="s1SetCat(this.value)">' + cat + '</select></label>' + picker + '</div>';
+    return '<div class="s3sortbar" style="justify-content:flex-start;flex-wrap:wrap"><label>Urutkan : <select onchange="s1SetSort(this.value)">' + o('nama','Nama produk (A–Z)') + o('desc','Profit terbesar') + o('asc','Profit terkecil') + o('qty','Total qty terbesar') + '</select></label><label>Kategori : <select onchange="s1SetCat(this.value)">' + cat + '</select></label>' + subHtml + picker + '</div>';
   }
   function s1Changed(){
     rekapPage.s1 = 0; viewCache['s1'] = null;
@@ -2350,7 +2379,22 @@ self.onmessage = function(e){
     document.querySelectorAll('#s1List .s1-item').forEach(l => { l.style.display = (!t || l.dataset.n.indexOf(t) >= 0) ? 'flex' : 'none'; });
   }
   function s1TogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('s1Dd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
-  function s1SetCat(v){ s1Cat = v || ''; rekapPage.s1 = 0; viewCache['s1'] = null; const panel = document.getElementById('panel_s1'); if (panel) panel.innerHTML = renderTab('s1'); }
+  function s1SetCat(v){
+    s1Cat = v || '';
+    if (s1Cat === 'FITRI') s1Sub = '';          /* sub hanya untuk Rupa Rupa */
+    if (s1Cat === 'RUPA_RUPA' && !s1Sub) { /* keep sub if any */ }
+    if (s1Cat !== 'RUPA_RUPA' && s1Cat !== '') s1Sub = '';
+    s1Sel = new Set();
+    rekapPage.s1 = 0; viewCache['s1'] = null;
+    const panel = document.getElementById('panel_s1'); if (panel) panel.innerHTML = renderTab('s1');
+  }
+  function s1SetSub(v){
+    s1Sub = v || '';
+    if (s1Sub) s1Cat = 'RUPA_RUPA';             /* otomatis fokus ke Rupa Rupa */
+    s1Sel = new Set();
+    rekapPage.s1 = 0; viewCache['s1'] = null;
+    const panel = document.getElementById('panel_s1'); if (panel) panel.innerHTML = renderTab('s1');
+  }
   document.addEventListener('click', function(e){ const d = document.getElementById('s1Dd'); if (d && d.style.display === 'block' && !e.target.closest('#s1Pick')) d.style.display = 'none'; });
   function renderTab(t){
     if (t === 's1'){
