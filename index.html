@@ -1519,7 +1519,8 @@ self.onmessage = function(e){
       if (st.bmin === Infinity) { st.bmin = 0; st.bmax = 0; }
       if (st.jmin === Infinity) { st.jmin = 0; st.jmax = 0; }
       const pr = st.v - st.h;
-      s1.push([p, ...SO2.map(s => st.qBySales[s] || 0), st.qq, st.sat, range(st.bmin,st.bmax), range(st.jmin,st.jmax), st.h, st.v, pr]);
+      const mg = st.v ? Math.round(pr / st.v * 10000) / 100 : 0;
+      s1.push([p, ...SO2.map(s => st.qBySales[s] || 0), st.qq, st.sat, range(st.bmin,st.bmax), range(st.jmin,st.jmax), st.h, st.v, pr, mg]);
       s3.push([p, st.qq, st.v, st.h, range(st.jmin,st.jmax), range(st.bmin,st.bmax), pr]);
       s5.push([p, st.qq, st.sat, st.v, st.h, pr, st.v ? (pr/st.v*100) : 0]);
       let hbChange = null;
@@ -1678,9 +1679,11 @@ self.onmessage = function(e){
     const r = R, SO2 = r.SO2 || SO, n = SO2.length;
     if (tab === 's1'){
       const full = !!(opts && opts.full), l1 = s1Sorted(full), T1 = s1Totals(l1);
-      const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],x[n+3],x[n+4],x[n+5],x[n+6],x[n+7]); return row; });
+      const stripRp = v => String(v == null ? '' : v).replace(/Rp\s*/g, '');
+      const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],stripRp(x[n+3]),stripRp(x[n+4]),x[n+5],x[n+6],x[n+7],x[n+8]); return row; });
       const info = exportInfoLine() + (full ? '' : '  |  Urutan : ' + s1SortLabel() + '  |  Kategori : ' + s1CatLabel() + '  |  Pilihan produk : ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
-      return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','rp','rp','rp'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit] };
+      /* Angka tanpa "Rp" (sama seperti layar); Margin % = Profit / Nominal × 100 */
+      return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','MARGIN %'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','n','n','n','pct'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit,T1.margin] };
     }
     if (tab === 's3'){
       const full = !!(opts && opts.full), l3 = s3Sorted(full), T3 = s3Totals(l3);
@@ -2298,16 +2301,18 @@ self.onmessage = function(e){
   function s1Totals(list){
     const n = (R.SO2 || SO).length;
     const sum = i => list.reduce((a,x) => a + (x[i]||0), 0);
-    return { per: (R.SO2 || SO).map((_,i) => sum(1+i)), qty: sum(n+1), hpp: sum(n+5), sales: sum(n+6), profit: sum(n+7) };
+    const sales = sum(n+6), profit = sum(n+7);
+    return { per: (R.SO2 || SO).map((_,i) => sum(1+i)), qty: sum(n+1), hpp: sum(n+5), sales, profit, margin: sales ? Math.round(profit / sales * 10000) / 100 : 0 };
   }
   function s1TableHtml(){
     const SO2 = R.SO2 || SO, n = SO2.length;
     const list = s1Sorted(), T = s1Totals(list);
-    const h = ['PRODUK', ...SO2, 'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT'];
+    const h = ['PRODUK', ...SO2, 'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','MARGIN %'];
     const nr = v => Math.round(N(v)).toLocaleString('id-ID'), noRp = v => String(v == null ? '' : v).replace(/Rp\s?/g, '');
-    const d = sliceRekap('s1', list).map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],noRp(x[n+3]),noRp(x[n+4]),nr(x[n+5]),nr(x[n+6]),nr(x[n+7])); return row; });
-    const numCols = [n+3, n+4, n+5, n+6, n+7];
-    return rekapPagerHtml('s1', list.length) + tbl(h, d, ['TOTAL', ...T.per, T.qty, '', '', '', nr(T.hpp), nr(T.sales), nr(T.profit)], numCols);
+    const pct = v => (v == null || v === '' || isNaN(N(v))) ? '' : (Math.round(N(v) * 100) / 100).toLocaleString('id-ID') + ' %';
+    const d = sliceRekap('s1', list).map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],noRp(x[n+3]),noRp(x[n+4]),nr(x[n+5]),nr(x[n+6]),nr(x[n+7]),pct(x[n+8])); return row; });
+    const numCols = [n+3, n+4, n+5, n+6, n+7, n+8];
+    return rekapPagerHtml('s1', list.length) + tbl(h, d, ['TOTAL', ...T.per, T.qty, '', '', '', nr(T.hpp), nr(T.sales), nr(T.profit), pct(T.margin)], numCols);
   }
   function s1BarHtml(){
     const o = (v,l) => '<option value="' + v + '"' + (s1Sort === v ? ' selected' : '') + '>' + l + '</option>';
