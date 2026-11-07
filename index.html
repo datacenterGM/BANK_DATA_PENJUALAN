@@ -665,7 +665,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
   function normSales(s){ const u = U(s); return (u === 'PRTIMIN' || u === 'PARIMIN') ? 'PARIMIN' : u; }
   const rp = x => 'Rp ' + Math.round(N(x)).toLocaleString('id-ID');
   const rn = x => Math.round(N(x)).toLocaleString('id-ID');   /* angka rupiah tanpa awalan "Rp" */
-  const range = (a,b) => a === b ? rp(a) : rp(a) + ' - ' + rp(b);
+  const range = (a,b) => a === b ? rn(a) : rn(a) + ' - ' + rn(b);  /* tanpa awalan Rp; tampil terendah - tertinggi bila berbeda */
 
   let rows = [], filteredRows = [], filteredRowsInclBatal = [], materialisedRows = [], R = {};
   let filters = {month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''};
@@ -1497,6 +1497,7 @@ self.onmessage = function(e){
     data.forEach(x => {
       const produk = String(g(x,'Produk','produk') ?? '').trim();
       const j = N(g(x,'Jumlah','jumlah')), t = N(g(x,'Total','total')), hb = N(g(x,'Harga Beli','hargaBeli')), hj = N(g(x,'Harga Jual','hargaJual'));
+      const disc = N(g(x,'Discount','discount'));
       const pay = U(g(x,'Pembayaran','pembayaran')), salesName = normSales(g(x,'Sales','sales'));
       const sat = String(g(x,'Satuan','satuan') ?? '').trim(), nf = String(g(x,'No. Faktur','faktur') ?? '').trim();
       const hLine = j * hb, rp0 = t - hLine;
@@ -1509,7 +1510,9 @@ self.onmessage = function(e){
       st.qq += j; st.v += t; st.h += hLine;
       if (sat && !st.sat) st.sat = sat;
       if (!isNaN(hb)) { if (hb < st.bmin) st.bmin = hb; if (hb > st.bmax) st.bmax = hb; }
-      if (!isNaN(hj)) { if (hj < st.jmin) st.jmin = hj; if (hj > st.jmax) st.jmax = hj; }
+      /* Harga jual efektif (setelah disc) supaya kolom HARGA JUAL menampilkan rentang terendah–tertinggi */
+      const hjEff = (isNaN(hj) ? 0 : hj) - (isNaN(disc) ? 0 : disc);
+      if (!isNaN(hjEff)) { if (hjEff < st.jmin) st.jmin = hjEff; if (hjEff > st.jmax) st.jmax = hjEff; }
       if (st.hbLog.length < 500) st.hbLog.push({ts: x._ts || 0, hb});
       if (SO.includes(salesName)) st.qBySales[salesName] = (st.qBySales[salesName] || 0) + j;
     });
