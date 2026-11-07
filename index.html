@@ -1874,7 +1874,7 @@ self.onmessage = function(e){
         .map(o => [monthLabelShort(o.mk), o.b.q, o.b.n, o.b.p, o.b.n ? Math.round(o.b.p / o.b.n * 10000) / 100 : 0]);
       const tq = rows.reduce((a,x)=>a+x[1],0), tn = rows.reduce((a,x)=>a+x[2],0), tp = rows.reduce((a,x)=>a+x[3],0);
       const nm = tab === 's10a' ? 'All Produk' : tab === 's10' ? 'Fitri' : 'Rupa Rupa';
-      return { name:'Data Bulanan ' + nm, title:'Rekap Data Bulanan - ' + (tab === 's10a' ? 'Semua Produk' : 'Produk ' + nm), head:['Bulan','Qty','Nominal Penjualan','Profit','Margin %'], types:['t','n','rp','rp','pct'], rows, total:['TOTAL',tq,tn,tp,tn ? Math.round(tp/tn*10000)/100 : 0] };
+      return { name:'Data Bulanan ' + nm, title:'Rekap Data Bulanan - ' + (tab === 's10a' ? 'Semua Produk' : 'Produk ' + nm), head:['Bulan','Qty','Nominal Penjualan','Profit','Margin %'], types:['t','n','n','n','pct'], rows, total:['TOTAL',tq,tn,tp,tn ? Math.round(tp/tn*10000)/100 : 0] };
     }
     return null;
   }
@@ -3146,10 +3146,10 @@ self.onmessage = function(e){
     else rows.forEach(o => {
       const b = o.b; tq += b.q; tn += b.n; tp += b.p;
       const mg = b.n ? (Math.round(b.p / b.n * 10000) / 100).toLocaleString('id-ID') + ' %' : '';
-      body += '<tr><td>' + monthLabelShort(o.mk) + '</td><td class="num">' + (b.q ? b.q.toLocaleString('id-ID') : '') + '</td><td class="num">' + (b.n ? rp(b.n) : '') + '</td><td class="num">' + (b.p ? rp(b.p) : '') + '</td><td class="num">' + mg + '</td></tr>';
+      body += '<tr><td>' + monthLabelShort(o.mk) + '</td><td class="num">' + (b.q ? b.q.toLocaleString('id-ID') : '') + '</td><td class="num">' + (b.n ? rn(b.n) : '') + '</td><td class="num">' + (b.p ? rn(b.p) : '') + '</td><td class="num">' + mg + '</td></tr>';
     });
     const tmg = tn ? (Math.round(tp / tn * 10000) / 100).toLocaleString('id-ID') + ' %' : '';
-    const foot = rows.length ? '<tr><td>TOTAL</td><td class="num">' + tq.toLocaleString('id-ID') + '</td><td class="num">' + rp(tn) + '</td><td class="num">' + rp(tp) + '</td><td class="num">' + tmg + '</td></tr>' : '';
+    const foot = rows.length ? '<tr><td>TOTAL</td><td class="num">' + tq.toLocaleString('id-ID') + '</td><td class="num">' + rn(tn) + '</td><td class="num">' + rn(tp) + '</td><td class="num">' + tmg + '</td></tr>' : '';
     return '<div style="font-weight:700;color:#1f4e78;margin:4px 0 8px">' + judul + '</div>' +
       '<div class="tablebox" style="max-height:none"><table class="s10table" style="min-width:0"><thead><tr><th class="s10-h0">Bulan</th><th class="s10-h0">Qty</th><th class="s10-h0">Nominal Penjualan</th><th class="s10-h0">Profit</th><th class="s10-h0">Margin %</th></tr></thead><tbody>' + body + '</tbody>' + (foot ? '<tfoot>' + foot + '</tfoot>' : '') + '</table></div>';
   }
@@ -3540,25 +3540,24 @@ self.onmessage = function(e){
     const d = rekapBln.data, multiYear = rekapBln.multiYear;
     const c = rekapBlnCompute(d, rekapBln.from, rekapBln.to);
     const q = v => v ? v.toLocaleString('id-ID') : '';
-    const pr = (v, has) => has ? rp(v) : '';
+    const pr = (v, has) => has ? rn(v) : '';
     let h1 = '<th class="s12-a s12-prod" rowspan="2">PRODUK</th><th class="s12-a s12-sat" rowspan="2">SATUAN</th>', h2 = '';
     c.sel.forEach(m => {
       h1 += '<th class="s12-a" colspan="2">' + escHtml(rekapBlnLabel(m, multiYear)) + '</th>';
       h2 += '<th class="s12-b">TOTAL QTY</th><th class="s12-b">PROFIT</th>';
     });
-    h1 += '<th class="s12-a s12-hrg" rowspan="2">HARGA BELI</th><th class="s12-a s12-hrg" rowspan="2">HARGA JUAL</th>';
     const head = '<thead><tr>' + h1 + '</tr><tr>' + h2 + '</tr></thead>';
     const page = sliceRekap('s12', c.list);
     let body = '';
-    if (!page.length) body = '<tr><td colspan="' + (4 + c.sel.length*2) + '" style="text-align:center;padding:28px;color:#64748b">Tidak ada data pada rentang bulan ini.</td></tr>';
+    if (!page.length) body = '<tr><td colspan="' + (2 + c.sel.length*2) + '" style="text-align:center;padding:28px;color:#64748b">Tidak ada data pada rentang bulan ini.</td></tr>';
     else page.forEach(o => {
       body += '<tr><td class="s12-prod">' + escHtml(o.p) + '</td><td class="s12-sat">' + escHtml(o.st.sat) + '</td>';
       o.st.m.forEach(x => { const has = x.qc || x.qt || x.p; body += '<td class="num">' + q(x.qc + x.qt) + '</td><td class="num">' + pr(x.p, has) + '</td>'; });
-      body += '<td class="num s12-hrg">' + rekapBlnPriceText(o.st.bmin, o.st.bmax, true) + '</td><td class="num s12-hrg">' + rekapBlnPriceText(o.st.jmin, o.st.jmax, true) + '</td></tr>';
+      body += '</tr>';
     });
     let foot = '<tr><td class="s12-prod">TOTAL</td><td class="s12-sat"></td>';
-    c.tot.forEach(x => { foot += '<td class="num">' + q(x.qc + x.qt) + '</td><td class="num">' + rp(x.p) + '</td>'; });
-    foot += '<td class="s12-hrg"></td><td class="s12-hrg"></td></tr>';
+    c.tot.forEach(x => { foot += '<td class="num">' + q(x.qc + x.qt) + '</td><td class="num">' + rn(x.p) + '</td>'; });
+    foot += '</tr>';
     rekapBln.spec = { c, multiYear, from: rekapBln.from, to: rekapBln.to };
     return rekapPagerHtml('s12', c.list.length) + '<div class="tablebox"><table class="s12table">' + head + '<tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
   }
@@ -3627,9 +3626,8 @@ self.onmessage = function(e){
     c.sel.forEach(m => { const lb = rekapBlnLabel(m, multiYear);
       head.push(lb+' TOTAL QTY', lb+' PROFIT');
       head2.push([lb,'TOTAL QTY'],[lb,'PROFIT']); types.push('n','n'); });
-    head.push('HARGA BELI','HARGA JUAL'); head2.push(['HARGA BELI',null],['HARGA JUAL',null]); types.push('nt','nt');
-    const rows = c.list.map(o => { const r = [o.p, o.st.sat]; o.st.m.forEach(x => r.push((x.qc + x.qt) || '', (x.qc||x.qt||x.p) ? x.p : '')); r.push(price(o.st.bmin,o.st.bmax), price(o.st.jmin,o.st.jmax)); return r; });
-    const total = ['TOTAL','']; c.tot.forEach(x => total.push(x.qc + x.qt, x.p)); total.push('','');
+    const rows = c.list.map(o => { const r = [o.p, o.st.sat]; o.st.m.forEach(x => r.push((x.qc + x.qt) || '', (x.qc||x.qt||x.p) ? x.p : '')); return r; });
+    const total = ['TOTAL','']; c.tot.forEach(x => total.push(x.qc + x.qt, x.p));
     const info = 'Periode : ' + monthLabel(sp.from) + ' s/d ' + monthLabel(sp.to) + '  |  Produk : ' + produkFilterLabel() + '  |  Sales : ' + (filters.sales || 'Semua sales') + rekapBlnInfoExtra();
     return { name:'Rekap Penjualan & Profit', title:'Rekap Penjualan & Profit per Produk', info, head, head2, types, rows, total };
   }
