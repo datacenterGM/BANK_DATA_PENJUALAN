@@ -1475,8 +1475,8 @@ self.onmessage = function(e){
     if (isFitriProduct(p)) return '';
     const u = U(p);
     if (u.includes('BIHUN') || u.includes('MIE IKAT') || u.includes('SOUN') || u.includes('BAKSO GAJAH')) return 'UPS';
-    if (u.includes('AGAR') || u.includes('JELLYGAR') || u.includes('JELLY')) return 'AGAR';
-    if (u.includes('SHZ') || /\bNS\b/.test(u) || u.includes('ZEN REFF') || u.includes('SANDALWOOD')) return 'SABUN_NS';
+    if (u.includes('AGAR') || u.includes('JELLYGAR') || u.includes('JELLY') || u.includes('PUDDING') || u.includes('COCOMAXI')) return 'AGAR';
+    if (u.includes('SHZ') || /\bNS\b/.test(u) || u.includes('ZEN REFF') || u.includes('SANDALWOOD') || u.includes('ZEN JUNIPER') || u.includes('ZEN SULPHUR') || u.includes('SNACK GOLD')) return 'SABUN_NS';
     if (u.includes('SAMBAL') || u.includes('KECAP') || u.includes('BOTOL 600')) return 'SARI_SEDAP';
     return 'LAIN';
   }
