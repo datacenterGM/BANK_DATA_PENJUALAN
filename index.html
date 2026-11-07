@@ -1690,8 +1690,8 @@ self.onmessage = function(e){
       return { name:'Profit Produk', title:'Profit Penjualan per Produk', info: exportInfoLine() + '  |  Urutan: ' + ({desc:'Profit terbesar ke terkecil', asc:'Profit terkecil ke terbesar'}[s3Sort] || 'Nama produk (A–Z)') + (full ? '' : '  |  Kategori : ' + s3CatLabel() + '  |  Pilihan produk : ' + (s3Sel.size ? s3Sel.size + ' produk' : 'Semua')), head:['NO','PRODUK','QTY','TOTAL PENJUALAN','TOTAL HPP','HARGA JUAL','HARGA BELI','PROFIT'], types:['c','t','n','rp','rp','tr','tr','rp'], rows:l3.map((x,i)=>[i+1,...x]), total:['TOTAL','',T3.qty,T3.sales,T3.hpp,'','',T3.profit] };
     }
     if (tab === 's6'){
-      const rows = buildFakturRows().map((row,i) => { const x = row.x; return [i+1, x.Tanggal, row.faktur, x.Sales||row.sales||'', x.Produk||'', N(x.Jumlah), x.Satuan||'', N(x['Harga Jual']), N(x.Discount), N(x.Total), row.isFirst ? row.nominal : '', row.isFirst ? row.profit : '', x.Pembayaran||row.bayar||'', x.Customer||row.customer||'']; });
-      return { name:'Faktur', title:'Rekap per Faktur', head:['NO','TANGGAL','NO. FAKTUR','SALES','PRODUK','QTY','SATUAN','HARGA JUAL','DISC','TOTAL','NOMINAL FAKTUR','PROFIT PER FAKTUR','PEMBAYARAN','CUSTOMER'], types:['c','d','t','t','t','n','c','rp','rp','rp','rp','rp','t','t'], rows, total:['TOTAL','','','','',r.qty,'','','',r.sales,r.sales,r.profit,'',''] };
+      const rows = buildFakturRows().map((row,i) => { const x = row.x; const hj = N(x['Harga Jual']), disc = N(x.Discount); return [i+1, x.Tanggal, row.faktur, x.Sales||row.sales||'', x.Produk||'', N(x.Jumlah), x.Satuan||'', N(x['Harga Beli']), hj, disc, hj - disc, N(x.Total), row.isFirst ? row.nominal : '', row.isFirst ? row.profit : '', x.Pembayaran||row.bayar||'', x.Customer||row.customer||'']; });
+      return { name:'Faktur', title:'Rekap per Faktur', head:['NO','TANGGAL','NO. FAKTUR','SALES','PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','DISC','HARGA JUAL (DISC)','TOTAL','NOMINAL FAKTUR','PROFIT PER FAKTUR','PEMBAYARAN','CUSTOMER'], types:['c','d','t','t','t','n','c','rp','rp','rp','rp','rp','rp','rp','t','t'], rows, total:['TOTAL','','','','',r.qty,'','','','','',r.sales,r.sales,r.profit,'',''] };
     }
     if (tab === 's9'){
       return { name:'Data Harga', title:'Data Harga Beli & Jual', head:['PRODUK','SATUAN','HARGA BELI TERENDAH','HARGA BELI TERTINGGI','HARGA JUAL TERENDAH','HARGA JUAL TERTINGGI','KET'], types:['t','c','rp','rp','rp','rp','t'], rows:(r.s9||[]).map(x=>[x[0],x[1]||'',x[2],x[3],x[4],x[5], x[6] ? ((x[6].dir==='naik'?'Naik':'Turun')+' sejak '+fmtTgl(new Date(x[6].ts))) : '']), total:null };
@@ -3731,7 +3731,7 @@ self.onmessage = function(e){
     const totalLines = allRows.length;
     const pageRows = sliceRekap('s6', allRows);
     const base = (rekapPage.s6 || 0) * REKAP_PAGE_SIZE;
-    const head = ['NO','TANGGAL','NO. FAKTUR','SALES','PRODUK','QTY','SATUAN','HARGA JUAL','DISC','TOTAL','NOMINAL FAKTUR','PROFIT PER FAKTUR','PEMBAYARAN','CUSTOMER'];
+    const head = ['NO','TANGGAL','NO. FAKTUR','SALES','PRODUK','QTY','SATUAN','HARGA BELI','HARGA JUAL','DISC','HARGA JUAL (DISC)','TOTAL','NOMINAL FAKTUR','PROFIT PER FAKTUR','PEMBAYARAN','CUSTOMER'];
     let body = '';
     /* Kolom milik faktur (NO, TANGGAL, NO. FAKTUR, SALES, NOMINAL, PROFIT, PEMBAYARAN, CUSTOMER) digabung (rowspan) per faktur;
        hanya kolom produk (PRODUK s/d TOTAL) yang tampil per baris. NO = nomor urut faktur. Bila satu faktur terpotong di batas halaman,
@@ -3741,7 +3741,9 @@ self.onmessage = function(e){
       const x = row.x;
       const startGroup = (i === 0) || pageRows[i - 1].faktur !== row.faktur;
       if (row.isFirst) gno++;
-      const produk = x.Produk || '', qty = N(x.Jumlah), satuan = x.Satuan || '', hj = rp(x['Harga Jual']), disc = rp(x.Discount), total = rp(x.Total);
+      const produk = x.Produk || '', qty = N(x.Jumlah), satuan = x.Satuan || '';
+      const hb = rp(x['Harga Beli']), hjN = N(x['Harga Jual']), discN = N(x.Discount);
+      const hj = rp(hjN), disc = rp(discN), hjDisc = rp(hjN - discN), total = rp(x.Total);
       const lineStyle = row.isBatal ? 'opacity:.7;background:#fef2f2;' : (row.lineBatal ? 'opacity:.65;background:#f1f5f9;text-decoration:line-through;' : (qty < 0 ? 'background:#fef2f2;' : ''));
       const ls = lineStyle ? ' style="' + lineStyle + '"' : '';
       let cells = '';
@@ -3758,15 +3760,17 @@ self.onmessage = function(e){
         } else fkCell = escHtml(row.faktur);
         const gs = ' style="vertical-align:top;' + (row.isBatal ? 'opacity:.7;background:#fef2f2;' : '') + '"';
         cells += '<td class="num"' + rs + gs + '>' + gno + '</td><td' + rs + gs + '>' + tgl + '</td><td' + rs + gs + '>' + fkCell + '</td><td' + rs + gs + '>' + escHtml(sales) + '</td>';
-        cells += '<td title="' + escHtml(produk) + '"' + ls + '>' + escHtml(produk) + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + escHtml(satuan) + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
+        cells += '<td title="' + escHtml(produk) + '"' + ls + '>' + escHtml(produk) + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + escHtml(satuan) + '</td>';
+        cells += '<td class="num"' + ls + '>' + hb + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + hjDisc + '</td><td class="num"' + ls + '>' + total + '</td>';
         cells += '<td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.nominal) + '</td><td class="num"' + rs + gs.replace('style="', 'style="font-weight:700;') + '>' + rp(row.profit) + '</td><td' + rs + gs + '>' + escHtml(bayar) + '</td><td title="' + escHtml(cust) + '"' + rs + gs + '>' + escHtml(cust) + '</td>';
       } else {
-        cells += '<td title="' + escHtml(produk) + '"' + ls + '>' + escHtml(produk) + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + escHtml(satuan) + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + total + '</td>';
+        cells += '<td title="' + escHtml(produk) + '"' + ls + '>' + escHtml(produk) + '</td><td class="num"' + ls + '>' + qty + '</td><td' + ls + '>' + escHtml(satuan) + '</td>';
+        cells += '<td class="num"' + ls + '>' + hb + '</td><td class="num"' + ls + '>' + hj + '</td><td class="num"' + ls + '>' + disc + '</td><td class="num"' + ls + '>' + hjDisc + '</td><td class="num"' + ls + '>' + total + '</td>';
       }
       body += '<tr>' + cells + '</tr>';
     });
-    const foot = '<tr><td class="num">TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + (R.qty || 0) + '</td><td></td><td></td><td></td><td class="num">' + rp(R.sales) + '</td><td class="num">' + rp(R.sales) + '</td><td class="num">' + rp(R.profit) + '</td><td></td><td></td></tr>';
-    if (!totalLines) return '<div class="tablebox"><table><thead><tr>' + head.map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody><tr><td colspan="14" style="text-align:center;padding:28px;color:#64748b">Belum ada data.</td></tr></tbody></table></div>';
+    const foot = '<tr><td class="num">TOTAL</td><td></td><td></td><td></td><td></td><td class="num">' + (R.qty || 0) + '</td><td></td><td></td><td></td><td></td><td></td><td class="num">' + rp(R.sales) + '</td><td class="num">' + rp(R.sales) + '</td><td class="num">' + rp(R.profit) + '</td><td></td><td></td></tr>';
+    if (!totalLines) return '<div class="tablebox"><table><thead><tr>' + head.map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody><tr><td colspan="16" style="text-align:center;padding:28px;color:#64748b">Belum ada data.</td></tr></tbody></table></div>';
     return rekapPagerHtml('s6', totalLines) + '<div class="tablebox"><table><thead><tr>' + head.map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
   }
   async function saveExcel(){
