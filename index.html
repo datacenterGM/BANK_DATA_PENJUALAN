@@ -895,12 +895,36 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
     } catch(e){ console.warn('pullFromCloud gagal', e); setCloudStatus('Gagal terhubung ke cloud (mode lokal)'); }
     finally {
       if (changed || !opts.shown){
-        /* Jangan re-render jika user sedang mengetik di form (hindari hilangnya input bonus/target/dll) */
+        /* Jangan re-render DOM jika user sedang mengetik — tapi cache HARUS dibuang agar tidak menampilkan data basi */
         const ae = document.activeElement;
         const typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
-        if (typing && opts.shown){
-          /* data sudah di IDB; refresh ditunda sampai blur / tab tidak fokus input */
-          if (!opts.silent) setStatus('Data cloud diperbarui (tampilan ditunda — selesai mengisi form dulu).');
+        if (typing && opts.shown && changed){
+          try { invalidateBuildCache(); } catch(e){}
+          viewCache = {};
+          dataVersion++;
+          setCloudStatus('Data terbaru diterima — akan tampil saat Anda selesai mengisi form');
+          /* Refresh UI otomatis setelah blur (selesai mengetik) */
+          if (!window.__pendingSyncRefresh){
+            window.__pendingSyncRefresh = true;
+            const onBlur = function(){
+              if (!window.__pendingSyncRefresh) return;
+              /* masih fokus di field lain? tunggu blur berikutnya */
+              const a2 = document.activeElement;
+              if (a2 && (a2.tagName === 'INPUT' || a2.tagName === 'TEXTAREA' || a2.tagName === 'SELECT' || a2.isContentEditable)) return;
+              window.__pendingSyncRefresh = false;
+              document.removeEventListener('focusout', onBlur, true);
+              setTimeout(function(){
+                try {
+                  const y0 = window.scrollY;
+                  restoreFromDB().then(function(){
+                    requestAnimationFrame(function(){ window.scrollTo(0, y0); });
+                    setCloudStatus('Tampilan diperbarui dengan data terbaru • ' + new Date().toLocaleTimeString('id-ID'));
+                  }).catch(function(){});
+                } catch(e){}
+              }, 200);
+            };
+            document.addEventListener('focusout', onBlur, true);
+          }
         } else {
           const y0 = window.scrollY;
           await restoreFromDB();
