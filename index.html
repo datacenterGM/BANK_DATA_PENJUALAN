@@ -753,17 +753,60 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
   /* Penanda "ada perubahan lokal yang belum terkirim ke cloud" (tahan tutup browser) */
   const SYNC_STAMP_KEY = 'penjualanCloudStamp_v1';   /* updated_at cloud terakhir yang SUDAH tersalin ke perangkat ini */
   function getSyncStamp(){ try { return localStorage.getItem(SYNC_STAMP_KEY) || ''; } catch(e){ return ''; } }
-  function setSyncStamp(v){ try { if (v) localStorage.setItem(SYNC_STAMP_KEY, String(v)); else localStorage.removeItem(SYNC_STAMP_KEY); } catch(e){} }
+  function setSyncStamp(v){
+    try { if (v) localStorage.setItem(SYNC_STAMP_KEY, String(v)); else localStorage.removeItem(SYNC_STAMP_KEY); } catch(e){}
+    /* Redundansi di IndexedDB: aman meski localStorage dibersihkan */
+    if (useIDB && db){ db.meta.put({ key: 'syncStamp', value: v || '' }).catch(() => {}); }
+  }
   const sameStamp = (a, b) => { if (!a || !b) return false; const x = new Date(a).getTime(), y = new Date(b).getTime(); return !isNaN(x) && x === y; };
   const DIRTY_KEY = 'penjualanPendingPush_v1';
   function isDirty(){ try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch(e){ return false; } }
-  function setDirty(v){ try { if (v) localStorage.setItem(DIRTY_KEY, '1'); else localStorage.removeItem(DIRTY_KEY); } catch(e){} }
+  function setDirty(v){
+    try { if (v) localStorage.setItem(DIRTY_KEY, '1'); else localStorage.removeItem(DIRTY_KEY); } catch(e){}
+    if (useIDB && db){ db.meta.put({ key: 'dirtyFlag', value: v ? 1 : 0 }).catch(() => {}); }
+  }
+  /* Pulihkan dirty/stamp dari IndexedDB bila localStorage kosong (mis. Clear site data sebagian) */
+  async function hydrateSyncFlagsFromIDB(){
+    if (!useIDB || !db) return;
+    try {
+      if (!getSyncStamp()){
+        const m = await db.meta.get('syncStamp');
+        if (m && m.value) { try { localStorage.setItem(SYNC_STAMP_KEY, String(m.value)); } catch(e){} }
+      }
+      if (!isDirty()){
+        const d = await db.meta.get('dirtyFlag');
+        if (d && d.value) { try { localStorage.setItem(DIRTY_KEY, '1'); } catch(e){} }
+      }
+    } catch(e){ console.warn('hydrateSyncFlagsFromIDB', e); }
+  }
   async function gatherLocalSnapshot(){
     if (!useIDB) return null;
     const tx = await db.tx.toArray(), meta = await db.meta.toArray();
     let namaMap = {};
     try { namaMap = JSON.parse(localStorage.getItem('cekRupaNamaProdukMap_v1') || '{}'); } catch(e){ namaMap = {}; }
     return { tx, meta, namaMap };
+  }
+  /* Ganti seluruh isi tx (+ opsional meta) secara ATOMIK. Jika gagal di tengah, IndexedDB rollback — data lama tetap utuh. */
+  async function replaceLocalDataAtomic(txRows, metaRows, opts){
+    opts = opts || {};
+    if (!useIDB || !db) throw new Error('Penyimpanan lokal belum siap.');
+    const txList = Array.isArray(txRows) ? txRows : [];
+    const metaList = Array.isArray(metaRows) ? metaRows : null;
+    await db.transaction('rw', db.tx, db.meta, async () => {
+      await db.tx.clear();
+      if (txList.length){
+        const chunk = 2000;
+        for (let i = 0; i < txList.length; i += chunk){
+          await db.tx.bulkPut(txList.slice(i, i + chunk).map(r => {
+            const o = Object.assign({}, r); delete o.id; return o;
+          }));
+        }
+      }
+      if (metaList){
+        await db.meta.clear();
+        if (metaList.length) await db.meta.bulkPut(metaList);
+      }
+    });
   }
   async function pushToCloud(){
     if (!sbClient) throw new Error('Cloud belum terhubung.');
@@ -772,6 +815,14 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
     setDirty(true);
     const snapshot = await gatherLocalSnapshot();
     if (!snapshot) throw new Error('Data lokal tidak dapat dibaca.');
+    /* Soft guard: snapshot sangat besar sering ditolak server — data lokal tetap aman, status jelas */
+    try {
+      const approx = JSON.stringify(snapshot).length;
+      if (approx > 4 * 1024 * 1024){
+        console.warn('Snapshot cloud besar ~' + Math.round(approx/1024/1024) + ' MB. Push mungkin gagal karena batas server.');
+        setCloudStatus('Data lokal besar (~' + Math.round(approx/1024/1024) + ' MB) — upload cloud mungkin gagal; backup manual disarankan');
+      }
+    } catch(e){}
     const payload = { id: SYNC_ROW_ID, data: snapshot, updated_at: new Date().toISOString() };
     lastPushedAt = new Date(payload.updated_at).getTime();
     const result = await sbClient.from('app_sync').upsert(payload, { onConflict: 'id' });
@@ -824,10 +875,9 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
         isSyncingFromCloud = true;
         try {
           const snap = data.data;
-          await db.tx.clear(); if (snap.tx && snap.tx.length) await db.tx.bulkPut(snap.tx);
-          await db.meta.clear(); if (snap.meta && snap.meta.length) await db.meta.bulkPut(snap.meta);
+          await replaceLocalDataAtomic(snap.tx || [], Array.isArray(snap.meta) ? snap.meta : [], { from: 'cloud' });
           if (snap.namaMap && typeof snap.namaMap === 'object') { try { localStorage.setItem('cekRupaNamaProdukMap_v1', JSON.stringify(snap.namaMap)); } catch(e){} }
-          setSyncStamp(data.updated_at); changed = true;
+          setSyncStamp(data.updated_at); setDirty(false); changed = true;
           setCloudStatus('Sinkron dari cloud • ' + new Date().toLocaleTimeString('id-ID'));
         } finally { isSyncingFromCloud = false; }
       } else {
@@ -859,6 +909,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
       db.version(2).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk,kdCustomer,[bulan+sales],[bulan+pembayaran],[bulan+produk]', meta: '&key' });
       db.version(3).stores({ tx: '++id,bulan,sales,pembayaran,_ts,produk,kdCustomer,faktur,jumlah,[bulan+sales],[bulan+pembayaran],[bulan+produk]', meta: '&key' });
       await db.open(); useIDB = true;
+      try { await hydrateSyncFlagsFromIDB(); } catch(e){}
       /* Minta browser menjadikan penyimpanan ini "persisten" agar data IndexedDB tidak dibersihkan otomatis saat ruang menipis */
       try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => { if (!p) return navigator.storage.persist(); }).catch(() => {}); } catch(e){}
     } catch(e){ console.warn('IndexedDB unavailable; falling back to in-memory mode.', e); db = null; useIDB = false; }
@@ -1040,17 +1091,46 @@ self.onmessage = function(e){
     const dayKeys = [...new Set(list.map(r => dayKeyOfTs(r._ts)).filter(Boolean))].sort();
     const nullKeyOf = (r) => { const f = String(r.faktur ?? '').trim(); return f ? 'F|' + f : 'P|' + String(r.produk ?? '').trim() + '|' + N(r.jumlah) + '|' + N(r.total); };
     const nullKeySet = new Set(list.filter(r => !r._ts).map(nullKeyOf));
+    /* Juga hapus baris lama _ts=null yang faktur-nya ikut di-import ulang (tanggal sudah diperbaiki) — cegah duplikasi */
+    const incomingFaktur = new Set(list.map(r => String(r.faktur ?? '').trim()).filter(Boolean));
     if (useIDB){
-      for (const k of dayKeys){ const r = dayRangeOfKey(k); try { await db.tx.where('_ts').between(r[0], r[1], true, true).delete(); } catch(e){ console.warn('delete tanggal', k, e); } }
-      if (nullKeySet.size){
-        try { const toDelete = await db.tx.filter(r => !r._ts && nullKeySet.has(nullKeyOf(r))).toArray(); if (toDelete.length) await db.tx.bulkDelete(toDelete.map(r => r.id)); }
-        catch(e){ console.warn('delete null-day rows', e); }
+      try {
+        await db.transaction('rw', db.tx, async () => {
+          for (const k of dayKeys){
+            const r = dayRangeOfKey(k);
+            await db.tx.where('_ts').between(r[0], r[1], true, true).delete();
+          }
+          if (nullKeySet.size || incomingFaktur.size){
+            const toDelete = await db.tx.filter(r => {
+              if (r._ts) return false;
+              if (nullKeySet.size && nullKeySet.has(nullKeyOf(r))) return true;
+              const f = String(r.faktur ?? '').trim();
+              return !!(f && incomingFaktur.has(f));
+            }).toArray();
+            if (toDelete.length) await db.tx.bulkDelete(toDelete.map(r => r.id));
+          }
+          if (list.length){
+            const mapped = list.map(r => { const o = Object.assign({}, r); delete o.id; return o; });
+            const chunk = 2000;
+            for (let i = 0; i < mapped.length; i += chunk) await db.tx.bulkPut(mapped.slice(i, i + chunk));
+          }
+        });
+      } catch(e){
+        console.error('commitIncomingTx gagal (data lama tetap utuh karena transaksi atomik):', e);
+        throw e;
       }
-      if (list.length){ try { await db.tx.bulkPut(list.map(r => { const o = Object.assign({}, r); delete o.id; return o; })); } catch(e){ console.warn('bulkPut incoming', e); } }
     } else {
       const daySet = new Set(dayKeys);
       if (daySet.size) rows = rows.filter(x => !daySet.has(dayKeyOfTs(x._ts)));
-      if (nullKeySet.size) rows = rows.filter(x => x._ts || !nullKeySet.has(nullKeyOf(x)));
+      if (nullKeySet.size || incomingFaktur.size){
+        rows = rows.filter(x => {
+          if (x._ts) return true;
+          if (nullKeySet.size && nullKeySet.has(nullKeyOf(x))) return false;
+          const f = String(x.faktur ?? '').trim();
+          if (f && incomingFaktur.has(f)) return false;
+          return true;
+        });
+      }
       rows = rows.concat(list);
     }
     return dayKeys;
@@ -1607,7 +1687,7 @@ self.onmessage = function(e){
     const rt = !!sp.rightTitle && nc > 2;
     ws.mergeCells(1,1,1, rt ? nc-1 : nc); const t1 = ws.getCell(1,1); t1.value = sp.title; t1.font = { name:'Arial', size:14, bold:true, color:{argb: sp.titleColor || 'FF1F4E78'} }; t1.alignment = { vertical:'middle' };
     if (rt){ const tr = ws.getCell(1,nc); tr.value = sp.rightTitle; tr.font = { name:'Arial', size:14, bold:true, color:{argb: sp.titleColor || 'FF1F4E78'} }; tr.alignment = { horizontal:'center', vertical:'middle' }; }
-    ws.mergeCells(2,1,2,nc); const t2 = ws.getCell(2,1); t2.value = sp.info || exportInfoLine(); t2.font = { name:'Arial', size:9, color:{argb:'FF475569'} };
+    ws.mergeCells(2,1,2,nc); const t2 = ws.getCell(2,1); t2.value = sp.info || exportInfoLine(); t2.font = { name:'Arial', size:9, color:{argb:'FF475569'} }; t2.alignment = { vertical:'middle', wrapText:true }; ws.getRow(2).height = 28;
     ws.mergeCells(3,1,3,nc); const t3 = ws.getCell(3,1); if (!sp.noPrint){ t3.value = 'Dicetak: ' + new Date().toLocaleString('id-ID'); t3.font = { name:'Arial', size:9, italic:true, color:{argb:'FF64748B'} }; }
     ws.getRow(1).height = 24;
     // lebar kolom
@@ -1703,9 +1783,18 @@ self.onmessage = function(e){
       const full = !!(opts && opts.full), l1 = s1Sorted(full), T1 = s1Totals(l1);
       const stripRp = v => String(v == null ? '' : v).replace(/Rp\s*/g, '');
       const rows = l1.map(x => { const row = [x[0]]; for (let i = 1; i <= n; i++) row.push(x[i]); row.push(x[n+1],x[n+2],stripRp(x[n+3]),stripRp(x[n+4]),x[n+5],x[n+6],x[n+7],x[n+8]); return row; });
-      const info = exportInfoLine() + (full ? '' : '  |  Urutan : ' + s1SortLabel() + '  |  Kategori : ' + s1CatLabel() + (s1Sub ? '  |  Sub : ' + rupaSubLabel(s1Sub) : '') + '  |  Pilihan produk : ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
-      /* Angka tanpa "Rp" (sama seperti layar); Margin % = Profit / Nominal × 100 */
-      return { name:'Produk', title:'Rekap Penjualan per Produk', info, head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','MARGIN %'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','n','n','n','pct'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit,T1.margin] };
+      const infoParts = [];
+      infoParts.push(exportInfoLine());
+      if (!full){
+        infoParts.push('Urutan: ' + s1SortLabel());
+        infoParts.push('Kategori: ' + s1CatLabel());
+        if (s1Sub) infoParts.push('Sub Kategori: ' + rupaSubLabel(s1Sub));
+        infoParts.push('Pilihan produk: ' + (s1Sel.size ? s1Sel.size + ' produk' : 'Semua'));
+      }
+      const title = s1Sub ? ('Rekap Penjualan per Produk — ' + rupaSubLabel(s1Sub)) : 'Rekap Penjualan per Produk';
+      const tag = [s1CatLabel(), s1Sub ? rupaSubLabel(s1Sub) : ''].filter(Boolean).join('_').replace(/[^A-Za-z0-9]+/g, '_') || 'Semua';
+      /* Angka tanpa "Rp"; judul & info menampilkan Sub Kategori bila dipilih */
+      return { name:'Produk', title, info: infoParts.filter(Boolean).join('  |  '), fileName: 'Rekap_Produk_' + tag + '.xlsx', head:['PRODUK',...SO2,'TOTAL QTY','SATUAN','HARGA BELI','HARGA JUAL','HPP','NOMINAL PENJUALAN','PROFIT','MARGIN %'], types:['t',...SO2.map(()=>'n'),'n','c','tr','tr','n','n','n','pct'], rows, total:['TOTAL',...T1.per,T1.qty,'','','',T1.hpp,T1.sales,T1.profit,T1.margin] };
     }
     if (tab === 's3'){
       const full = !!(opts && opts.full), l3 = s3Sorted(full), T3 = s3Totals(l3);
@@ -3897,8 +3986,13 @@ self.onmessage = function(e){
     if(!confirm('Restore akan mengganti data lokal aplikasi dengan isi backup ini. Lanjutkan?')) return false;
     if(!useIDB || !db) throw new Error('Penyimpanan lokal belum siap.');
     isSyncingFromCloud=true;
-    try{ await db.tx.clear(); if(backup.tx.length) await db.tx.bulkPut(backup.tx); await db.meta.clear(); if(Array.isArray(backup.meta) && backup.meta.length) await db.meta.bulkPut(backup.meta); }
-    finally{isSyncingFromCloud=false;}
+    try{
+      await replaceLocalDataAtomic(backup.tx, Array.isArray(backup.meta) ? backup.meta : [], { from: 'backup' });
+    } catch(e){
+      isSyncingFromCloud=false;
+      alert('Restore gagal — data lokal sebelumnya tetap utuh.\n\n'+(e.message||e));
+      return false;
+    } finally { isSyncingFromCloud=false; }
     await restoreFromDB(); await refreshAfterDataChange();
     if(sbClient) schedulePush();
     setStatus('Restore berhasil: '+backup.tx.length.toLocaleString('id-ID')+' transaksi.');
@@ -4009,7 +4103,7 @@ self.onmessage = function(e){
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resyncIfIdle(); });
   window.addEventListener('online', resyncIfIdle);
   window.addEventListener('offline', () => { setCloudStatus(isDirty() ? 'Offline • ada perubahan belum terkirim' : 'Offline • mode lokal'); });
-  window.addEventListener('beforeunload', function(e){ if (pushTimer || pushInFlight || isSyncingFromCloud) { e.preventDefault(); e.returnValue = ''; return ''; } });
+  window.addEventListener('beforeunload', function(e){ if (pushTimer || pushInFlight || isSyncingFromCloud || isDirty()) { e.preventDefault(); e.returnValue = ''; return ''; } });
   if ('serviceWorker' in navigator){ window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW gagal daftar', e)); }); }
   let _deferredInstallPrompt = null;
   const _isStandalone = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
