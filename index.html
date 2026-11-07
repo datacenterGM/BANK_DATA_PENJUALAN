@@ -781,7 +781,9 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
   }
   async function gatherLocalSnapshot(){
     if (!useIDB) return null;
-    const tx = await db.tx.toArray(), meta = await db.meta.toArray();
+    const tx = await db.tx.toArray();
+    /* dirtyFlag & syncStamp lokal saja — jangan ikut ke cloud (bisa "menginfeksi" device lain) */
+    const meta = (await db.meta.toArray()).filter(m => m && m.key !== 'dirtyFlag' && m.key !== 'syncStamp');
     let namaMap = {};
     try { namaMap = JSON.parse(localStorage.getItem('cekRupaNamaProdukMap_v1') || '{}'); } catch(e){ namaMap = {}; }
     return { tx, meta, namaMap };
@@ -791,7 +793,11 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
     opts = opts || {};
     if (!useIDB || !db) throw new Error('Penyimpanan lokal belum siap.');
     const txList = Array.isArray(txRows) ? txRows : [];
-    const metaList = Array.isArray(metaRows) ? metaRows : null;
+    let metaList = Array.isArray(metaRows) ? metaRows : null;
+    /* Jangan terima dirtyFlag/syncStamp dari cloud/backup — flag ini milik device lokal */
+    if (metaList) metaList = metaList.filter(m => m && m.key !== 'dirtyFlag' && m.key !== 'syncStamp');
+    const keepStamp = getSyncStamp();
+    const keepDirty = isDirty();
     await db.transaction('rw', db.tx, db.meta, async () => {
       await db.tx.clear();
       if (txList.length){
@@ -805,6 +811,9 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
       if (metaList){
         await db.meta.clear();
         if (metaList.length) await db.meta.bulkPut(metaList);
+        /* tulis ulang flag lokal setelah meta diganti */
+        await db.meta.put({ key: 'syncStamp', value: keepStamp || '' });
+        await db.meta.put({ key: 'dirtyFlag', value: keepDirty ? 1 : 0 });
       }
     });
   }
@@ -884,7 +893,22 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
         const localCount = await db.tx.count(); if (localCount) await pushToCloud();
       }
     } catch(e){ console.warn('pullFromCloud gagal', e); setCloudStatus('Gagal terhubung ke cloud (mode lokal)'); }
-    finally { if (changed || !opts.shown){ const y0 = window.scrollY; await restoreFromDB(); if (opts.shown) { requestAnimationFrame(() => window.scrollTo(0, y0)); setTimeout(() => window.scrollTo(0, y0), 400); } } if (!opts.silent) setStatus('Data tersinkron dari cloud.'); }
+    finally {
+      if (changed || !opts.shown){
+        /* Jangan re-render jika user sedang mengetik di form (hindari hilangnya input bonus/target/dll) */
+        const ae = document.activeElement;
+        const typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+        if (typing && opts.shown){
+          /* data sudah di IDB; refresh ditunda sampai blur / tab tidak fokus input */
+          if (!opts.silent) setStatus('Data cloud diperbarui (tampilan ditunda — selesai mengisi form dulu).');
+        } else {
+          const y0 = window.scrollY;
+          await restoreFromDB();
+          if (opts.shown) { requestAnimationFrame(() => window.scrollTo(0, y0)); setTimeout(() => window.scrollTo(0, y0), 400); }
+        }
+      }
+      if (!opts.silent) setStatus('Data tersinkron dari cloud.');
+    }
   }
   function subscribeRealtime(){
     if (!sbClient || realtimeReady) return;
@@ -2470,9 +2494,8 @@ self.onmessage = function(e){
   function s1TogglePicker(e){ if (e) e.stopPropagation(); const d = document.getElementById('s1Dd'); if (d) d.style.display = (d.style.display === 'block') ? 'none' : 'block'; }
   function s1SetCat(v){
     s1Cat = v || '';
-    if (s1Cat === 'FITRI') s1Sub = '';          /* sub hanya untuk Rupa Rupa */
-    if (s1Cat === 'RUPA_RUPA' && !s1Sub) { /* keep sub if any */ }
-    if (s1Cat !== 'RUPA_RUPA' && s1Cat !== '') s1Sub = '';
+    /* Sub kategori hanya relevan untuk Rupa Rupa — termasuk saat kembali ke "Semua" */
+    if (s1Cat !== 'RUPA_RUPA') s1Sub = '';
     s1Sel = new Set();
     rekapPage.s1 = 0; viewCache['s1'] = null;
     const panel = document.getElementById('panel_s1'); if (panel) panel.innerHTML = renderTab('s1');
