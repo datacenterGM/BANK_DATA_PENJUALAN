@@ -533,21 +533,24 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
           <div class="month-quick">
             <label for="filterMonth" class="month-global">Bulan</label>
             <select id="filterMonth" class="month-global" onchange="applyFilters()"><option value="">Semua bulan</option></select>
-            <label for="filterProductQuick" class="prod-global">Produk</label>
+            <label for="filterProductQuick" class="prod-global">Kategori</label>
             <select id="filterProductQuick" class="prod-global" onchange="onProductQuickChange()">
               <option value="">Semua produk</option>
               <option value="FITRI">Fitri</option>
               <option value="RUPA_RUPA">Rupa Rupa</option>
             </select>
+            <label for="filterProductName" class="prod-global">Produk</label>
+            <select id="filterProductName" class="prod-global" style="max-width:210px" onchange="applyFilters()" title="Pilih satu produk untuk melihat datanya saja"><option value="">Semua produk</option></select>
             <div class="filter-picker" id="filterPicker">
               <button type="button" class="filter-btn" id="filterBtn" title="Filter lanjutan: tanggal, sales, pembayaran, kode customer" onclick="event.stopPropagation();toggleFilterPicker()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg><span>Filter</span><span id="filterCount"></span></button>
               <div class="filter-menu" id="filterMenu" onclick="event.stopPropagation()">
                 <div class="filter-head"><b>Filter Lanjutan</b><button type="button" class="filter-x" onclick="closeFilterPicker()" title="Tutup">✕</button></div>
                 <div class="filter-hint">Bulan &amp; pencarian ada di bar atas. Isi kolom di bawah untuk menyaring lebih detail, lalu klik <b>Terapkan Filter</b>.</div>
-                <div class="filter-group"><label>Tanggal Transaksi</label><input type="date" id="filterDateSingle" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
+                <div class="filter-group"><label>Dari Tanggal</label><input type="date" id="filterDateSingle" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
+                <div class="filter-group"><label>Sampai Tanggal <span style="font-weight:normal;text-transform:none">(kosong = 1 hari saja)</span></label><input type="date" id="filterDateTo" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:6px;font-size:12px"></div>
                 <div class="filter-group sales-global"><label>Sales</label><select id="filterSales"><option value="">Semua sales</option></select></div>
-                <div class="filter-group prod-global"><label>Produk</label>
-                  <select id="filterProduct" onchange="document.getElementById('filterProductQuick') && (document.getElementById('filterProductQuick').value=this.value)">
+                <div class="filter-group prod-global"><label>Kategori</label>
+                  <select id="filterProduct" onchange="document.getElementById('filterProductQuick') && (document.getElementById('filterProductQuick').value=this.value); refreshProductNameOptions()">
                     <option value="">Semua produk</option>
                     <option value="FITRI">Fitri</option>
                     <option value="RUPA_RUPA">Rupa Rupa (selain Fitri)</option>
@@ -668,7 +671,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
   const range = (a,b) => a === b ? rn(a) : rn(a) + ' - ' + rn(b);  /* tanpa awalan Rp; tampil terendah - tertinggi bila berbeda */
 
   let rows = [], filteredRows = [], filteredRowsInclBatal = [], materialisedRows = [], R = {};
-  let filters = {month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''};
+  let filters = {month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:'',productName:''};
   let batalFakturSet = new Set();
   let batalLineSet = new Set();
   let _fkBatalCurrent = null;
@@ -1333,6 +1336,7 @@ self.onmessage = function(e){
       if (F.sales)   out = out.filter(x => x.sales === F.sales);
       if (F.product === 'FITRI')      out = out.filter(x =>  isFitriProduct(x.produk));
       if (F.product === 'RUPA_RUPA')  out = out.filter(x => !isFitriProduct(x.produk));
+      if (F.productName) out = out.filter(x => U(x.produk) === F.productName);
       if (F.payment) out = out.filter(x => x.pembayaran === F.payment);
       if (fromTs != null || toTs != null) out = out.filter(x => rowInDateRange(x, fromTs, toTs));
       if (kdQ) out = out.filter(x => matchKdCustomer(x.kdCustomer ?? x['Kd Customer'], kdQ));
@@ -1355,6 +1359,7 @@ self.onmessage = function(e){
       if (F.payment && !usedCompoundPay && r.pembayaran !== F.payment) return false;
       if (F.product === 'FITRI'     && !isFitriProduct(r.produk)) return false;
       if (F.product === 'RUPA_RUPA' &&  isFitriProduct(r.produk)) return false;
+      if (F.productName && U(r.produk) !== F.productName) return false;
       if (!rowInDateRange(r, fromTs, toTs)) return false;
       if (kdQ && !matchKdCustomer(r.kdCustomer, kdQ)) return false;
       if (qLower && !matchQuickSearch(r, qLower)) return false;
@@ -1374,6 +1379,7 @@ self.onmessage = function(e){
   function onProductQuickChange(){
     const q = document.getElementById('filterProductQuick'), p = document.getElementById('filterProduct');
     if (q && p) p.value = q.value;
+    refreshProductNameOptions();
     applyFilters();
   }
   let _applyFiltersToken = 0;
@@ -1385,13 +1391,19 @@ self.onmessage = function(e){
       else if (document.activeElement === p) q.value = p.value;
       else if (q.value !== p.value) q.value = p.value;
     }
-    const _singleDate = document.getElementById('filterDateSingle')?.value || '';
+    const _dFrom = document.getElementById('filterDateSingle')?.value || '';
+    let _dTo = document.getElementById('filterDateTo')?.value || '';
+    if (_dFrom && !_dTo) _dTo = _dFrom;
+    let _dF = _dFrom; if (!_dF && _dTo) _dF = '';
+    if (_dF && _dTo && _dF > _dTo) { const t = _dF; _dF = _dTo; _dTo = t; }
+    refreshProductNameOptions();
     filters = {
       month: document.getElementById('filterMonth').value,
       sales: document.getElementById('filterSales').value,
       product: document.getElementById('filterProduct').value,
       payment: document.getElementById('filterPayment').value,
-      dateFrom: _singleDate, dateTo: _singleDate,
+      dateFrom: _dF, dateTo: _dTo,
+      productName: document.getElementById('filterProductName')?.value || '',
       kdCustomer: (document.getElementById('filterKdCustomer')?.value || '').trim(),
       q: (document.getElementById('quickSearch')?.value || '').trim()
     };
@@ -1406,14 +1418,15 @@ self.onmessage = function(e){
     let tabId = _activeTab || 's6';
     if (activeBtn) { const oc = activeBtn.getAttribute('onclick') || ''; const m = oc.match(/show\('([^']+)'/); if (m) tabId = m[1]; }
     show(tabId, activeBtn);
-    const parts = [filters.month ? monthLabel(filters.month) : '', formatFilterDateLabel(filters.dateFrom, filters.dateTo), filters.sales || '', filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : '', filters.payment || '', filters.kdCustomer ? ('Kd: ' + filters.kdCustomer) : '', filters.q ? ('Cari: ' + filters.q) : ''].filter(Boolean);
+    const parts = [filters.month ? monthLabel(filters.month) : '', formatFilterDateLabel(filters.dateFrom, filters.dateTo), filters.sales || '', filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : '', filters.productName || '', filters.payment || '', filters.kdCustomer ? ('Kd: ' + filters.kdCustomer) : '', filters.q ? ('Cari: ' + filters.q) : ''].filter(Boolean);
     const bigWarn = filteredRows.length > LARGE_RESULT_WARN ? ' ⚠ Data besar — pertimbangkan mempersempit filter (bulan/sales/tanggal) agar tampilan lebih ringan.' : '';
     document.getElementById('filterInfo').textContent = (parts.length ? 'Aktif: ' + parts.join(' • ') + ' — ' : '') + 'Menampilkan ' + filteredRows.length.toLocaleString('id-ID') + ' baris.' + bigWarn;
     hideBusy();
   }
   async function resetFilters(){
-    filters = {month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''};
+    filters = {month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:'',productName:''};
     const df = document.getElementById('filterDateSingle'), kd = document.getElementById('filterKdCustomer'), qs = document.getElementById('quickSearch');
+    const dt = document.getElementById('filterDateTo'); if (dt) dt.value = '';
     if (df) df.value = ''; if (kd) kd.value = ''; if (qs) qs.value = '';
     if (useIDB) { try { await db.meta.put({key:'filters', value:filters}); } catch(e){} }
     await populateFiltersDOM();
@@ -1483,6 +1496,15 @@ self.onmessage = function(e){
   function rupaSubLabel(v){ return (RUPA_SUB_OPTS.find(o => o.v === v) || {}).l || 'Semua sub'; }
 
   let allProductsMeta = [];
+  /* isi dropdown "Produk" (nama produk) sesuai Kategori yang dipilih: Fitri / Rupa Rupa / semua */
+  function refreshProductNameOptions(forceValue){
+    const sel = document.getElementById('filterProductName'); if (!sel) return;
+    const cat = (document.getElementById('filterProduct') || {}).value || '';
+    const keep = (forceValue !== undefined) ? forceValue : sel.value;
+    const list = (allProductsMeta || []).filter(p => cat === 'FITRI' ? isFitriProduct(p) : cat === 'RUPA_RUPA' ? !isFitriProduct(p) : true);
+    sel.innerHTML = '<option value="">Semua produk</option>' + list.map(x => '<option value="' + escHtml(x) + '">' + escHtml(x) + '</option>').join('');
+    sel.value = list.includes(keep) ? keep : '';
+  }
   function syncFilterControls(months, sales, products){
     allProductsMeta = products.slice();
     const $ = id => document.getElementById(id);
@@ -1498,6 +1520,8 @@ self.onmessage = function(e){
     $('filterPayment').value = filters.payment;
     const df = $('filterDateSingle'), kd = $('filterKdCustomer'), qs = $('quickSearch');
     if (df) df.value = filters.dateFrom || filters.dateTo || '';
+    const dtEl = $('filterDateTo'); if (dtEl) dtEl.value = filters.dateTo || '';
+    refreshProductNameOptions(filters.productName || '');
     if (kd) kd.value = filters.kdCustomer || ''; if (qs) qs.value = filters.q || '';
     const dm = $('deleteMonth'); if (dm) dm.innerHTML = '<option value="">Pilih bulan...</option>' + months.map(x => '<option value="' + escHtml(x) + '">' + escHtml(monthLabel(x)) + '</option>').join('');
     const bp = $('bulkHargaProduct');
@@ -1522,7 +1546,7 @@ self.onmessage = function(e){
     syncFilterControls(months, sales, products);
   }
   function updateFilterUi(){
-    const n = ['dateFrom','payment','kdCustomer'].filter(k => filters[k]).length + ((filters.sales && !document.body.classList.contains('hide-own-bar')) ? 1 : 0) + ((filters.product && !document.body.classList.contains('hide-global-product')) ? 1 : 0);
+    const n = ['dateFrom','payment','kdCustomer'].filter(k => filters[k]).length + ((filters.productName && !document.body.classList.contains('hide-global-product')) ? 1 : 0) + ((filters.sales && !document.body.classList.contains('hide-own-bar')) ? 1 : 0) + ((filters.product && !document.body.classList.contains('hide-global-product')) ? 1 : 0);
     document.getElementById('filterCount').textContent = n ? n : '';
     document.getElementById('filterBtn').classList.toggle('active', n > 0);
     const parts = [];
@@ -1530,6 +1554,7 @@ self.onmessage = function(e){
     const dl = formatFilterDateLabel(filters.dateFrom, filters.dateTo); if (dl) parts.push(dl);
     if (filters.sales)   parts.push(filters.sales);
     if (filters.product) parts.push(filters.product === 'FITRI' ? 'Fitri' : 'Rupa Rupa');
+    if (filters.productName) parts.push(filters.productName);
     if (filters.payment) parts.push(filters.payment);
     if (filters.kdCustomer) parts.push('Kd: ' + filters.kdCustomer);
     if (filters.q) parts.push('Cari: ' + filters.q);
@@ -1721,7 +1746,8 @@ self.onmessage = function(e){
     p.push(filters.month ? 'Bulan: ' + monthLabel(filters.month) : 'Semua bulan');
     const dl = formatFilterDateLabel(filters.dateFrom, filters.dateTo); if (dl) p.push('Tanggal: ' + dl);
     if (filters.sales) p.push('Sales: ' + filters.sales);
-    if (filters.product) p.push('Produk: ' + (filters.product === 'FITRI' ? 'Fitri' : 'Rupa Rupa'));
+    if (filters.product) p.push('Kategori: ' + (filters.product === 'FITRI' ? 'Fitri' : 'Rupa Rupa'));
+    if (filters.productName) p.push('Produk: ' + filters.productName);
     if (filters.payment) p.push('Pembayaran: ' + filters.payment);
     if (filters.kdCustomer) p.push('Kd Customer: ' + filters.kdCustomer);
     if (filters.q) p.push('Cari: ' + filters.q);
@@ -1898,6 +1924,7 @@ self.onmessage = function(e){
     finally { hideBusy(); }
   }
 
+  let _stashedProductName = '';
   let _stashedProduct = '';   /* filter produk global yang disimpan saat masuk tab Ringkasan/Analisa/Rekap Gudang, dipulihkan saat kembali ke tab biasa */
   let _activeTab = 's15';   /* tab awal saat dibuka */
   const OWN_PRODUCT_TABS = ['s3','s14','s15','s16','s17'];
@@ -1911,6 +1938,11 @@ self.onmessage = function(e){
       document.body.classList.toggle('is-analisa', t === 's16' || t === 's17');
       document.body.classList.toggle('is-target', t === 's15' && (s15Sub === 'target' || s15Sub === 'bonus'));
       document.body.classList.toggle('no-kpi', ['s10','s12','s13','s16','s17'].indexOf(t) >= 0);
+      if (own && filters && filters.productName) {      /* filter nama produk hanya untuk tab biasa: simpan, kosongkan, dipulihkan saat kembali */
+        _stashedProductName = filters.productName;
+        const fn = document.getElementById('filterProductName'); if (fn) fn.value = '';
+        if (!filters.product) setTimeout(applyFilters, 0);
+      }
       if (own && filters && filters.product) {          /* pindahkan pilihan lama ke filter Kategori tab ini agar tidak hilang diam-diam */
         if (t === 's3') s3Cat = filters.product;
         if (t === 's14') s14Cat = filters.product;
@@ -1918,7 +1950,12 @@ self.onmessage = function(e){
         const fp = document.getElementById('filterProduct'), fq = document.getElementById('filterProductQuick');
         if (fp) fp.value = ''; if (fq) fq.value = '';
         setTimeout(applyFilters, 0);
-      } else if (!own && _stashedProduct && filters && !filters.product) {      /* kembali ke tab biasa → pulihkan pilihan produk tadi */
+      } else if (!own && _stashedProductName && filters && !filters.productName) {
+        const fn = document.getElementById('filterProductName'); if (fn) { refreshProductNameOptions(_stashedProductName); }
+        _stashedProductName = '';
+        setTimeout(applyFilters, 0);
+      }
+      if (!own && _stashedProduct && filters && !filters.product) {      /* kembali ke tab biasa → pulihkan pilihan produk tadi */
         const fp = document.getElementById('filterProduct'), fq = document.getElementById('filterProductQuick');
         if (fp) fp.value = _stashedProduct; if (fq) fq.value = _stashedProduct;
         _stashedProduct = '';
@@ -4105,7 +4142,7 @@ self.onmessage = function(e){
       await loadBatalFaktur();
       const metaFilters = await db.meta.get('filters');
       if (!_filtersRestored){   /* hanya saat pertama dibuka; sinkronisasi berikutnya tidak menimpa filter yang sedang dipakai */
-        if (metaFilters && metaFilters.value) filters = Object.assign({month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:''}, metaFilters.value);
+        if (metaFilters && metaFilters.value) filters = Object.assign({month:null,sales:'',product:'',payment:'',dateFrom:'',dateTo:'',kdCustomer:'',q:'',productName:''}, metaFilters.value);
         filters.month = null;   /* bulan tidak diingat: setiap dibuka selalu ke bulan terkini */
         _filtersRestored = true;
       }
