@@ -90,7 +90,7 @@ body.dark .chip.ok{background:#14532d;color:#bbf7d0}body.dark .chip.warn{backgro
 
 /* tabel */
 .tablebox{overflow:auto;max-height:72vh;position:relative}
-table{border-collapse:collapse;width:100%;min-width:980px;font-size:12px;color:var(--text)}
+table{border-collapse:collapse;width:100%;min-width:1150px;font-size:12px;color:var(--text)}
 th{background:var(--th-bg);color:#fff;position:sticky;top:0;padding:6px 8px;border:1px solid var(--th-border);z-index:3;font-size:11px}
 thead tr.h2 th{top:27px;background:var(--th-bg3);font-size:10.5px;font-weight:600;z-index:2}
 td{padding:3px 6px;border:1px solid var(--border);white-space:nowrap;text-align:right}
@@ -137,7 +137,7 @@ input.in[type=number]{-moz-appearance:textfield}
             <div class="menu-label">📁 UPLOAD EXCEL STOK</div>
             <input id="file" type="file" accept=".xlsx,.xls" multiple>
             <button type="button" class="full" onclick="processFiles()">Proses Excel</button>
-            <div class="hint">Gunakan format file <b>Stok_Minyak_….xlsx</b> (kolom MSK, KLR, STOK SFA per botol). Boleh upload beberapa file (per bulan), data digabung otomatis. Jika bulan yang sama diupload lagi, data bulan itu diganti.</div>
+            <div class="hint">Gunakan format file <b>Stok_Minyak_….xlsx</b> (kolom MSK, KLR, STOK SFA per botol; jumlah botol dibaca otomatis). Boleh upload beberapa file (per bulan), data digabung otomatis. Jika bulan yang sama diupload lagi, data bulan itu diganti.</div>
           </div>
 
           <div class="menu-section">
@@ -201,10 +201,12 @@ const SYNC_ROW_ID = 'stok_minyak';
 const LS_KEY = 'stokMinyak_v1', DIRTY_KEY = 'stokMinyakPendingPush_v1', MONTH_KEY = 'stokMinyakActiveMonth_v1';
 const BULAN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
 const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-const DEF_NAMES = ['FITRI BOTOL 400 ML','FITRI BOTOL 200 ML','FITRI BOTOL 800 ML'];
+const DEF_NAMES = ['FITRI BOTOL 400 ML','FITRI BOTOL 200 ML','FITRI BOTOL 700 ML','FITRI BOTOL 800 ML'];
+const nP = m => (m && m.names && m.names.length) || DEF_NAMES.length;   // jumlah produk per bulan (dibaca dari Excel)
+const colL = n => { let t = ''; while (n > 0){ const r = (n - 1) % 26; t = String.fromCharCode(65 + r) + t; n = Math.floor((n - 1) / 26); } return t; };
 
 /* ===================== STATE ===================== */
-let S = { months: {} };          // { 'YYYY-MM': { names:[3], saldo:[3], days:{ '1':[b,c,e,f,h,i] } } }
+let S = { months: {} };          // { 'YYYY-MM': { names:[P], saldo:[P], days:{ '1':[msk,klr per produk] } } }
 let activeMonth = null, showSum = false;
 const SUM_KEY = 'stokMinyakShowSummary_v1';
 let sbClient = null, pushTimer = null, pushInFlight = false, lastPushedAt = 0, isSyncingFromCloud = false, realtimeReady = false;
@@ -305,23 +307,28 @@ function cellToDate(v){
 }
 function parseSheet(ws){
   const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
-  let bulan = null, tahun = null, hdr = -1, saldoRow = -1;
+  const up = v => v == null ? '' : String(v).trim().toUpperCase();
+  let bulan = null, tahun = null, mskRow = -1, saldoRow = -1;
   for (let i = 0; i < aoa.length; i++){
-    const r = aoa[i] || [], a = r[0] == null ? '' : String(r[0]).trim().toUpperCase();
+    const r = aoa[i] || [], a = up(r[0]);
     if (a === 'BULAN'){ const v = r.slice(1).find(x => x != null && String(x).trim() !== ':'); if (v != null) bulan = String(v).trim().toUpperCase(); }
     else if (a === 'TAHUN'){ const v = r.slice(1).find(x => x != null && String(x).trim() !== ':'); if (v != null) tahun = parseInt(v, 10); }
-    else if (a === 'TANGGAL' && hdr < 0) hdr = i;
     else if (a.startsWith('SALDO') && saldoRow < 0) saldoRow = i;
+    if (mskRow < 0 && r.some(x => up(x) === 'MSK')) mskRow = i;
   }
-  if (hdr < 0) throw new Error('Baris header "TANGGAL" tidak ditemukan.');
-  const names = [1, 4, 7].map((c, i) => (aoa[hdr][c] != null && String(aoa[hdr][c]).trim()) ? String(aoa[hdr][c]).trim() : DEF_NAMES[i]);
-  const saldo = [3, 6, 9].map(c => saldoRow >= 0 ? numOrNull(aoa[saldoRow][c]) : null);
+  if (mskRow < 0) throw new Error('Kolom MSK / KLR / STOK SFA tidak ditemukan.');
+  // setiap kolom "MSK" = satu produk (jumlah botol bebas: 3, 4, 5, ...)
+  const cols = []; (aoa[mskRow] || []).forEach((x, c) => { if (up(x) === 'MSK') cols.push(c); });
+  const hr = (mskRow > 0 && aoa[mskRow - 1]) || [];
+  const names = cols.map((c, i) => (hr[c] != null && String(hr[c]).trim()) ? String(hr[c]).trim() : (DEF_NAMES[i] || 'PRODUK ' + (i + 1)));
+  const saldo = cols.map(c => saldoRow >= 0 ? numOrNull((aoa[saldoRow] || [])[c + 2]) : null);
   const days = {}; let y = null, m = null;
-  for (let i = Math.max(hdr, saldoRow) + 1; i < aoa.length; i++){
+  for (let i = Math.max(mskRow, saldoRow) + 1; i < aoa.length; i++){
     const r = aoa[i] || [], d = cellToDate(r[0]); if (!d) continue;
     if (y == null){ y = d.getUTCFullYear(); m = d.getUTCMonth() + 1; }
-    if (d.getUTCFullYear() !== y || d.getUTCMonth() + 1 !== m) continue;
-    days[d.getUTCDate()] = [1, 2, 4, 5, 7, 8].map(c => numOrNull(r[c]));
+    if (d.getUTCFullYear() !== y || d.getUTCMonth() + 1 !== m) continue;   // mis. "31/11" otomatis dilewati
+    const arr = []; cols.forEach(c => { arr.push(numOrNull(r[c]), numOrNull(r[c + 1])); });
+    days[d.getUTCDate()] = arr;
   }
   if (y == null){
     const mi = BULAN.indexOf(bulan); if (mi < 0 || !tahun) throw new Error('Bulan/tahun tidak terbaca dari file.');
@@ -367,7 +374,7 @@ function createMonth(){
   const k = mkKey(y, m);
   if (S.months[k]){ activeMonth = k; refreshAll(); closeDd(); toast('Bulan itu sudah ada.'); return; }
   const prev = Object.keys(S.months).filter(x => x < k).sort().pop();
-  let saldo = [null, null, null], names = DEF_NAMES.slice();
+  let saldo = DEF_NAMES.map(() => null), names = DEF_NAMES.slice();
   if (prev){ const c = compute(prev); saldo = c.end.slice(); names = S.months[prev].names || names; }
   S.months[k] = { names, saldo, days: {} };
   activeMonth = k; changed(); refreshAll(); closeDd(); toast('Bulan ' + monthLabel(k) + ' dibuat.');
@@ -375,20 +382,21 @@ function createMonth(){
 
 /* ===================== HITUNG ===================== */
 function compute(k){
-  const m = S.months[k], N = daysIn(k);
-  const run = (m.saldo || []).map(v => v || 0); while (run.length < 3) run.push(0);
-  const stok = {}, tot = { msk:[0,0,0], klr:[0,0,0], klrAll:0 };
+  const m = S.months[k], N = daysIn(k), P = nP(m);
+  const run = (m.saldo || []).map(v => v || 0).slice(0, P); while (run.length < P) run.push(0);
+  const stok = {}, tot = { msk:Array(P).fill(0), klr:Array(P).fill(0), klrAll:0 };
   const perDay = {};
   for (let d = 1; d <= N; d++){
     const r = (m.days && m.days[d]) || [];
     let klrDay = 0;
-    for (let p = 0; p < 3; p++){
+    for (let p = 0; p < P; p++){
       const b = r[p*2] || 0, c = r[p*2+1] || 0;
       run[p] += b - c; tot.msk[p] += b; tot.klr[p] += c; klrDay += c;
     }
     stok[d] = run.slice(); perDay[d] = klrDay; tot.klrAll += klrDay;
   }
-  return { N, stok, perDay, tot, end: run.slice(), start: (m.saldo || []).map(v => v || 0) };
+  const start = (m.saldo || []).map(v => v || 0).slice(0, P); while (start.length < P) start.push(0);
+  return { N, P, stok, perDay, tot, end: run.slice(), start };
 }
 
 /* ===================== RENDER ===================== */
@@ -413,18 +421,18 @@ function renderMonth(){
     wrap.innerHTML = '<div class="empty">Belum ada data stok.<br>Buka <b>☰ MENU</b> → <b>Upload Excel Stok</b>, atau buat bulan baru.</div>';
     return;
   }
-  const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), names = m.names || DEF_NAMES;
-  const saldo = m.saldo || [null, null, null];
+  const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), names = m.names || DEF_NAMES, P = names.length;
+  const saldo = m.saldo || [];
   let h = '<div class="tablebox"><table><thead>' +
     '<tr><th class="tgl" rowspan="2">TANGGAL</th>' + names.map(n => '<th colspan="3">' + esc(n) + '</th>').join('') + '<th rowspan="2">TOTAL PER HARI</th><th rowspan="2">TOTAL STOK SFA</th></tr>' +
-    '<tr class="h2">' + [0,1,2].map(() => '<th>MSK</th><th>KLR</th><th>STOK SFA</th>').join('') + '</tr></thead><tbody>';
+    '<tr class="h2">' + names.map(() => '<th>MSK</th><th>KLR</th><th>STOK SFA</th>').join('') + '</tr></thead><tbody>';
   h += '<tr class="saldo"><td class="tgl">Saldo Awal</td>';
-  for (let p = 0; p < 3; p++) h += '<td></td><td></td><td class="stok"><input class="in sd" type="number" inputmode="numeric" data-s="' + p + '" value="' + (saldo[p] == null ? '' : saldo[p]) + '"></td>';
+  for (let p = 0; p < P; p++) h += '<td></td><td></td><td class="stok"><input class="in sd" type="number" inputmode="numeric" data-s="' + p + '" value="' + (saldo[p] == null ? '' : saldo[p]) + '"></td>';
   h += '<td></td><td class="tot" id="t-saldo"></td></tr>';
   for (let d = 1; d <= N; d++){
     const dt = new Date(Date.UTC(y, mo - 1, d)), dow = dt.getUTCDay(), r = (m.days && m.days[d]) || [];
     h += '<tr' + (dow === 0 ? ' class="sun"' : '') + '><td class="tgl">' + String(d).padStart(2,'0') + '/' + String(mo).padStart(2,'0') + '/' + y + ' <span style="font-weight:400;color:var(--muted);font-size:10px">' + HARI[dow] + '</span></td>';
-    for (let p = 0; p < 3; p++){
+    for (let p = 0; p < P; p++){
       h += '<td><input class="in" type="number" inputmode="numeric" min="0" data-d="' + d + '" data-i="' + (p*2) + '" value="' + (r[p*2] == null ? '' : r[p*2]) + '"></td>' +
            '<td><input class="in" type="number" inputmode="numeric" min="0" data-d="' + d + '" data-i="' + (p*2+1) + '" value="' + (r[p*2+1] == null ? '' : r[p*2+1]) + '"></td>' +
            '<td class="stok" id="s-' + d + '-' + p + '"></td>';
@@ -432,7 +440,7 @@ function renderMonth(){
     h += '<td id="k-' + d + '"></td><td class="tot" id="l-' + d + '"></td></tr>';
   }
   h += '</tbody><tfoot><tr><td class="tgl" style="background:var(--tfoot-bg)">TOTAL</td>';
-  for (let p = 0; p < 3; p++) h += '<td id="fm-' + p + '"></td><td id="fk-' + p + '"></td><td id="fs-' + p + '"></td>';
+  for (let p = 0; p < P; p++) h += '<td id="fm-' + p + '"></td><td id="fk-' + p + '"></td><td id="fs-' + p + '"></td>';
   h += '<td id="fk-all"></td><td id="fs-all"></td></tr></tfoot></table></div>';
   wrap.innerHTML = h;
   recalc();
@@ -440,17 +448,17 @@ function renderMonth(){
 
 function recalc(){
   const k = activeMonth; if (!k || !S.months[k]) return;
-  const c = compute(k), N = c.N, sum = a => a.reduce((x, y) => x + y, 0);
+  const c = compute(k), N = c.N, P = c.P, sum = a => a.reduce((x, y) => x + y, 0);
   $('t-saldo').textContent = nf(sum(c.start));
   for (let d = 1; d <= N; d++){
-    for (let p = 0; p < 3; p++){
+    for (let p = 0; p < P; p++){
       const el = $('s-' + d + '-' + p); if (!el) continue;
       el.textContent = nf(c.stok[d][p]); el.classList.toggle('neg', c.stok[d][p] < 0);
     }
     $('k-' + d).textContent = nf(c.perDay[d]);
     $('l-' + d).textContent = nf(sum(c.stok[d]));
   }
-  for (let p = 0; p < 3; p++){
+  for (let p = 0; p < P; p++){
     $('fm-' + p).textContent = nf(c.tot.msk[p]); $('fk-' + p).textContent = nf(c.tot.klr[p]); $('fs-' + p).textContent = nf(c.end[p]);
   }
   $('fk-all').textContent = nf(c.tot.klrAll); $('fs-all').textContent = nf(sum(c.end));
@@ -458,7 +466,7 @@ function recalc(){
   const names = S.months[k].names || DEF_NAMES, totMsk = sum(c.tot.msk), filled = Object.keys(S.months[k].days || {}).filter(d => (S.months[k].days[d] || []).some(v => v != null)).length;
   const short = n => n.replace(/^FITRI\s*/i, '').replace(/^BOTOL\s*/i, '');
   let kp = '<div class="kpi g"><div class="l">Total Stok SFA</div><div class="v">' + nf(sum(c.end)) + '</div><div class="s">akhir ' + monthLabel(k) + '</div></div>';
-  for (let p = 0; p < 3; p++) kp += '<div class="kpi' + (c.end[p] < 0 ? ' r' : '') + '"><div class="l">' + esc(short(names[p])) + '</div><div class="v">' + nf(c.end[p]) + '</div><div class="s">masuk ' + nf(c.tot.msk[p]) + ' • keluar ' + nf(c.tot.klr[p]) + '</div></div>';
+  for (let p = 0; p < P; p++) kp += '<div class="kpi' + (c.end[p] < 0 ? ' r' : '') + '"><div class="l">' + esc(short(names[p])) + '</div><div class="v">' + nf(c.end[p]) + '</div><div class="s">masuk ' + nf(c.tot.msk[p]) + ' • keluar ' + nf(c.tot.klr[p]) + '</div></div>';
   kp += '<div class="kpi o"><div class="l">Total Keluar</div><div class="v">' + nf(c.tot.klrAll) + '</div><div class="s">masuk ' + nf(totMsk) + '</div></div>';
   $('kpis').innerHTML = kp;
   $('infoChip').textContent = filled + ' / ' + N + ' hari terisi';
@@ -469,10 +477,10 @@ document.addEventListener('input', e => {
   const t = e.target; if (!t.classList || !t.classList.contains('in')) return;
   const k = activeMonth; if (!k || !S.months[k]) return;
   const m = S.months[k], v = numOrNull(t.value);
-  if (t.dataset.s != null){ m.saldo = m.saldo || [null, null, null]; m.saldo[+t.dataset.s] = v; }
+  if (t.dataset.s != null){ m.saldo = m.saldo || []; m.saldo[+t.dataset.s] = v; }
   else {
     const d = t.dataset.d, i = +t.dataset.i;
-    m.days = m.days || {}; const r = m.days[d] = m.days[d] || [null, null, null, null, null, null];
+    m.days = m.days || {}; const r = m.days[d] = m.days[d] || Array(nP(m) * 2).fill(null);
     r[i] = v;
     if (r.every(x => x == null)) delete m.days[d];
   }
@@ -489,7 +497,10 @@ document.addEventListener('keydown', e => {   // Enter = pindah ke baris bawah
 async function exportExcel(){
   const k = activeMonth; if (!k || !S.months[k]){ alert('Belum ada bulan yang dipilih.'); return; }
   try {
-    const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), names = m.names || DEF_NAMES, c = compute(k);
+    const m = S.months[k], { y, m: mo } = parseKey(k), N = daysIn(k), names = m.names || DEF_NAMES, c = compute(k), P = names.length;
+    const sumA = a => a.reduce((x, z) => x + z, 0);
+    const cK = 2 + 3*P, cL = 3 + 3*P;                       // kolom TOTAL PER HARI & TOTAL STOK SFA
+    const mskC = p => colL(2 + 3*p), klrC = p => colL(3 + 3*p), stkC = p => colL(4 + 3*p);
     const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Stok Minyak');
     const thin = { style:'thin', color:{ argb:'FF9AA5B1' } }, bd = { top:thin, left:thin, bottom:thin, right:thin };
     const GREEN = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF92D050' } };
@@ -497,49 +508,53 @@ async function exportExcel(){
     ws.getCell('A1').value = 'STOK MINYAK'; ws.getCell('A1').font = { bold:true, size:14 };
     ws.getCell('A2').value = 'BULAN'; ws.getCell('B2').value = ':'; ws.getCell('C2').value = BULAN[mo-1];
     ws.getCell('A3').value = 'TAHUN'; ws.getCell('B3').value = ':'; ws.getCell('C3').value = y;
-    ws.mergeCells('A6:A7'); ws.mergeCells('B6:D6'); ws.mergeCells('E6:G6'); ws.mergeCells('H6:J6'); ws.mergeCells('K6:K7'); ws.mergeCells('L6:L7');
-    ws.getCell('A6').value = 'TANGGAL'; ws.getCell('B6').value = names[0]; ws.getCell('E6').value = names[1]; ws.getCell('H6').value = names[2];
-    ws.getCell('K6').value = 'TOTAL PER HARI'; ws.getCell('L6').value = 'TOTAL STOK SFA';
-    ['B','E','H'].forEach(col => { const i = col.charCodeAt(0) - 64; ['MSK','KLR','STOK SFA'].forEach((t, j) => ws.getCell(7, i + j).value = t); });
-    for (let r = 6; r <= 7; r++) for (let col = 1; col <= 12; col++){
+    ws.mergeCells(6, 1, 7, 1); ws.mergeCells(6, cK, 7, cK); ws.mergeCells(6, cL, 7, cL);
+    ws.getCell(6, 1).value = 'TANGGAL'; ws.getCell(6, cK).value = 'TOTAL PER HARI'; ws.getCell(6, cL).value = 'TOTAL STOK SFA';
+    for (let p = 0; p < P; p++){
+      ws.mergeCells(6, 2 + 3*p, 6, 4 + 3*p); ws.getCell(6, 2 + 3*p).value = names[p];
+      ['MSK','KLR','STOK SFA'].forEach((t, j) => ws.getCell(7, 2 + 3*p + j).value = t);
+    }
+    for (let r = 6; r <= 7; r++) for (let col = 1; col <= cL; col++){
       const cell = ws.getCell(r, col); cell.fill = HEAD; cell.font = { bold:true, color:{ argb:'FFFFFFFF' } };
       cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true }; cell.border = bd;
     }
     const sd = m.saldo || [];
     ws.getCell('A8').value = 'Saldo Awal';
-    if (sd[0] != null) ws.getCell('D8').value = sd[0]; if (sd[1] != null) ws.getCell('G8').value = sd[1]; if (sd[2] != null) ws.getCell('J8').value = sd[2];
-    ws.getCell('L8').value = { formula:'D8+G8+J8', result:c.start.reduce((a, b) => a + b, 0) };
-    const first = 9, last = 8 + N, stokCols = ['D','G','J'], inCols = [['B','C'],['E','F'],['H','I']];
+    for (let p = 0; p < P; p++) if (sd[p] != null) ws.getCell(stkC(p) + '8').value = sd[p];
+    ws.getCell(colL(cL) + '8').value = { formula: names.map((_, p) => stkC(p) + '8').join('+'), result: sumA(c.start) };
+    const first = 9, last = 8 + N, kC = colL(cK), lC = colL(cL);
     for (let d = 1; d <= N; d++){
       const r = 8 + d, row = (m.days && m.days[d]) || [];
       ws.getCell('A' + r).value = new Date(Date.UTC(y, mo - 1, d)); ws.getCell('A' + r).numFmt = 'dd/mm/yyyy';
-      for (let p = 0; p < 3; p++){
-        const [bc, cc] = inCols[p], sc = stokCols[p];
+      for (let p = 0; p < P; p++){
+        const bc = mskC(p), cc = klrC(p), sc = stkC(p);
         if (row[p*2] != null) ws.getCell(bc + r).value = row[p*2];
         if (row[p*2+1] != null) ws.getCell(cc + r).value = row[p*2+1]; else if (m.days && m.days[d]) ws.getCell(cc + r).value = 0;
         ws.getCell(sc + r).value = { formula: sc + (r-1) + '+' + bc + r + '-' + cc + r, result: c.stok[d][p] };
       }
-      ws.getCell('K' + r).value = { formula:'C' + r + '+F' + r + '+I' + r, result:c.perDay[d] };
-      ws.getCell('L' + r).value = { formula:'D' + r + '+G' + r + '+J' + r, result:c.stok[d].reduce((a, b) => a + b, 0) };
+      ws.getCell(kC + r).value = { formula: names.map((_, p) => klrC(p) + r).join('+'), result:c.perDay[d] };
+      ws.getCell(lC + r).value = { formula: names.map((_, p) => stkC(p) + r).join('+'), result:sumA(c.stok[d]) };
     }
     const tr = last + 1; ws.getCell('A' + tr).value = 'TOTAL';
-    inCols.forEach(([bc, cc], p) => {
+    for (let p = 0; p < P; p++){
+      const bc = mskC(p), cc = klrC(p), sc = stkC(p);
       ws.getCell(bc + tr).value = { formula:'SUM(' + bc + first + ':' + bc + last + ')', result:c.tot.msk[p] };
       ws.getCell(cc + tr).value = { formula:'SUM(' + cc + first + ':' + cc + last + ')', result:c.tot.klr[p] };
-      ws.getCell(stokCols[p] + tr).value = { formula: stokCols[p] + last, result:c.end[p] };
-    });
-    ws.getCell('K' + tr).value = { formula:'SUM(K' + first + ':K' + last + ')', result:c.tot.klrAll };
-    ws.getCell('L' + tr).value = { formula:'L' + last, result:c.end.reduce((a, b) => a + b, 0) };
-    for (let r = 8; r <= tr; r++) for (let col = 1; col <= 12; col++){
+      ws.getCell(sc + tr).value = { formula: sc + last, result:c.end[p] };
+    }
+    ws.getCell(kC + tr).value = { formula:'SUM(' + kC + first + ':' + kC + last + ')', result:c.tot.klrAll };
+    ws.getCell(lC + tr).value = { formula: lC + last, result:sumA(c.end) };
+    const stokIdx = names.map((_, p) => 4 + 3*p).concat([cL]);
+    for (let r = 8; r <= tr; r++) for (let col = 1; col <= cL; col++){
       const cell = ws.getCell(r, col); cell.border = bd;
       if (col > 1) cell.numFmt = '#,##0';
       if (r === tr) cell.font = { bold:true };
-      if ([4,7,10,12].includes(col)) cell.fill = GREEN;
+      if (stokIdx.includes(col)) cell.fill = GREEN;
     }
-    ws.getCell('A' + (tr + 2)).value = 'Catatan: Stok SFA = stok hari sebelumnya + MSK - KLR. Isi kolom MSK (masuk) dan KLR (keluar) per hari; stok & total otomatis terhitung. Saldo awal (D8, G8, J8) diisi manual.';
+    ws.getCell('A' + (tr + 2)).value = 'Catatan: Stok SFA = stok hari sebelumnya + MSK - KLR. Isi kolom MSK (masuk) dan KLR (keluar) per hari; stok & total otomatis terhitung. Saldo awal diisi manual di baris Saldo Awal.';
     ws.getCell('A' + (tr + 2)).font = { italic:true, size:9 };
-    ws.getColumn(1).width = 13; for (let i = 2; i <= 12; i++) ws.getColumn(i).width = 10.5;
-    ws.getColumn(11).width = 13; ws.getColumn(12).width = 14;
+    ws.getColumn(1).width = 13; for (let i = 2; i <= cL; i++) ws.getColumn(i).width = 10.5;
+    ws.getColumn(cK).width = 13; ws.getColumn(cL).width = 14;
     ws.views = [{ state:'frozen', xSplit:1, ySplit:7 }];
     const buf = await wb.xlsx.writeBuffer();
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
