@@ -2046,8 +2046,8 @@ self.onmessage = function(e){
   function s16StockProducts(groupKey, m){
     if (!m) return [];
     if (groupKey === 'FITRI'){
-      const names = (m.names && m.names.length) ? m.names : ['FITRI BOTOL 400 ML', 'FITRI BOTOL 200 ML', 'FITRI BOTOL 800 ML'];
-      return names.slice(0, 3).map((n, i) => ({ name: n, idx: [i * 2 + 1] }));        /* baris: [msk,klr, msk,klr, msk,klr] */
+      const names = (m.names && m.names.length) ? m.names : ['FITRI BOTOL 400 ML', 'FITRI BOTOL 200 ML', 'FITRI BOTOL 700 ML', 'FITRI BOTOL 800 ML'];
+      return names.map((n, i) => ({ name: n, idx: [i * 2 + 1] }));        /* baris: [msk,klr] per produk — semua produk di halaman Stok Minyak (400, 200, 700, 800) */
     }
     let off = 0;
     return (m.prods || []).map(p => {
