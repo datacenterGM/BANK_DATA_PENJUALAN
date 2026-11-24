@@ -391,6 +391,9 @@ body.is-analisa .toolbar-left > :not(.tabs-wrap), body.is-analisa .toolbar-row .
 .s16bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;font-size:13px;color:var(--text)}
 .s16bar select,.s16bar input[type=search]{padding:5px 8px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;background:var(--input-bg);color:var(--input-text)}
 .s16bar input[type=search]{width:170px;max-width:46vw}
+.s17tabs{display:flex;gap:6px;flex-basis:100%;margin-bottom:4px}
+.s17tab{padding:7px 16px;border:1px solid var(--input-border);border-radius:8px;background:var(--input-bg);color:var(--input-text);font-weight:700;font-size:13px;cursor:pointer}
+.s17tab.on{background:#1f4e78;color:#fff;border-color:#1f4e78}
 .s16btn{padding:8px 14px;border:0;border-radius:8px;background:#1f4e78;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
 .s16btn:hover{background:#26426e}
 .s16title{font-size:15px;font-weight:700;color:var(--text);margin:0 0 6px}
@@ -2232,7 +2235,7 @@ self.onmessage = function(e){
      Per produk (yang ada di halaman Stok Minyak / Kecap & Sambal), per bulan:
      Output Penjualan, Total Nominal Penjualan, HPP, Profit, Output Gudang (KLR), Stok Akhir (SFA), Harga Beli Terbaru, Nominal Stok Akhir.
      Stok Akhir memakai rumus halaman stok: Saldo Awal + MSK - KLR (Kecap & Sambal: ikut koreksi/adj). */
-  let s17 = { group: 'FITRI', month: '', q: '', stock: null, sales: [], months: [], data: null };
+  let s17 = { view: 'gudang', sort: 'nama', group: 'FITRI', month: '', q: '', stock: null, sales: [], months: [], data: null };
   let s17Token = 0;
 
   function s17Calc(groupKey, m, month){
@@ -2356,8 +2359,11 @@ self.onmessage = function(e){
     const bar = document.getElementById('s17bar'); if (!bar) return;
     const grp = Object.keys(S16_GROUPS).map(k => '<option value="' + k + '"' + (k === s17.group ? ' selected' : '') + '>' + S16_GROUPS[k].label + '</option>').join('');
     const mon = s17.months.map(k => '<option value="' + k + '"' + (k === s17.month ? ' selected' : '') + '>' + s16Esc(monthLabel(k)) + '</option>').join('') || '<option value="">(belum ada data)</option>';
-    bar.innerHTML = '<label>Kelompok</label><select onchange="s17SetGroup(this.value)">' + grp + '</select>'
+    const vb = (v, l) => '<button type="button" class="s17tab' + (s17.view === v ? ' on' : '') + '" onclick="s17SetView(\'' + v + '\')">' + l + '</button>';
+    const sortSel = s17.view === 'profit' ? '<label>Urutkan</label><select onchange="s17SetSort(this.value)">' + [['nama', 'Nama produk (A–Z)'], ['desc', 'Profit terbesar'], ['asc', 'Profit terkecil'], ['margin', 'Margin tertinggi']].map(o => '<option value="' + o[0] + '"' + (s17.sort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' : '';
+    bar.innerHTML = '<div class="s17tabs">' + vb('gudang', '📦 Rekap Gudang') + vb('profit', '💰 Profit Penjualan') + '</div><label>Kelompok</label><select onchange="s17SetGroup(this.value)">' + grp + '</select>'
       + '<label>Bulan</label><select onchange="s17SetMonth(this.value)">' + mon + '</select>'
+      + sortSel
       + '<input type="search" placeholder="Cari produk..." value="' + s16Esc(s17.q) + '" oninput="s17SetQ(this.value)">'
       + '<button type="button" class="s16btn" onclick="renderS17()" title="Muat ulang data penjualan &amp; stok dari cloud">↻</button>'
       + '<button type="button" class="s16btn" onclick="s17Download()">⬇ Download</button>';
@@ -2385,20 +2391,42 @@ self.onmessage = function(e){
       return;
     }
     const list = s17Shown(), T = s17Tot(list);
+    if (s17.view === 'profit'){ res.innerHTML = s17ProfitHtml(list, T); return; }
     let body = '';
-    if (!list.length) body = '<tr><td colspan="11" style="text-align:center;padding:28px;color:#64748b">Tidak ada produk untuk filter saat ini.</td></tr>';
+    if (!list.length) body = '<tr><td colspan="7" style="text-align:center;padding:28px;color:#64748b">Tidak ada produk untuk filter saat ini.</td></tr>';
     list.forEach((r, i) => {
       const hbTxt = r.hb > 0 ? rp(r.hb) + (r.hbFrom ? ' <sup title="Tidak ada penjualan bulan ini; harga beli dari ' + s16Esc(monthLabel(r.hbFrom)) + '">*</sup>' : '') : '-';
       body += '<tr' + (r.end < 0 ? ' class="bad"' : '') + '><td>' + (i + 1) + '</td><td>' + s16Esc(r.name) + '</td>'
-        + '<td class="num">' + s16Nf(r.qty) + '</td><td class="num">' + rp(r.nom) + '</td><td class="num">' + rp(r.hpp) + '</td><td class="num">' + rp(r.profit) + '</td>'
         + '<td class="num">' + s16Nf(r.out) + '</td><td class="num"><b>' + s16Nf(r.end) + '</b></td><td class="num">' + hbTxt + '</td><td class="num">' + rp(r.nomStok) + '</td><td class="num"' + (r.adjSum ? ' style="font-weight:700;color:' + (r.adjSum < 0 ? '#b91c1c' : '#15803d') + '" title="' + r.adj.length + ' koreksi manual"' : '') + '>' + (r.adjSum ? (r.adjSum > 0 ? '+' : '') + s16Nf(r.adjSum) : '') + '</td></tr>';
     });
-    const foot = '<tfoot><tr><td></td><td>TOTAL</td><td class="num">' + s16Nf(T.qty) + '</td><td class="num">' + rp(T.nom) + '</td><td class="num">' + rp(T.hpp) + '</td><td class="num">' + rp(T.profit) + '</td><td class="num">' + s16Nf(T.out) + '</td><td class="num">' + s16Nf(T.end) + '</td><td></td><td class="num">' + rp(T.nomStok) + '</td><td class="num">' + (T.adj ? (T.adj > 0 ? '+' : '') + s16Nf(T.adj) : '') + '</td></tr></tfoot>';
-    const table = '<div class="tablebox"><table class="s16table" style="min-width:1100px"><thead><tr><th>NO</th><th>PRODUK</th><th>OUTPUT PENJUALAN</th><th>TOTAL NOMINAL PENJUALAN</th><th>HPP</th><th>PROFIT PENJUALAN</th><th>OUTPUT GUDANG</th><th>STOK AKHIR GUDANG</th><th>HARGA BELI TERBARU</th><th>NOMINAL STOK AKHIR</th><th>KOREKSI STOK MANUAL</th></tr></thead><tbody>' + body + '</tbody>' + foot + '</table></div>';
-    const note = '<div class="s16note">Output Penjualan, Nominal, HPP &amp; Profit dari transaksi bulan ini (faktur batal tidak dihitung). Output Gudang = total <b>KLR</b> sebulan; Stok Akhir = <b>STOK SFA</b> hari terakhir bulan itu di halaman ' + g.page + ' (sumber: ' + s16Esc(s17.stock.from) + '). Harga Beli Terbaru = harga beli pada transaksi paling akhir; Nominal Stok Akhir = Stok Akhir × Harga Beli Terbaru. Kolom Koreksi Stok Manual = total perubahan stok yang diisi manual (bukan dari MSK/KLR), sudah termasuk di Stok Akhir. Baris merah = stok akhir minus. Total qty menjumlahkan satuan berbeda, jadi pakai sebagai gambaran saja.</div>';
+    const foot = '<tfoot><tr><td></td><td>TOTAL</td><td class="num">' + s16Nf(T.out) + '</td><td class="num">' + s16Nf(T.end) + '</td><td></td><td class="num">' + rp(T.nomStok) + '</td><td class="num">' + (T.adj ? (T.adj > 0 ? '+' : '') + s16Nf(T.adj) : '') + '</td></tr></tfoot>';
+    const table = '<div class="tablebox"><table class="s16table" style="min-width:760px"><thead><tr><th>NO</th><th>PRODUK</th><th>OUTPUT GUDANG</th><th>STOK AKHIR GUDANG</th><th>HARGA BELI TERBARU</th><th>NOMINAL STOK AKHIR</th><th>KOREKSI STOK MANUAL</th></tr></thead><tbody>' + body + '</tbody>' + foot + '</table></div>';
+    const note = '<div class="s16note">Output Gudang = total <b>KLR</b> sebulan; Stok Akhir = <b>STOK SFA</b> hari terakhir bulan itu di halaman ' + g.page + ' (sumber: ' + s16Esc(s17.stock.from) + '). Harga Beli Terbaru = harga beli pada transaksi paling akhir; Nominal Stok Akhir = Stok Akhir × Harga Beli Terbaru. Kolom Koreksi Stok Manual = total perubahan stok yang diisi manual (bukan dari MSK/KLR), sudah termasuk di Stok Akhir. Baris merah = stok akhir minus. Data penjualan &amp; profit ada di sub tab <b>Profit Penjualan</b>.</div>';
     const adjItems = s17AdjItems(s17.group, (s17.stock.data.months || {})[s17.month], s17.month).filter(x => list.some(r => r.name === x.name));
     res.innerHTML = table + note + s17AdjHtml(adjItems);
   }
+  function s17MarginOf(r){ return r.nom ? r.profit / r.nom * 100 : null; }
+  function s17ProfitList(list){
+    const a = list.slice(), blank = r => !(r.qty || r.nom);
+    if (s17.sort === 'desc' || s17.sort === 'asc'){ const d = s17.sort === 'desc' ? -1 : 1; a.sort((x, y) => (blank(x) - blank(y)) || d * (x.profit - y.profit) || x.name.localeCompare(y.name, 'id')); }
+    else if (s17.sort === 'margin') a.sort((x, y) => (blank(x) - blank(y)) || ((s17MarginOf(y) || 0) - (s17MarginOf(x) || 0)) || x.name.localeCompare(y.name, 'id'));
+    return a;
+  }
+  function s17Pct(v){ return v == null ? '' : (Math.round(v * 100) / 100).toLocaleString('id-ID') + ' %'; }
+  function s17ProfitHtml(list0, T){
+    const list = s17ProfitList(list0);
+    let body = '';
+    if (!list.length) body = '<tr><td colspan="7" style="text-align:center;padding:28px;color:#64748b">Tidak ada produk untuk filter saat ini.</td></tr>';
+    list.forEach((r, i) => {
+      const has = r.qty || r.nom;
+      body += '<tr' + (has && r.profit < 0 ? ' class="bad"' : '') + '><td>' + (i + 1) + '</td><td>' + s16Esc(r.name) + '</td><td class="num">' + (has ? s16Nf(r.qty) : '') + '</td><td class="num">' + (has ? rp(r.nom) : '') + '</td><td class="num">' + (has ? rp(r.hpp) : '') + '</td><td class="num"><b>' + (has ? rp(r.profit) : '') + '</b></td><td class="num">' + (has ? s17Pct(s17MarginOf(r)) : '') + '</td></tr>';
+    });
+    const foot = '<tfoot><tr><td></td><td>TOTAL</td><td class="num">' + s16Nf(T.qty) + '</td><td class="num">' + rp(T.nom) + '</td><td class="num">' + rp(T.hpp) + '</td><td class="num">' + rp(T.profit) + '</td><td class="num">' + s17Pct(T.nom ? T.profit / T.nom * 100 : null) + '</td></tr></tfoot>';
+    const table = '<div class="tablebox"><table class="s16table" style="min-width:700px"><thead><tr><th>NO</th><th>PRODUK</th><th>OUTPUT PENJUALAN</th><th>TOTAL NOMINAL PENJUALAN</th><th>HPP</th><th>PROFIT PENJUALAN</th><th>MARGIN %</th></tr></thead><tbody>' + body + '</tbody>' + foot + '</table></div>';
+    return table + '<div class="s16note">Output Penjualan, Nominal, HPP &amp; Profit dari transaksi bulan ini (faktur batal tidak dihitung). Profit = Nominal − HPP; Margin = Profit ÷ Nominal. Baris merah = profit minus. Total qty menjumlahkan satuan berbeda, jadi pakai sebagai gambaran saja.</div>';
+  }
+  function s17SetView(v){ s17.view = v === 'profit' ? 'profit' : 'gudang'; s17RenderBar(); s17RenderResult(); }
+  function s17SetSort(v){ s17.sort = v || 'nama'; s17RenderResult(); }
 
   function s17SetQ(v){ s17.q = v; s17RenderResult(); }
   function s17SetGroup(v){ s17.group = v; renderS17(); }
@@ -2411,13 +2439,23 @@ self.onmessage = function(e){
   function s17Download(){
     const list = s17Shown();
     if (!list.length){ alert('Tidak ada data untuk diunduh.'); return; }
-    const T = s17Tot(list);
-    const aoa = [['PRODUK', 'OUTPUT PENJUALAN', 'TOTAL NOMINAL PENJUALAN', 'HPP', 'PROFIT PENJUALAN', 'OUTPUT GUDANG', 'STOK AKHIR GUDANG', 'HARGA BELI TERBARU', 'NOMINAL STOK AKHIR', 'KOREKSI STOK MANUAL']]
-      .concat(list.map(r => [r.name, r.qty, Math.round(r.nom), Math.round(r.hpp), Math.round(r.profit), r.out, r.end, r.hb || 0, Math.round(r.nomStok), r.adjSum || 0]))
-      .concat([['TOTAL', T.qty, Math.round(T.nom), Math.round(T.hpp), Math.round(T.profit), T.out, T.end, '', Math.round(T.nomStok), T.adj]]);
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 18 }, { wch: 15 }, { wch: 17 }, { wch: 19 }, { wch: 20 }, { wch: 22 }];
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Rekap Gudang');
-    XLSX.writeFile(wb, 'Rekap_Gudang_Profit_' + s17.group + '_' + s17.month + '.xlsx');
+    const T = s17Tot(list), isP = s17.view === 'profit';
+    let aoa, cols, sheet;
+    if (isP){
+      const pl = s17ProfitList(list), mg = r => (r.nom ? Math.round(r.profit / r.nom * 10000) / 100 : '');
+      aoa = [['PRODUK', 'OUTPUT PENJUALAN', 'TOTAL NOMINAL PENJUALAN', 'HPP', 'PROFIT PENJUALAN', 'MARGIN %']]
+        .concat(pl.map(r => [r.name, r.qty, Math.round(r.nom), Math.round(r.hpp), Math.round(r.profit), mg(r)]))
+        .concat([['TOTAL', T.qty, Math.round(T.nom), Math.round(T.hpp), Math.round(T.profit), T.nom ? Math.round(T.profit / T.nom * 10000) / 100 : '']]);
+      cols = [{ wch: 30 }, { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 18 }, { wch: 12 }]; sheet = 'Profit Penjualan';
+    } else {
+      aoa = [['PRODUK', 'OUTPUT GUDANG', 'STOK AKHIR GUDANG', 'HARGA BELI TERBARU', 'NOMINAL STOK AKHIR', 'KOREKSI STOK MANUAL']]
+        .concat(list.map(r => [r.name, r.out, r.end, r.hb || 0, Math.round(r.nomStok), r.adjSum || 0]))
+        .concat([['TOTAL', T.out, T.end, '', Math.round(T.nomStok), T.adj]]);
+      cols = [{ wch: 30 }, { wch: 15 }, { wch: 17 }, { wch: 19 }, { wch: 20 }, { wch: 22 }]; sheet = 'Rekap Gudang';
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = cols;
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheet);
+    XLSX.writeFile(wb, (isP ? 'Profit_Penjualan_' : 'Rekap_Gudang_') + s17.group + '_' + s17.month + '.xlsx');
   }
 
   function openAnalisa(){
