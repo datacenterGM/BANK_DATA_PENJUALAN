@@ -1481,7 +1481,8 @@ self.onmessage = function(e){
     { v: 'UPS', l: 'UPS' },
     { v: 'AGAR', l: 'Agar Agar' },
     { v: 'SARI_SEDAP', l: 'Sari Sedap' },
-    { v: 'SABUN_NS', l: 'Sabun, NS' },
+    { v: 'SABUN', l: 'Sabun' },
+    { v: 'NS', l: 'NS' },
     { v: 'LAIN', l: 'Lainnya' }
   ];
   function rupaSubCat(p){
@@ -1489,7 +1490,8 @@ self.onmessage = function(e){
     const u = U(p);
     if (u.includes('BIHUN') || u.includes('MIE IKAT') || u.includes('SOUN') || u.includes('BAKSO GAJAH')) return 'UPS';
     if (u.includes('AGAR') || u.includes('JELLYGAR') || u.includes('JELLY') || u.includes('PUDDING') || u.includes('COCOMAXI')) return 'AGAR';
-    if (u.includes('SHZ') || /\bNS\b/.test(u) || u.includes('ZEN REFF') || u.includes('SANDALWOOD') || u.includes('ZEN JUNIPER') || u.includes('ZEN SULPHUR') || u.includes('SNACK GOLD')) return 'SABUN_NS';
+    if (u.includes('SHZ') || /\bZEN\b/.test(u) || u.includes('SANDALWOOD') || u.includes('JUNIPERBERRIES') || u.includes('SEALSALT') || u.includes('SULPHUR') || u.includes('TEATREE')) return 'SABUN';
+    if (/\bNS\b/.test(u) || u.includes('SNACK GOLD')) return 'NS';
     if (u.includes('SAMBAL') || u.includes('KECAP') || u.includes('BOTOL 600')) return 'SARI_SEDAP';
     return 'LAIN';
   }
