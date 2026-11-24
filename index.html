@@ -1905,7 +1905,7 @@ self.onmessage = function(e){
         .map(o => [monthLabelShort(o.mk), o.b.q, o.b.n, o.b.p, o.b.n ? Math.round(o.b.p / o.b.n * 10000) / 100 : 0]);
       const tq = rows.reduce((a,x)=>a+x[1],0), tn = rows.reduce((a,x)=>a+x[2],0), tp = rows.reduce((a,x)=>a+x[3],0);
       const nm = tab === 's10a' ? 'All Produk' : tab === 's10' ? 'Fitri' : 'Rupa Rupa';
-      return { name:'Data Bulanan ' + nm, title:'Rekap Data Bulanan - ' + (tab === 's10a' ? 'Semua Produk' : 'Produk ' + nm), head:['Bulan','Qty','Nominal Penjualan','Profit','Margin %'], types:['t','n','n','n','pct'], rows, total:['TOTAL',tq,tn,tp,tn ? Math.round(tp/tn*10000)/100 : 0] };
+      return { name:'Data Bulanan ' + nm, title:'Rekap Data Bulanan - ' + (tab === 's10a' ? 'Semua Produk' : tab === 's10r' ? dmRupaTitle() : 'Produk ' + nm), head:['Bulan','Qty','Nominal Penjualan','Profit','Margin %'], types:['t','n','n','n','pct'], rows, total:['TOTAL',tq,tn,tp,tn ? Math.round(tp/tn*10000)/100 : 0] };
     }
     return null;
   }
@@ -3221,8 +3221,8 @@ self.onmessage = function(e){
       const mk = monthKey(x.Tanggal || x.tanggal); if (!mk) continue;
       let m = byMonth.get(mk); if (!m){ m = { all: { q:0, n:0, p:0 }, fitri: { q:0, n:0, p:0 }, rupa: { q:0, n:0, p:0 } }; byMonth.set(mk, m); }
       const j = N(x.Jumlah), t = N(x.Total), pr = t - j * N(x['Harga Beli']);
-      const bucket = isFitriProduct(x.Produk) ? m.fitri : m.rupa;
-      bucket.q += j; bucket.n += t; bucket.p += pr;
+      const isF = isFitriProduct(x.Produk);
+      if (isF || !dmSub || rupaSubCat(x.Produk) === dmSub){ const bucket = isF ? m.fitri : m.rupa; bucket.q += j; bucket.n += t; bucket.p += pr; }
       m.all.q += j; m.all.n += t; m.all.p += pr;
     }
     return byMonth;
@@ -3242,10 +3242,23 @@ self.onmessage = function(e){
     return '<div style="font-weight:700;color:#1f4e78;margin:4px 0 8px">' + judul + '</div>' +
       '<div class="tablebox" style="max-height:none"><table class="s10table" style="min-width:0"><thead><tr><th class="s10-h0">Bulan</th><th class="s10-h0">Qty</th><th class="s10-h0">Nominal Penjualan</th><th class="s10-h0">Profit</th><th class="s10-h0">Margin %</th></tr></thead><tbody>' + body + '</tbody>' + (foot ? '<tfoot>' + foot + '</tfoot>' : '') + '</table></div>';
   }
+  let dmCat = '', dmSub = '';
+  function dmRupaTitle(){ return 'Produk Rupa Rupa' + (dmSub ? ' — ' + rupaSubLabel(dmSub) : ''); }
+  function dmSetCat(v){ dmCat = v || ''; if (dmCat !== 'RUPA_RUPA') dmSub = ''; dmRepaint(); }
+  function dmSetSub(v){ dmSub = v || ''; if (dmSub) dmCat = 'RUPA_RUPA'; dmRepaint(); }
+  function dmRepaint(){ viewCache['s10'] = null; const p = document.getElementById('panel_s10'); if (p) p.innerHTML = renderDataBulanan(); }
   function renderDataBulanan(){
     const byMonth = monthlyAgg();
+    const sel = '<select onchange="dmSetCat(this.value)">' + [['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']].map(o => '<option value="' + o[0] + '"' + (dmCat === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
+    const subSel = (dmCat === 'RUPA_RUPA' || dmSub) ? '<label>Sub Kategori : <select onchange="dmSetSub(this.value)">' + RUPA_SUB_OPTS.map(o => '<option value="' + o.v + '"' + (dmSub === o.v ? ' selected' : '') + '>' + o.l + '</option>').join('') + '</select></label>' : '';
+    const bar = '<div class="s3sortbar" style="justify-content:flex-start;flex-wrap:wrap"><label>Kategori : ' + sel + '</label>' + subSel + '</div>';
     const caption = '<div style="font-weight:700;color:#1f4e78;margin-bottom:8px">Rekap Data Bulanan (mengikuti filter aktif)</div>';
-    return caption + renderDataBulananTable(byMonth, 'all', 'Semua Produk (All Produk)') + '<div style="height:18px"></div>' + renderDataBulananTable(byMonth, 'fitri', 'Produk Fitri') + '<div style="height:18px"></div>' + renderDataBulananTable(byMonth, 'rupa', 'Produk Rupa Rupa');
+    const gap = '<div style="height:18px"></div>';
+    let tables;
+    if (dmCat === 'FITRI') tables = renderDataBulananTable(byMonth, 'fitri', 'Produk Fitri');
+    else if (dmCat === 'RUPA_RUPA') tables = renderDataBulananTable(byMonth, 'rupa', dmRupaTitle());
+    else tables = renderDataBulananTable(byMonth, 'all', 'Semua Produk (All Produk)') + gap + renderDataBulananTable(byMonth, 'fitri', 'Produk Fitri') + gap + renderDataBulananTable(byMonth, 'rupa', 'Produk Rupa Rupa');
+    return bar + caption + tables;
   }
 
   /* ===== TAB: REKAP PENJUALAN & PROFIT (bulan bisa dipilih) ===== */
