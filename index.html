@@ -2598,7 +2598,7 @@ self.onmessage = function(e){
   }
   function produkFilterLabel(){ return filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Fitri / Rupa Rupa (semua)'; }
   /* ===== TAB: REKAP PENJUALAN PER SALES (Bulan, Sales, Kategori, Produk = filter; Urutkan; Excel mengikuti contoh) ===== */
-  let s14ShowAll = true, s14Cat = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
+  let s14ShowAll = true, s14Cat = '', s14Sub = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
   function s14BaseRows(){      // semua baris (setelah filter Kategori), belum dipotong pilihan produk & belum diurutkan
     const m5 = new Map((R.s5 || []).map(x => [x[0], x])), m9 = new Map((R.s9 || []).map(x => [x[0], x]));
     const showAll = s14ShowAll && !filters.q;
@@ -2609,7 +2609,7 @@ self.onmessage = function(e){
       names.add(p);
     });
     m5.forEach((_, p) => names.add(p));
-    return [...names].filter(p => !s14Cat || ((s14Cat === 'FITRI') === isFitriProduct(p))).map(p => {
+    return [...names].filter(p => !s14Cat || ((s14Cat === 'FITRI') === isFitriProduct(p))).filter(p => !s14Sub || rupaSubCat(p) === s14Sub).map(p => {
       const a = m5.get(p), b = m9.get(p);
       if (!a) return [p, '', '', '', '', '', '', '', ''];
       let ket = '';
@@ -3095,6 +3095,7 @@ self.onmessage = function(e){
   function s14ExcelInfo(){      // baris bulan di Excel; filter tambahan hanya dicantumkan bila aktif
     let t = s14PeriodLabel();
     if (s14Cat) t += '  |  Kategori : ' + s14CatLabel();
+    if (s14Sub) t += '  |  Sub Kategori : ' + rupaSubLabel(s14Sub);
     if (s14Sel.size) t += '  |  ' + s14Sel.size + ' produk dipilih';
     if (s14Sort !== 'nama') t += '  |  Urutan : ' + s14SortLabel();
     return t;
@@ -3102,7 +3103,8 @@ self.onmessage = function(e){
   function onMonthTabChange(v){ const fm = document.getElementById('filterMonth'); if (!fm) return; fm.value = v; applyFilters(); }
   function s14Repaint(){ rekapPage.s14 = 0; viewCache['s14'] = null; const panel = document.getElementById('panel_s14'); if (panel) panel.innerHTML = renderS14(); }
   function s14SetShowAll(cb){ s14ShowAll = !!cb.checked; s14Repaint(); }
-  function s14SetCat(v){ s14Cat = v || ''; if (s14Cat) s14Sel = new Set([...s14Sel].filter(p => (s14Cat === 'FITRI') === isFitriProduct(p))); s14Repaint(); }
+  function s14SetCat(v){ s14Cat = v || ''; if (s14Cat !== 'RUPA_RUPA') s14Sub = ''; if (s14Cat) s14Sel = new Set([...s14Sel].filter(p => (s14Cat === 'FITRI') === isFitriProduct(p))); s14Repaint(); }
+  function s14SetSub(v){ s14Sub = v || ''; if (s14Sub) s14Cat = 'RUPA_RUPA'; s14Sel = new Set([...s14Sel].filter(p => !isFitriProduct(p) && (!s14Sub || rupaSubCat(p) === s14Sub))); s14Repaint(); }
   function s14SetSort(v){ s14Sort = v || 'nama'; s14Repaint(); }
   function s14Changed(){      // pilihan produk berubah: segarkan tabel saja (dropdown tetap terbuka)
     rekapPage.s14 = 0; viewCache['s14'] = null;
@@ -3153,6 +3155,7 @@ self.onmessage = function(e){
       + '<label>Bulan : <select onchange="onMonthTabChange(this.value)">' + optHtml(opts('filterMonth'), filters.month || '') + '</select></label>'
       + '<label>Sales : <select onchange="onSalesTabChange(this.value)">' + optHtml(opts('filterSales'), filters.sales || '') + '</select></label>'
       + '<label>Kategori : <select onchange="s14SetCat(this.value)">' + fixed([['', 'Semua'], ['FITRI', 'Fitri'], ['RUPA_RUPA', 'Rupa Rupa']], s14Cat) + '</select></label>'
+      + ((s14Cat === 'RUPA_RUPA' || s14Sub) ? '<label>Sub Kategori : <select onchange="s14SetSub(this.value)">' + RUPA_SUB_OPTS.map(o => '<option value="' + o.v + '"' + (s14Sub === o.v ? ' selected' : '') + '>' + o.l + '</option>').join('') + '</select></label>' : '')
       + picker
       + '<label>Urutkan : <select onchange="s14SetSort(this.value)">' + fixed([['nama', 'Nama produk (A–Z)'], ['desc', 'Profit terbesar'], ['asc', 'Profit terkecil']], s14Sort) + '</select></label>'
       + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap"><input type="checkbox" ' + (s14ShowAll ? 'checked ' : '') + 'onchange="s14SetShowAll(this)"> Tampilkan produk tanpa penjualan</label></div>';
