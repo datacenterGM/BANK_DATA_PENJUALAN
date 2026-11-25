@@ -2648,7 +2648,7 @@ self.onmessage = function(e){
   }
   function produkFilterLabel(){ return filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Fitri / Rupa Rupa (semua)'; }
   /* ===== TAB: REKAP PENJUALAN PER SALES (Bulan, Sales, Kategori, Produk = filter; Urutkan; Excel mengikuti contoh) ===== */
-  let s14ShowAll = true, s14Cat = '', s14Sub = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
+  let s14ShowAll = false, s14Cat = '', s14Sub = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
   function s14BaseRows(){      // semua baris (setelah filter Kategori), belum dipotong pilihan produk & belum diurutkan
     const m5 = new Map((R.s5 || []).map(x => [x[0], x])), m9 = new Map((R.s9 || []).map(x => [x[0], x]));
     const showAll = s14ShowAll && !filters.q;
