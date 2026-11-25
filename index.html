@@ -2232,7 +2232,7 @@ self.onmessage = function(e){
      Per produk (yang ada di halaman Stok Minyak / Kecap & Sambal), per bulan:
      Output Penjualan, Total Nominal Penjualan, HPP, Profit, Output Gudang (KLR), Stok Akhir (SFA), Harga Beli Terbaru, Nominal Stok Akhir.
      Stok Akhir memakai rumus halaman stok: Saldo Awal + MSK - KLR (Kecap & Sambal: ikut koreksi/adj). */
-  let s17 = { group: 'FITRI', month: '', q: '', stock: null, sales: [], months: [], data: null };
+  let s17 = { group: (function(){ try { const g = localStorage.getItem('rekap-s17-group'); return (g === 'FITRI' || (typeof S16_GROUPS !== 'undefined' && S16_GROUPS[g])) ? g : 'FITRI'; } catch(e){ return 'FITRI'; } })(), month: (function(){ try { return localStorage.getItem('rekap-s17-month') || ''; } catch(e){ return ''; } })(), q: '', stock: null, sales: [], months: [], data: null };
   let s17Token = 0;
 
   function s17Calc(groupKey, m, month){
@@ -2399,9 +2399,9 @@ self.onmessage = function(e){
     res.innerHTML = table + note + s17AdjHtml(adjItems);
   }
   function s17SetQ(v){ s17.q = v; s17RenderResult(); }
-  function s17SetGroup(v){ s17.group = v; renderS17(); }
+  function s17SetGroup(v){ s17.group = v; try { localStorage.setItem('rekap-s17-group', v); } catch(e){} renderS17(); }
   async function s17SetMonth(v){
-    s17.month = v;
+    s17.month = v; try { localStorage.setItem('rekap-s17-month', v); } catch(e){}
     const t = ++s17Token;
     try { const list = await s16LoadSales(v); if (t !== s17Token) return; s17.sales = list; s17.data = await s17Build(); if (t !== s17Token) return; } catch(e){ s17.sales = []; s17.data = null; }
     s17RenderBar(); s17RenderResult();
@@ -2598,7 +2598,7 @@ self.onmessage = function(e){
   }
   function produkFilterLabel(){ return filters.product === 'FITRI' ? 'Fitri' : filters.product === 'RUPA_RUPA' ? 'Rupa Rupa' : 'Fitri / Rupa Rupa (semua)'; }
   /* ===== TAB: REKAP PENJUALAN PER SALES (Bulan, Sales, Kategori, Produk = filter; Urutkan; Excel mengikuti contoh) ===== */
-  let s14ShowAll = false, s14Cat = '', s14Sub = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
+  let s14ShowAll = (function(){ try { return localStorage.getItem('rekap-s14-showall') === '1'; } catch(e){ return false; } })(), s14Cat = '', s14Sub = '', s14Sel = new Set(), s14Sort = 'nama', s14PickNames = [];
   function s14BaseRows(){      // semua baris (setelah filter Kategori), belum dipotong pilihan produk & belum diurutkan
     const m5 = new Map((R.s5 || []).map(x => [x[0], x])), m9 = new Map((R.s9 || []).map(x => [x[0], x]));
     const showAll = s14ShowAll && !filters.q;
@@ -3102,7 +3102,7 @@ self.onmessage = function(e){
   }
   function onMonthTabChange(v){ const fm = document.getElementById('filterMonth'); if (!fm) return; fm.value = v; applyFilters(); }
   function s14Repaint(){ rekapPage.s14 = 0; viewCache['s14'] = null; const panel = document.getElementById('panel_s14'); if (panel) panel.innerHTML = renderS14(); }
-  function s14SetShowAll(cb){ s14ShowAll = !!cb.checked; s14Repaint(); }
+  function s14SetShowAll(cb){ s14ShowAll = !!cb.checked; try { localStorage.setItem('rekap-s14-showall', s14ShowAll ? '1' : '0'); } catch(e){} s14Repaint(); }
   function s14SetCat(v){ s14Cat = v || ''; if (s14Cat !== 'RUPA_RUPA') s14Sub = ''; if (s14Cat) s14Sel = new Set([...s14Sel].filter(p => (s14Cat === 'FITRI') === isFitriProduct(p))); s14Repaint(); }
   function s14SetSub(v){ s14Sub = v || ''; if (s14Sub) s14Cat = 'RUPA_RUPA'; s14Sel = new Set([...s14Sel].filter(p => !isFitriProduct(p) && (!s14Sub || rupaSubCat(p) === s14Sub))); s14Repaint(); }
   function s14SetSort(v){ s14Sort = v || 'nama'; s14Repaint(); }
