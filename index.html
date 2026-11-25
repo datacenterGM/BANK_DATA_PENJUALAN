@@ -521,11 +521,12 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
               <button class="active" onclick="s15OpenSub('target',this)">🎯 Penjualan &amp; Target Sales</button>
               <button onclick="show('s1',this)">Produk</button>
               <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
+              <button onclick="show('s18',this)">💰 Profit Penjualan</button>
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
-              <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit</button>
+              <button onclick="show('s12',this)">Rekap Penjualan &amp; Profit Bulanan</button>
               <button onclick="show('s13',this)">📊 Grafik</button>
-              <button onclick="show('s17',this)">📦 Rekap Gudang &amp; Profit</button>
+              <button onclick="show('s17',this)">📦 Rekap Gudang</button>
               <button onclick="show('s16',this)">⚖️ Analisa</button>
               <div class="tabs-sep">Halaman Stok</div>
               <a class="tab-link" href="./Stok-Minyak.html" title="Buka Stok Minyak">🛢️ Stok Minyak</a>
@@ -596,6 +597,7 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
         <div id="panel_s15" class="view"></div>
         <div id="panel_s16" class="view" style="display:none"></div>
         <div id="panel_s17" class="view" style="display:none"></div>
+        <div id="panel_s18" class="view" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1932,17 +1934,17 @@ self.onmessage = function(e){
   let _stashedProductName = '';
   let _stashedProduct = '';   /* filter produk global yang disimpan saat masuk tab Ringkasan/Analisa/Rekap Gudang, dipulihkan saat kembali ke tab biasa */
   let _activeTab = 's15';   /* tab awal saat dibuka */
-  const OWN_PRODUCT_TABS = ['s3','s14','s15','s16','s17'];
-  const OWN_BAR_TABS = ['s14','s16','s17'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
+  const OWN_PRODUCT_TABS = ['s3','s14','s15','s16','s17','s18'];
+  const OWN_BAR_TABS = ['s14','s16','s17','s18'];   /* tab yang punya Bulan + Sales sendiri di bar-nya */   /* tab yang sudah punya Kategori + Produk sendiri di bawah */
   function show(t, b){
     _activeTab = t;
     try {
       const own = OWN_PRODUCT_TABS.indexOf(t) >= 0;
       document.body.classList.toggle('hide-global-product', own);
       document.body.classList.toggle('hide-own-bar', OWN_BAR_TABS.indexOf(t) >= 0);
-      document.body.classList.toggle('is-analisa', t === 's16' || t === 's17');
+      document.body.classList.toggle('is-analisa', t === 's16' || t === 's17' || t === 's18');
       document.body.classList.toggle('is-target', t === 's15' && (s15Sub === 'target' || s15Sub === 'bonus'));
-      document.body.classList.toggle('no-kpi', ['s10','s12','s13','s16','s17'].indexOf(t) >= 0);
+      document.body.classList.toggle('no-kpi', ['s10','s12','s13','s16','s17','s18'].indexOf(t) >= 0);
       if (own && filters && filters.productName) {      /* filter nama produk hanya untuk tab biasa: simpan, kosongkan, dipulihkan saat kembali */
         _stashedProductName = filters.productName;
         const fn = document.getElementById('filterProductName'); if (fn) fn.value = '';
@@ -1978,7 +1980,7 @@ self.onmessage = function(e){
     const panel = document.getElementById('panel_' + t);
     if (panel) panel.style.display = 'block';
     if (t === 's16'){ renderAnalisa(); }
-    else if (t === 's17'){ renderS17(); }
+    else if (t === 's17' || t === 's18'){ s17.view = (t === 's18') ? 'profit' : 'gudang'; renderS17(); }
     else if (t === 's12'){ renderRekapBulanan(); }
     else if (t === 's13'){ renderGrafikBulanan(); }
     else if (!viewCache[t] || viewCache[t].ver !== dataVersion){
@@ -2237,6 +2239,7 @@ self.onmessage = function(e){
      Stok Akhir memakai rumus halaman stok: Saldo Awal + MSK - KLR (Kecap & Sambal: ikut koreksi/adj). */
   let s17 = { view: 'gudang', sort: 'nama', group: 'FITRI', month: '', q: '', stock: null, sales: [], months: [], data: null };
   let s17Token = 0;
+  function s17P(){ return s17.view === 'profit' ? 's18' : 's17'; }   /* prefix id panel: s17 = Rekap Gudang, s18 = Profit Penjualan */
 
   function s17Calc(groupKey, m, month){
     if (!m) return [];
@@ -2337,11 +2340,11 @@ self.onmessage = function(e){
   }
 
   async function renderS17(){
-    const panel = document.getElementById('panel_s17'); if (!panel) return;
-    if (!document.getElementById('s17res')){
-      panel.innerHTML = '<div class="s16title">📦 REKAP GUDANG &amp; PROFIT PER PRODUK</div><div class="s16bar" id="s17bar"></div><div id="s17res"></div>';
+    const panel = document.getElementById('panel_' + s17P()); if (!panel) return;
+    if (!document.getElementById(s17P() + 'res')){
+      panel.innerHTML = '<div class="s16title">' + (s17.view === 'profit' ? '💰 PROFIT PENJUALAN PER PRODUK' : '📦 REKAP GUDANG PER PRODUK') + '</div><div class="s16bar" id="' + s17P() + 'bar"></div><div id="' + s17P() + 'res"></div>';
     }
-    const res = document.getElementById('s17res'), token = ++s17Token;
+    const res = document.getElementById(s17P() + 'res'), token = ++s17Token;
     res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Memuat data…</div>';
     try {
       const pair = await Promise.all([s16SalesMonths(), s16LoadStock(s17.group)]);
@@ -2365,12 +2368,12 @@ self.onmessage = function(e){
   }
 
   function s17RenderBar(){
-    const bar = document.getElementById('s17bar'); if (!bar) return;
+    const bar = document.getElementById(s17P() + 'bar'); if (!bar) return;
     const grp = Object.keys(S16_GROUPS).map(k => '<option value="' + k + '"' + (k === s17.group ? ' selected' : '') + '>' + S16_GROUPS[k].label + '</option>').join('');
     const mon = s17.months.map(k => '<option value="' + k + '"' + (k === s17.month ? ' selected' : '') + '>' + s16Esc(monthLabel(k)) + '</option>').join('') || '<option value="">(belum ada data)</option>';
     const vb = (v, l) => '<button type="button" class="s17tab' + (s17.view === v ? ' on' : '') + '" onclick="s17SetView(\'' + v + '\')">' + l + '</button>';
     const sortSel = s17.view === 'profit' ? '<label>Urutkan</label><select onchange="s17SetSort(this.value)">' + [['nama', 'Nama produk (A–Z)'], ['desc', 'Profit terbesar'], ['asc', 'Profit terkecil'], ['margin', 'Margin tertinggi']].map(o => '<option value="' + o[0] + '"' + (s17.sort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' : '';
-    bar.innerHTML = '<div class="s17tabs">' + vb('gudang', '📦 Rekap Gudang') + vb('profit', '💰 Profit Penjualan') + '</div><label>Kelompok</label><select onchange="s17SetGroup(this.value)">' + grp + '</select>'
+    bar.innerHTML = '<label>Kelompok</label><select onchange="s17SetGroup(this.value)">' + grp + '</select>'
       + '<label>Bulan</label><select onchange="s17SetMonth(this.value)">' + mon + '</select>'
       + sortSel
       + '<input type="search" placeholder="Cari produk..." value="' + s16Esc(s17.q) + '" oninput="s17SetQ(this.value)">'
@@ -2389,7 +2392,7 @@ self.onmessage = function(e){
   }
 
   function s17RenderResult(){
-    const res = document.getElementById('s17res'); if (!res) return;
+    const res = document.getElementById(s17P() + 'res'); if (!res) return;
     const g = S16_GROUPS[s17.group];
     if (s17.view !== 'profit' && (!s17.stock || !s17.stock.data)){
       res.innerHTML = '<div style="padding:28px;text-align:center;color:#64748b;font-size:13px">Belum ada data stok <b>' + g.page + '</b>' + (s17.stock && s17.stock.err ? ' (cloud: ' + s16Esc(s17.stock.err) + ')' : '') + '. Buka halaman <b>' + g.page + '</b> lalu isi / upload data stok terlebih dulu.</div>';
@@ -3602,7 +3605,7 @@ self.onmessage = function(e){
           + '<div id="gpList" style="max-height:260px;overflow:auto">' + grafikPItemsHtml() + '</div></div></span>'
           + '<label>Grafik : <select onchange="grafikPSplit(this.value)"><option value="0"' + (grafikPS.split ? '' : ' selected') + '>Gabung produk terpilih</option><option value="1"' + (grafikPS.split ? ' selected' : '') + '>Pisah per produk</option></select></label>'
           + '<span style="color:var(--muted);font-size:11.5px">Kosong = semua produk. Semua sales ditampilkan.</span></div>'
-        : '<span style="color:var(--muted);font-size:11.5px">Pilihan produk mengikuti tab Rekap Penjualan &amp; Profit (' + escHtml(rekapBlnCountText()) + '). Filter bulan global tidak dipakai di tab ini.</span></div>');
+        : '<span style="color:var(--muted);font-size:11.5px">Pilihan produk mengikuti tab Rekap Penjualan &amp; Profit Bulanan (' + escHtml(rekapBlnCountText()) + '). Filter bulan global tidak dipakai di tab ini.</span></div>');
     const c = rekapBlnCompute(d, rekapBln.from, rekapBln.to);
     rekapBln.spec = { c, multiYear, from: rekapBln.from, to: rekapBln.to };   // supaya Simpan Excel (lembar Grafik) tetap konsisten
     panel.innerHTML = bar + '<div id="gBody">' + (dps ? (rekapBln.view === 'produk' ? grafikProdukBody(dps, multiYear) : rekapBlnPSCards(rekapBlnPSCompute(dps, rekapBln.from, rekapBln.to), multiYear)) : rekapBlnChartCards(c, multiYear)) + '</div>';
@@ -3620,7 +3623,7 @@ self.onmessage = function(e){
     }
     const multiYear = new Set(ms.map(m => m.slice(0,4))).size > 1;
     const opt = (sel) => ms.map(m => '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + escHtml(monthLabel(m)) + '</option>').join('');
-    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan &amp; Profit</span>'
+    const bar = '<div class="s12bar"><span style="font-weight:700;color:#1f4e78;font-size:14px">Rekap Penjualan &amp; Profit Bulanan</span>'
       + '<label>Dari bulan : <select id="rbFrom" onchange="rekapBlnChange()">' + opt(rekapBln.from) + '</select></label>'
       + '<label>Sampai bulan : <select id="rbTo" onchange="rekapBlnChange()">' + opt(rekapBln.to) + '</select></label>'
       + '<span style="display:inline-flex;gap:4px"><button type="button" class="pager-btn" onclick="rekapBlnQuick(3)">3 bulan terakhir</button><button type="button" class="pager-btn" onclick="rekapBlnQuick(6)">6 bulan terakhir</button><button type="button" class="pager-btn" onclick="rekapBlnQuick(99)">Semua</button></span>'
