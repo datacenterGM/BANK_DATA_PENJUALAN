@@ -2915,7 +2915,11 @@ self.onmessage = function(e){
   function bonSave(){ try { localStorage.setItem('tswBonCfg', JSON.stringify(tswBon)); } catch(e){} }
   const bonNorm = x => String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
   const bonKw = x => String(x || '').split(',').map(v => v.trim()).filter(Boolean);
-  const bonHit = (name, kws) => { const n = bonNorm(name); return kws.some(k => { k = bonNorm(k); return k && n.includes(k); }); };
+  const bonHit = (name, kws) => { const n = bonNorm(name); return kws.some(k => {
+    k = String(k == null ? '' : k).trim();
+    /* token sub kategori, mis. @SABUN, @NS, @AGAR, @UPS, @SARI_SEDAP -> cocok ke semua produk di sub kategori tsb */
+    if (k.charAt(0) === '@') { const sc = k.slice(1).trim().toUpperCase().replace(/\s+/g, '_'); return !!sc && rupaSubCat(name) === sc; }
+    k = bonNorm(k); return k && n.includes(k); }); };
   const bonNum = v => Number(String(v).replace(/[^\d]/g, '')) || 0;
   function bonSet(p, v){
     const c = bonC(), val = bonNum(v);
@@ -2932,6 +2936,7 @@ self.onmessage = function(e){
   function bonGroupSet(k, g, v){ bonC()[k].groups[g] = String(v); bonSave(); tswPaint(false); }
   function bonExcl(k, enc){ const n = decodeURIComponent(enc), e = bonC()[k].excl; if (!e.includes(n)) e.push(n); bonSave(); tswPaint(false); }
   function bonUnExcl(k, i){ bonC()[k].excl.splice(i, 1); bonSave(); tswPaint(false); }
+  function bonAddSub(k, sc){ const g = bonC()[k].groups, tok = '@' + sc; if (!g.some(x => String(x).split(',').map(v => v.trim().toUpperCase()).includes(tok))) g.push(tok); bonSave(); tswPaint(false); }
   function bonAddGroup(k){ bonC()[k].groups.push(''); bonSave(); tswPaint(false); }
   function bonDelGroup(k, g){ if (!confirm('Hapus baris produk ini?')) return; bonC()[k].groups.splice(g, 1); bonSave(); tswPaint(false); }
   function tswGoSub(v){ s15Sub = v; viewCache['s15'] = null; const p = document.getElementById('panel_s15'); if (p) { p.innerHTML = renderS15(); tswPaint(); } }
@@ -2988,11 +2993,11 @@ self.onmessage = function(e){
         g.forEach(o => {
           rows += '<tr><td class="l"><button type="button" title="Hapus produk ini dari tabel" style="' + mini + ';color:#b91c1c;margin-right:6px;padding:0 6px" onclick="bonExcl(\'' + k + '\',\'' + encodeURIComponent(o.name).replace(/'/g, '%27') + '\')">×</button>' + escHtml(o.name) + '</td><td>' + rn(o.q) + '</td><td class="l">' + escHtml(o.sat) + '</td><td>' + (o.q ? rn(o.hpp / o.q) : '') + '</td><td>' + (o.q ? rn(o.jual / o.q) : '') + '</td><td>' + rn(o.hpp) + '</td><td>' + rn(o.jual) + '</td><td>' + rn(o.jual - o.hpp) + '</td><td class="l">' + (/khusus/i.test(judul) ? 'belum ada ketentuan' : '') + '</td></tr>';
         });
-        rows += '<tr><td class="l" colspan="9" style="background:var(--tfoot-bg)"><span style="font-size:11px;opacity:.8">Produk di baris ini (ketik sebagian nama produk, pisahkan koma) :</span> <input type="text" value="' + escHtml(c[k].groups[gi]) + '" placeholder="mis. MARGARINE FORVITA, JELLYGAR" style="width:min(460px,70%);font-size:11px;' + tx + '" onchange="bonGroupSet(\'' + k + '\',' + gi + ',this.value)"> <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelGroup(\'' + k + '\',' + gi + ')">× hapus</button>' + (g.length ? '' : ' <span style="font-size:11px;opacity:.7">(belum ada produk cocok)</span>') + '</td></tr>';
+        rows += '<tr><td class="l" colspan="9" style="background:var(--tfoot-bg)"><span style="font-size:11px;opacity:.8">Produk di baris ini (ketik sebagian nama produk, pisahkan koma) :</span> <input type="text" value="' + escHtml(c[k].groups[gi]) + '" placeholder="mis. MARGARINE FORVITA, JELLYGAR, @SABUN, @NS" style="width:min(460px,70%);font-size:11px;' + tx + '" onchange="bonGroupSet(\'' + k + '\',' + gi + ',this.value)"> <button type="button" style="' + mini + ';color:#b91c1c" onclick="bonDelGroup(\'' + k + '\',' + gi + ')">× hapus</button>' + (g.length ? '' : ' <span style="font-size:11px;opacity:.7">(belum ada produk cocok)</span>') + '</td></tr>';
       });
       const tot = '<tr class="tot"><td class="l">TOTAL</td><td>' + rn(RT.q) + '</td><td></td><td></td><td></td><td>' + rn(RT.h) + '</td><td>' + rn(RT.v) + '</td><td>' + rn(RT.v - RT.h) + '</td><td class="c ' + (S.ok ? 'ok' : 'no') + '">' + (N(c[k].tq) ? (S.ok ? 'target' : 'tidak target') : '') + '</td></tr>';
       const tbl = '<div class="tsw-sub" style="margin-top:44px;padding-top:16px;border-top:2px dashed var(--input-border)">' + judul + ' :</div><div class="tsw-scroll"><table class="tsw-t" style="min-width:640px"><thead><tr>' + head2 + '</tr></thead><tbody>' + (rows || '<tr><td class="c" colspan="9">Belum ada baris produk. Klik "+ Tambah baris produk".</td></tr>') + tot + '</tbody></table></div>'
-        + '<div style="margin:6px 0"><button type="button" class="bon-nav" style="margin-left:0" onclick="bonAddGroup(\'' + k + '\')">+ Tambah baris produk</button></div>';
+        + '<div style="margin:6px 0"><button type="button" class="bon-nav" style="margin-left:0" onclick="bonAddGroup(\'' + k + '\')">+ Tambah baris produk</button> ' + RUPA_SUB_OPTS.filter(o => o.v).map(o => '<button type="button" class="bon-nav" onclick="bonAddSub(\'' + k + '\',\'' + o.v + '\')" title="Masukkan semua produk sub kategori ' + o.l + '">+ Sub Kategori ' + o.l + '</button>').join(' ') + '</div>';
       const tn = tnNote(S, c, true);
       const ex = c[k].excl.length ? '<div class="tsw-note" style="flex-wrap:wrap;gap:6px"><b>Produk dihapus dari tabel:</b> ' + c[k].excl.map((n, i) => '<span style="' + mini + '">' + escHtml(n) + ' <a href="javascript:void(0)" onclick="bonUnExcl(\'' + k + '\',' + i + ')" title="Kembalikan" style="color:#15803d;font-weight:700;text-decoration:none">↺</a></span>').join(' ') + '</div>' : '';
       return tbl + tn + ex;
