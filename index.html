@@ -515,8 +515,8 @@ body.dark .s16table tr.bad td.sel{color:#fca5a5}
             <button type="button" class="tabs-toggle" id="tabsToggleBtn" onclick="toggleTabsMenu(event)"><span id="tabsToggleLabel">📑 Data Tab</span><span class="chev">▼</span></button>
             <div class="tabs tabs-collapsible" id="tabsMenu">
               <button onclick="show('s6',this)">Faktur</button>
-              <button class="active" onclick="s15OpenSub('target',this)">🎯 Penjualan &amp; Target Sales</button>
-              <button onclick="show('s1',this)">Produk</button>
+              <button class="active" onclick="s15OpenSub('target',this)">🎯 Target &amp; Bonus Sales</button>
+              <button onclick="show('s1',this)">Rekap Penjualan All Sales</button>
               <button onclick="show('s14',this)">Rekap Penjualan per Sales</button>
               <button onclick="show('s9',this)">Data Harga</button>
               <button onclick="show('s10',this)">Data Bulanan</button>
@@ -3001,7 +3001,7 @@ self.onmessage = function(e){
     const periode = filters.month ? monthLabel(filters.month) : 'Semua bulan';
     return '<div class="tsw"><div class="tsw-title">PERHITUNGAN BONUS</div><div class="tsw-meta"><span><select class="tsw-sel" onchange="tswSetSales(this.value)">'
       + ['SEMUA'].concat(SO).map(n => '<option' + (n === tswSales ? ' selected' : '') + '>' + n + '</option>').join('')
-      + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'target\')">&larr; Penjualan &amp; Target Sales</button></span><span>' + escHtml(periode) + '</span></div>'
+      + '</select><button type="button" class="bon-nav" onclick="tswGoSub(\'target\')">&larr; Target &amp; Bonus Sales</button></span><span>' + escHtml(periode) + '</span></div>'
       + '<div class="tsw-sub" style="margin-top:24px">TARGET QTY PENJUALAN :</div>' + t1
       + t2
       + '<div class="tsw-note" style="font-size:14px;margin-top:36px;padding-top:14px;border-top:2px solid var(--input-border)"><b>TOTAL NILAI BONUS = Rp ' + rn(K.grand) + '</b></div></div>';
@@ -4191,7 +4191,7 @@ self.onmessage = function(e){
 
   (async function init(){
     initTheme();
-    /* posisi awal: tab Penjualan & Target Sales (sub tab Target) */
+    /* posisi awal: tab Target & Bonus Sales (sub tab Target) */
     try { _activeTab = 's15'; s15Sub = 'target'; document.body.classList.add('is-target'); } catch(e){}
     await initDB();
     /* Data lokal (IndexedDB) langsung ditampilkan; sinkron ke cloud berjalan di belakang layar dan hanya me-refresh bila ada yang berubah */
